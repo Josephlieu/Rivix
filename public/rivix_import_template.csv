@@ -1,0 +1,4 @@
+batch_number,client_name,product_name,quantity,material,safety_standard,origin,order_date,ship_date,inspector_name
+AS-24-1001,Pacific Mining Co.,ArcticShield Coverall,150,65% Poly / 35% Cotton Heavy Twill,CSA Z96-15 Class 3,Bangladesh,2026-04-10,2026-05-02,Sayem R.
+AS-24-1002,Nexus Drilling,ArcticShield Parka,300,Industrial Heavy-Duty Canvas,CSA Z96-15 Class 3,Bangladesh,2026-04-12,2026-05-10,Joseph S.
+RVX-24-1003,Coastal Construction,Hi-Vis Standard Vest,500,100% Polyester Mesh,CSA Z96-15 Class 2,Bangladesh,2026-04-15,2026-05-15,Sayem R.

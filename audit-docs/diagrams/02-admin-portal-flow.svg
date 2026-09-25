@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="460" viewBox="0 0 680 460" role="img">
+<title>Admin portal flow, current state</title>
+<desc>Enter admin PIN leads to an admin dashboard shared by everyone with the PIN, fanning out to seven admin tools. Team and rep management is not a real account system, and two tools rely on missing database tables.</desc>
+<style>
+text{font-family:Arial,Helvetica,sans-serif}
+.t{font-size:14px;fill:#2c2c2a}
+.ts{font-size:12px;fill:#5f5e5a}
+.th{font-size:14px;font-weight:600;fill:#2c2c2a}
+.box{fill:#ffffff;stroke:#888780;stroke-width:0.5}
+.arr{stroke:#5f5e5a;stroke-width:1.5;fill:none}
+.c-gray rect{fill:#F1EFE8;stroke:#5F5E5A;stroke-width:0.5}
+.c-gray .th{fill:#2C2C2A}
+.c-gray .ts{fill:#444441}
+.c-red rect{fill:#FCEBEB;stroke:#A32D2D;stroke-width:0.5}
+.c-red .th{fill:#791F1F}
+.c-red .ts{fill:#A32D2D}
+.c-amber rect{fill:#FAEEDA;stroke:#854F0B;stroke-width:0.5}
+.c-amber .th{fill:#633806}
+.c-amber .ts{fill:#854F0B}
+</style>
+<defs><marker id="arrow2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#5f5e5a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+<rect x="250" y="40" width="180" height="50" rx="4" class="box"/>
+<text x="340" y="62" text-anchor="middle" class="th">Enter admin PIN</text>
+<text x="340" y="78" text-anchor="middle" class="ts">Shared 6-digit code</text>
+<line x1="340" y1="90" x2="340" y2="128" class="arr" marker-end="url(#arrow2)"/>
+<g class="c-amber"><rect x="230" y="130" width="220" height="55" rx="4"/>
+<text x="340" y="153" text-anchor="middle" class="th">Admin dashboard</text>
+<text x="340" y="170" text-anchor="middle" class="ts">Shared PIN, 7-day cookie</text></g>
+<line x1="340" y1="185" x2="112" y2="223" class="arr" marker-end="url(#arrow2)"/>
+<line x1="340" y1="185" x2="264" y2="223" class="arr" marker-end="url(#arrow2)"/>
+<line x1="340" y1="185" x2="416" y2="223" class="arr" marker-end="url(#arrow2)"/>
+<line x1="340" y1="185" x2="568" y2="223" class="arr" marker-end="url(#arrow2)"/>
+<polyline points="340,185 340,205 188,205 188,323" fill="none" class="arr" marker-end="url(#arrow2)"/>
+<polyline points="340,185 340,323" fill="none" class="arr" marker-end="url(#arrow2)"/>
+<polyline points="340,185 340,205 492,205 492,323" fill="none" class="arr" marker-end="url(#arrow2)"/>
+<g class="c-gray"><rect x="43" y="225" width="138" height="60" rx="4"/>
+<text x="112" y="253" text-anchor="middle" class="th">Clients</text>
+<text x="112" y="270" text-anchor="middle" class="ts">Contact + status</text></g>
+<g class="c-gray"><rect x="195" y="225" width="138" height="60" rx="4"/>
+<text x="264" y="253" text-anchor="middle" class="th">Orders</text>
+<text x="264" y="270" text-anchor="middle" class="ts">Admin view</text></g>
+<g class="c-gray"><rect x="347" y="225" width="138" height="60" rx="4"/>
+<text x="416" y="253" text-anchor="middle" class="th">Products</text>
+<text x="416" y="270" text-anchor="middle" class="ts">Catalog mgmt</text></g>
+<g class="c-gray"><rect x="499" y="225" width="138" height="60" rx="4"/>
+<text x="568" y="253" text-anchor="middle" class="th">Import</text>
+<text x="568" y="270" text-anchor="middle" class="ts">CSV bulk load</text></g>
+<g class="c-gray"><rect x="123" y="325" width="130" height="60" rx="4"/>
+<text x="188" y="353" text-anchor="middle" class="th">Replication</text>
+<text x="188" y="370" text-anchor="middle" class="ts">Chat + status</text></g>
+<g class="c-red"><rect x="275" y="325" width="130" height="60" rx="4"/>
+<text x="340" y="353" text-anchor="middle" class="th">Team</text>
+<text x="340" y="370" text-anchor="middle" class="ts">Not functional</text></g>
+<g class="c-amber"><rect x="427" y="325" width="130" height="60" rx="4"/>
+<text x="492" y="353" text-anchor="middle" class="th">Hiring</text>
+<text x="492" y="370" text-anchor="middle" class="ts">Missing table</text></g>
+<rect x="43" y="396" width="12" height="12" style="fill:#FCEBEB;stroke:#A32D2D"/><text x="60" y="406" class="ts">Missing protection or broken</text>
+<rect x="43" y="414" width="12" height="12" style="fill:#FAEEDA;stroke:#854F0B"/><text x="60" y="424" class="ts">Partially working</text>
+<rect x="43" y="432" width="12" height="12" style="fill:#F1EFE8;stroke:#5F5E5A"/><text x="60" y="442" class="ts">Working as intended</text>
+</svg>
