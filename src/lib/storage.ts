@@ -1,4 +1,50 @@
 import { supabase } from './supabase';
+import { supabaseBrowser } from './supabase-browser';
+
+export interface CustomerData {
+  id: string;
+  user_id: string;
+  customer_code: string;
+  company_name: string;
+  contact_email: string | null;
+}
+
+// Real, RLS-scoped: returns the logged-in customer's own record, or null
+// if no customer profile has been set up for this user yet.
+export const getCurrentCustomer = async (): Promise<CustomerData | null> => {
+  const { data: { user } } = await supabaseBrowser.auth.getUser();
+  if (!user) return null;
+
+  const { data, error } = await supabaseBrowser
+    .from('customers')
+    .select('*')
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error fetching current customer:', error);
+    return null;
+  }
+
+  return data;
+};
+
+// Real, RLS-scoped: returns only the logged-in customer's own orders.
+// RLS on `orders` already restricts this to the right rows — no manual
+// name-matching needed.
+export const getMyOrders = async (): Promise<OrderData[]> => {
+  const { data, error } = await supabaseBrowser
+    .from('orders')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching my orders:', error);
+    return [];
+  }
+
+  return data || [];
+};
 
 export interface OrderData {
   id: string;

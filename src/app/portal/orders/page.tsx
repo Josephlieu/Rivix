@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getOrders, OrderData } from '@/lib/storage';
+import { getMyOrders, OrderData } from '@/lib/storage';
 import { Package, Search, Filter, ArrowUpRight, CheckCircle2, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -12,16 +12,8 @@ export default function OrdersPage() {
 
   useEffect(() => {
     const loadData = async () => {
-      const stored = await getOrders();
-      const mockData: OrderData[] = [
-        { id: '1', batch_number: 'RVX-2026-9421', product_name: 'ArcticShield Coverall', quantity: 150, status: 'In Production', client_name: 'Pacific Mining Co.' },
-        { id: '2', batch_number: 'RVX-2026-9422', product_name: 'ArcticShield Parka', quantity: 300, status: 'Shipped', client_name: 'Pacific Mining Co.' },
-        { id: '3', batch_number: 'RVX-2026-8814', product_name: 'Hi-Vis Standard Vest', quantity: 500, status: 'Delivered', client_name: 'Pacific Mining Co.' },
-      ];
-
-
-      const clientOrders = stored.filter(o => o.client_name === 'Pacific Mining Co.');
-      setOrders([...clientOrders, ...mockData]);
+      const myOrders = await getMyOrders();
+      setOrders(myOrders);
     };
     loadData();
   }, []);
@@ -68,22 +60,28 @@ export default function OrdersPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
+            {filteredOrders.length === 0 && (
+              <tr>
+                <td colSpan={4} className="px-8 py-10 text-center text-sm text-slate-400">
+                  {orders.length === 0 ? 'No orders yet.' : 'No orders match your search.'}
+                </td>
+              </tr>
+            )}
             {filteredOrders.map((order) => (
               <tr key={order.id} className="hover:bg-slate-50/50 transition-colors group">
                 <td className="px-8 py-6 whitespace-nowrap">
                   <p className="font-bold text-slate-900 mb-0.5">{order.batch_number}</p>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Ref: AS-2024-MIN-V1</p>
                 </td>
 
                 <td className="px-8 py-6">
                   <p className="text-sm font-semibold text-slate-700">{order.product_name}</p>
-                  <p className="text-xs text-slate-400">Heavy-Duty Arctic Grade</p>
+                  {order.material && <p className="text-xs text-slate-400">{order.material}</p>}
                 </td>
                 <td className="px-8 py-6 text-sm font-bold text-slate-600">{order.quantity} Units</td>
                 <td className="px-8 py-6 text-right">
 
                   <Link 
-                    href={`/portal/orders/${order.id}`} 
+                    href={`/portal/orders/${order.batch_number}`}
                     className="inline-flex items-center gap-1 px-4 py-2 bg-slate-50 group-hover:bg-rivix text-xs font-bold text-slate-400 group-hover:text-white rounded-lg transition-all"
                   >
                     Details

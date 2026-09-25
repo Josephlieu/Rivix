@@ -8,26 +8,20 @@ import {
 } from 'lucide-react';
 
 import { useEffect, useState } from 'react';
-import { getOrders, OrderData } from '@/lib/storage';
+import { getMyOrders, getCurrentCustomer, OrderData } from '@/lib/storage';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
 
 export default function ClientPortalHome() {
   const [orders, setOrders] = useState<OrderData[]>([]);
+  const [companyName, setCompanyName] = useState('');
 
   useEffect(() => {
     const loadData = async () => {
-      const stored = await getOrders();
-      const mockData: OrderData[] = [
-        { id: '1', batch_number: 'RVX-2026-9421', product_name: 'ArcticShield Coverall', quantity: 150, status: 'In Production', material: '88% Cotton / 12% Nylon FR', origin: 'Partner Facility', order_date: '2026-04-10', ship_date: '2026-05-02', certs_generated: true },
-        { id: '2', batch_number: 'RVX-2026-9422', product_name: 'ArcticShield Parka', quantity: 300, status: 'Shipped', material: '300D Oxford Polyester', origin: 'Partner Facility', order_date: '2026-04-12', ship_date: '2026-05-10', certs_generated: true },
-      ];
-
-
-      // Filter stored orders to only show those for "Pacific Mining Co." (simulated client filtering)
-      const clientOrders = stored.filter(o => o.client_name === 'Pacific Mining Co.');
-      setOrders([...clientOrders, ...mockData]);
+      const [myOrders, customer] = await Promise.all([getMyOrders(), getCurrentCustomer()]);
+      setOrders(myOrders);
+      setCompanyName(customer?.company_name || '');
     };
     loadData();
   }, []);
@@ -46,8 +40,12 @@ export default function ClientPortalHome() {
           <div className="bg-white/20 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest backdrop-blur-sm">
             Client Portal
           </div>
-          <h1 className="text-2xl lg:text-4xl font-bold tracking-tight">Welcome back, Pacific Mining Co.</h1>
-          <p className="text-white/80 max-w-lg mb-2 lg:mb-4 text-sm lg:text-base">Your compliance documentation and order history are up to date. You have {orders.length} active records in the system.</p>
+          <h1 className="text-2xl lg:text-4xl font-bold tracking-tight">Welcome back{companyName ? `, ${companyName}` : ''}</h1>
+          <p className="text-white/80 max-w-lg mb-2 lg:mb-4 text-sm lg:text-base">
+            {orders.length > 0
+              ? `Your compliance documentation and order history are up to date. You have ${orders.length} active record${orders.length === 1 ? '' : 's'} in the system.`
+              : "You don't have any orders yet. Once your sales rep submits your first order, it'll show up here."}
+          </p>
           <Link href="/portal/orders" className="bg-white text-rivix px-6 py-3 rounded-xl font-bold text-sm hover:bg-white/90 active:scale-95 transition-all shadow-lg flex items-center gap-2">
             View All Orders
             <ArrowUpRight size={18} />
@@ -89,13 +87,18 @@ export default function ClientPortalHome() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
+              {orders.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-8 py-10 text-center text-sm text-slate-400">No orders yet.</td>
+                </tr>
+              )}
               {orders.slice(0, 5).map((order) => (
                 <tr key={order.id} className="hover:bg-slate-50/50 transition-colors group">
                   <td className="px-8 py-6 font-bold text-slate-700 whitespace-nowrap">{order.batch_number}</td>
                   <td className="px-8 py-6 text-slate-600 font-medium min-w-[200px]">{order.product_name}</td>
                   <td className="px-8 py-6 text-slate-600 font-medium whitespace-nowrap">{order.quantity} units</td>
                   <td className="px-8 py-6 text-right">
-                    <Link href={`/portal/orders/${order.id}`} className="text-xs font-bold text-slate-400 group-hover:text-rivix transition-colors whitespace-nowrap">Details →</Link>
+                    <Link href={`/portal/orders/${order.batch_number}`} className="text-xs font-bold text-slate-400 group-hover:text-rivix transition-colors whitespace-nowrap">Details →</Link>
                   </td>
                 </tr>
 

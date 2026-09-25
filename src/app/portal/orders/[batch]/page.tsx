@@ -1,7 +1,6 @@
 'use client';
 
-import Image from 'next/image';
-import { 
+import {
   ArrowLeft, 
   Download, 
   Package, 
@@ -18,22 +17,22 @@ import Link from 'next/link';
 import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer';
 import { CertificatePDF } from '@/lib/CertificatePDF';
 import { useEffect, useState } from 'react';
-import { getOrders } from '@/lib/storage';
+import { getMyOrders } from '@/lib/storage';
 
-export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default function OrderDetailPage({ params }: { params: Promise<{ batch: string }> }) {
   const [isClient, setIsClient] = useState(false);
   const [order, setOrder] = useState<any>(null);
+  const [notFound, setNotFound] = useState(false);
   const [viewingCert, setViewingCert] = useState<any>(null);
 
 
   useEffect(() => {
     const loadData = async () => {
-      const { id } = await params;
+      const { batch } = await params;
       setIsClient(true);
-      const allOrders = await getOrders();
-      const found = allOrders.find(o => o.id === id);
+      const myOrders = await getMyOrders();
+      const found = myOrders.find(o => o.batch_number === batch);
 
-      
       if (found) {
         setOrder({
           ...found,
@@ -46,32 +45,27 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           ]
         });
       } else {
-        // Fallback for sample demo
-        setOrder({
-          batch_number: 'AS-24-1001',
-          product_name: 'ArcticShield Coverall (AS-COVER-01)',
-          client_name: 'Pacific Mining Co.',
-          quantity: 150,
-          status: 'In Production',
-          order_date: 'April 10, 2026',
-          est_delivery: 'May 02, 2026',
-          material: '65% Poly / 35% Cotton Heavy Twill 320 GSM',
-          origin: 'Partner Facility (0% Duty)',
-          ship_date: 'May 10, 2026',
-          safety_standard: 'CSA Z96-15 Class 3',
-          expiry: 'Valid for 1 Year from Receipt',
-          certs: [
-            { id: '1', type: 'Certificate of Origin', number: 'COO-AS-24-1001' },
-            { id: '2', type: 'Quality Inspection Report', number: 'QIR-AS-24-1001' },
-            { id: '3', type: 'Certificate of Compliance', number: 'COC-AS-24-1001' },
-          ]
-        });
+        // Not one of this customer's orders — either it doesn't exist,
+        // or it belongs to someone else. Either way, don't show it.
+        setNotFound(true);
       }
     };
     loadData();
   }, [params]);
 
 
+
+  if (notFound) {
+    return (
+      <div className="p-20 text-center space-y-4">
+        <p className="text-slate-400 font-bold uppercase tracking-widest">Order not found</p>
+        <Link href="/portal/orders" className="inline-flex items-center gap-2 text-sm font-bold text-rivix hover:text-rivix-dark transition-colors">
+          <ArrowLeft size={16} />
+          Back to Orders
+        </Link>
+      </div>
+    );
+  }
 
   if (!order) return <div className="p-20 text-center animate-pulse text-slate-400 font-bold uppercase tracking-widest">Loading Order Details...</div>;
 
@@ -121,33 +115,21 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
             <div className="p-6 border-b border-slate-100 flex items-center justify-between">
               <h3 className="font-bold text-slate-900">Technical Specifications</h3>
-              <span className="text-[10px] font-bold text-rivix uppercase tracking-widest bg-rivix/5 px-2 py-1 rounded">Ref: AS-2024-MIN-V1</span>
             </div>
-            <div className="flex flex-col md:flex-row">
-              <div className="w-full md:w-2/5 bg-slate-900 p-8 flex items-center justify-center border-r border-slate-100">
-                 <Image 
-                  src="/coverall_blueprint.png" 
-                  alt="Technical Drawing" 
-                  width={300} 
-                  height={450} 
-                  className="object-contain"
-                 />
-              </div>
-              <div className="flex-1 p-8 grid grid-cols-1 gap-6">
-                {[
-                  { label: 'Primary Fabric', value: order.material },
-                  { label: 'Safety Standard', value: order.safety_standard || 'CSA Z96-15 Class 3' },
-                  { label: 'Reinforcements', value: '1000D Nylon Cordura' },
-                  { label: 'Insulation', value: '200GSM Polyfill' },
-                  { label: 'Hardware', value: 'YKK #10 Heavy Duty Brass' },
-                  { label: 'Expiry', value: order.expiry },
-                ].map(item => (
-                  <div key={item.label}>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{item.label}</p>
-                    <p className="text-sm font-semibold text-slate-700">{item.value}</p>
-                  </div>
-                ))}
-              </div>
+            <div className="p-8 grid grid-cols-1 sm:grid-cols-2 gap-6">
+              {[
+                { label: 'Primary Fabric', value: order.material },
+                { label: 'Safety Standard', value: order.safety_standard },
+                { label: 'Expiry', value: order.expiry },
+              ].filter(item => item.value).map(item => (
+                <div key={item.label}>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{item.label}</p>
+                  <p className="text-sm font-semibold text-slate-700">{item.value}</p>
+                </div>
+              ))}
+              {!order.material && !order.safety_standard && (
+                <p className="text-sm text-slate-400 col-span-2">No technical specification on file for this order yet.</p>
+              )}
             </div>
           </div>
         </div>

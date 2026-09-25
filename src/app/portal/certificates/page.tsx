@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getOrders, OrderData } from '@/lib/storage';
+import { getMyOrders } from '@/lib/storage';
 import { ShieldCheck, Download, Search, FileText, Eye, X } from 'lucide-react';
 import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer';
 import { CertificatePDF } from '@/lib/CertificatePDF';
@@ -14,16 +14,9 @@ export default function CertificatesPage() {
   useEffect(() => {
     const loadData = async () => {
       setIsClient(true);
-      const orders = await getOrders();
-      const mockData = [
-        { id: '1', batch_number: 'RVX-2026-9421', product_name: 'ArcticShield Coverall', client_name: 'Pacific Mining Co.', quantity: 150, material: '88% Cotton / 12% Nylon FR', origin: 'Partner Facility', order_date: '2026-04-10', ship_date: '2026-05-02' },
+      const myOrders = await getMyOrders();
 
-
-      ];
-      const clientOrders = orders.filter(o => o.client_name === 'Pacific Mining Co.');
-      const allBatches = [...clientOrders, ...mockData];
-      
-      const allCerts = allBatches.flatMap(batch => [
+      const allCerts = myOrders.flatMap(batch => [
         { ...batch, type: 'Certificate of Origin', number: `COO-${batch.batch_number}` },
         { ...batch, type: 'Quality Inspection Report', number: `QIR-${batch.batch_number}` },
         { ...batch, type: 'Certificate of Compliance', number: `COC-${batch.batch_number}` },
@@ -40,6 +33,10 @@ export default function CertificatesPage() {
         <h1 className="text-2xl font-bold text-slate-900">Compliance Documents</h1>
         <p className="text-slate-500">Access and download all authenticated certificates for your shipments.</p>
       </div>
+
+      {certs.length === 0 && (
+        <p className="text-sm text-slate-400 py-10 text-center">No certificates yet — these are generated once you have an order in the system.</p>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {certs.map((cert, i) => (
