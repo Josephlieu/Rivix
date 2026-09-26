@@ -78,7 +78,7 @@ export default function CertificatesPage() {
                         batch_number: cert.batch_number,
                         client_name: cert.client_name,
                         product_name: cert.product_name,
-                        quantity: cert.quantity?.toString() || viewingCert.quantity?.toString() || '0',
+                        quantity: cert.quantity?.toString() || '0',
                         material: cert.material || '65% Poly / 35% Cotton Heavy Twill',
                         origin: cert.origin || 'Partner Facility',
                         order_date: cert.order_date || '2026-04-10',

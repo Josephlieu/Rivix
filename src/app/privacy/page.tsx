@@ -22,7 +22,7 @@ export default function PrivacyPage() {
           <section className="space-y-4">
             <h2 className="text-xl font-bold text-slate-900">1. Information We Collect</h2>
             <p>
-              RIVIX collects information necessary to provide our compliance and tracking services. This includes business contact information, order details, and authentication data provided via secure OAuth providers (Google and Microsoft).
+              RIVIX collects information necessary to provide our compliance and tracking services. This includes business contact information, order details, and account authentication data (email address and a securely hashed password).
             </p>
           </section>
 
@@ -43,7 +43,7 @@ export default function PrivacyPage() {
           <section className="space-y-4">
             <h2 className="text-xl font-bold text-slate-900">4. Third-Party Services</h2>
             <p>
-              We use Google and Microsoft for authentication services. Their use of your information is governed by their respective privacy policies.
+              We use Supabase for secure account authentication and data storage. Portal accounts are created directly by RIVIX or your sales representative — there is no public self-registration, and we do not use third-party social sign-in providers.
             </p>
           </section>
 
