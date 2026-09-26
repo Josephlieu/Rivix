@@ -7,10 +7,10 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex h-screen overflow-hidden bg-slate-50">
       <Sidebar mode="admin" />
-      <main className="flex-1 overflow-y-auto w-full">
-        <header className="h-16 lg:h-20 bg-white border-b border-slate-200 flex items-center justify-between px-6 lg:px-8 sticky top-0 z-10">
+      <div className="flex-1 flex flex-col h-full overflow-hidden w-full">
+        <header className="flex-shrink-0 h-16 lg:h-20 bg-white border-b border-slate-200 flex items-center justify-between px-6 lg:px-8">
           <div className="flex items-center gap-4">
             {/* Space for mobile toggle */}
             <div className="w-12 lg:hidden" />
@@ -24,11 +24,12 @@ export default function AdminLayout({
             </div>
           </div>
         </header>
-        <div className="p-4 lg:p-10">
-          {children}
-        </div>
-      </main>
-
+        <main className="flex-1 overflow-y-auto">
+          <div className="p-4 lg:p-10">
+            {children}
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

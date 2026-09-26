@@ -128,7 +128,7 @@ export default function Sidebar({ mode }: SidebarProps) {
 
       {/* Sidebar Desktop & Mobile Drawer */}
       <div className={cn(
-        "fixed lg:static inset-y-0 left-0 z-[55] w-64 bg-rivix-light border-r border-slate-200 text-slate-600 font-sans transition-transform duration-300 transform lg:translate-x-0 flex flex-col",
+        "fixed lg:static inset-y-0 left-0 z-[55] w-64 h-full bg-rivix-light border-r border-slate-200 text-slate-600 font-sans transition-transform duration-300 transform lg:translate-x-0 flex flex-col overflow-hidden",
         isOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <NavContent />
