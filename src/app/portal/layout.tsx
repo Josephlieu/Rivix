@@ -1,5 +1,6 @@
 import Sidebar from '@/components/Sidebar';
 import NotificationBell from '@/components/NotificationBell';
+import AccountMenu from '@/components/AccountMenu';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 
 export default async function PortalLayout({
@@ -47,10 +48,7 @@ export default async function PortalLayout({
           </div>
           <div className="flex items-center gap-4">
             <NotificationBell mode="client" />
-            <div className="flex items-center gap-4 hidden sm:flex border-l border-slate-200 pl-4">
-              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{companyName}</span>
-              <div className="w-8 h-8 rounded-full bg-rivix/10 border border-rivix/20 flex items-center justify-center text-[10px] font-bold text-rivix">{initials}</div>
-            </div>
+            <AccountMenu name={companyName} initials={initials} profileHref="/portal/account" />
           </div>
         </header>
         <main className="flex-1 overflow-y-auto">
