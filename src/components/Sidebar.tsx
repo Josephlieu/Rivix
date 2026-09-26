@@ -12,6 +12,7 @@ import {
   FileUp, 
   ShieldCheck,
   Settings,
+  UserCircle,
   LogOut,
   Menu,
   X
@@ -41,6 +42,7 @@ const clientLinks = [
   { href: '/portal/products', label: 'Product Specs', icon: Package },
   { href: '/portal/replication', label: 'Uniform Replication', icon: FileUp },
   { href: '/portal/certificates', label: 'Compliance Certs', icon: ShieldCheck },
+  { href: '/portal/account', label: 'Account', icon: UserCircle },
 ];
 
 export default function Sidebar({ mode }: SidebarProps) {
