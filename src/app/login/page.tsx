@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Mail, Lock, Loader2, ArrowRight, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { supabaseBrowser as supabase } from '@/lib/supabase-browser';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
@@ -91,7 +92,12 @@ export default function LoginPage() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Password</label>
+              <div className="flex items-center justify-between px-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Password</label>
+                <Link href="/forgot-password" className="text-[10px] font-bold text-rivix hover:text-rivix-dark transition-colors">
+                  Forgot password?
+                </Link>
+              </div>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                 <input
