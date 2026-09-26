@@ -17,11 +17,12 @@ import Link from 'next/link';
 import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer';
 import { CertificatePDF } from '@/lib/CertificatePDF';
 import { useEffect, useState } from 'react';
-import { getMyOrders } from '@/lib/storage';
+import { getMyOrders, getCurrentCustomer } from '@/lib/storage';
 
 export default function OrderDetailPage({ params }: { params: Promise<{ batch: string }> }) {
   const [isClient, setIsClient] = useState(false);
   const [order, setOrder] = useState<any>(null);
+  const [companyName, setCompanyName] = useState('');
   const [notFound, setNotFound] = useState(false);
   const [viewingCert, setViewingCert] = useState<any>(null);
 
@@ -30,14 +31,13 @@ export default function OrderDetailPage({ params }: { params: Promise<{ batch: s
     const loadData = async () => {
       const { batch } = await params;
       setIsClient(true);
-      const myOrders = await getMyOrders();
+      const [myOrders, customer] = await Promise.all([getMyOrders(), getCurrentCustomer()]);
+      setCompanyName(customer?.company_name || '');
       const found = myOrders.find(o => o.batch_number === batch);
 
       if (found) {
         setOrder({
           ...found,
-          est_delivery: 'May 02, 2026',
-          expiry: 'Valid for 1 Year from Receipt',
           certs: [
             { id: '1', type: 'Certificate of Origin', number: `COO-${found.batch_number}` },
             { id: '2', type: 'Quality Inspection Report', number: `QIR-${found.batch_number}` },
@@ -120,7 +120,6 @@ export default function OrderDetailPage({ params }: { params: Promise<{ batch: s
               {[
                 { label: 'Primary Fabric', value: order.material },
                 { label: 'Safety Standard', value: order.safety_standard },
-                { label: 'Expiry', value: order.expiry },
               ].filter(item => item.value).map(item => (
                 <div key={item.label}>
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{item.label}</p>
@@ -163,7 +162,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ batch: s
                           <CertificatePDF 
                             data={{
                               batch_number: order.batch_number,
-                              client_name: order.client_name || 'Pacific Mining Co.',
+                              client_name: order.client_name || companyName,
                               product_name: order.product_name,
                               quantity: order.quantity.toString(),
                               material: order.material,
@@ -224,7 +223,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ batch: s
                    <CertificatePDF 
                       data={{
                         batch_number: order.batch_number,
-                        client_name: order.client_name || 'Pacific Mining Co.',
+                        client_name: order.client_name || companyName,
                         product_name: order.product_name,
                         quantity: order.quantity.toString(),
                         material: order.material,

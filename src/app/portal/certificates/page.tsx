@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getMyOrders } from '@/lib/storage';
+import { getMyOrders, getCurrentCustomer } from '@/lib/storage';
 import { ShieldCheck, Download, Search, FileText, Eye, X } from 'lucide-react';
 import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer';
 import { CertificatePDF } from '@/lib/CertificatePDF';
@@ -10,11 +10,13 @@ export default function CertificatesPage() {
   const [certs, setCerts] = useState<any[]>([]);
   const [isClient, setIsClient] = useState(false);
   const [viewingCert, setViewingCert] = useState<any>(null);
+  const [companyName, setCompanyName] = useState('');
 
   useEffect(() => {
     const loadData = async () => {
       setIsClient(true);
-      const myOrders = await getMyOrders();
+      const [myOrders, customer] = await Promise.all([getMyOrders(), getCurrentCustomer()]);
+      setCompanyName(customer?.company_name || '');
 
       const allCerts = myOrders.flatMap(batch => [
         { ...batch, type: 'Certificate of Origin', number: `COO-${batch.batch_number}` },
@@ -76,13 +78,13 @@ export default function CertificatesPage() {
                     <CertificatePDF 
                       data={{
                         batch_number: cert.batch_number,
-                        client_name: cert.client_name,
+                        client_name: cert.client_name || companyName,
                         product_name: cert.product_name,
                         quantity: cert.quantity?.toString() || '0',
-                        material: cert.material || '65% Poly / 35% Cotton Heavy Twill',
-                        origin: cert.origin || 'Partner Facility',
-                        order_date: cert.order_date || '2026-04-10',
-                        ship_date: cert.ship_date || '2026-05-02',
+                        material: cert.material || 'Not specified',
+                        origin: cert.origin || 'Not specified',
+                        order_date: cert.order_date || 'Not specified',
+                        ship_date: cert.ship_date || 'Not specified',
                         cert_type: cert.type,
                         cert_id: cert.number,
                         safety_standard: cert.safety_standard
@@ -134,13 +136,13 @@ export default function CertificatesPage() {
                    <CertificatePDF 
                       data={{
                         batch_number: viewingCert.batch_number,
-                        client_name: viewingCert.client_name,
+                        client_name: viewingCert.client_name || companyName,
                         product_name: viewingCert.product_name,
                         quantity: viewingCert.quantity?.toString() || '150',
-                        material: viewingCert.material || '65% Poly / 35% Cotton Heavy Twill',
-                        origin: viewingCert.origin || 'Partner Facility',
-                        order_date: viewingCert.order_date || '2026-04-10',
-                        ship_date: viewingCert.ship_date || '2026-05-02',
+                        material: viewingCert.material || 'Not specified',
+                        origin: viewingCert.origin || 'Not specified',
+                        order_date: viewingCert.order_date || 'Not specified',
+                        ship_date: viewingCert.ship_date || 'Not specified',
                         cert_type: viewingCert.type,
                         cert_id: viewingCert.number,
                         safety_standard: viewingCert.safety_standard

@@ -53,9 +53,8 @@ export default function NotificationBell({ mode }: NotificationBellProps) {
           <div className="fixed inset-0 z-[40]" onClick={() => setIsOpen(false)} />
           
           <div className="absolute right-0 mt-2.5 w-80 lg:w-96 bg-white border border-slate-200 rounded-2xl shadow-xl z-[50] py-3 text-left animate-in fade-in slide-in-from-top-2 duration-150">
-            <div className="px-4 pb-2.5 mb-2 border-b border-slate-100 flex items-center justify-between">
+            <div className="px-4 pb-2.5 mb-2 border-b border-slate-100">
               <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">Notifications</h3>
-              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-0.5 rounded">RIVIX Real-Time</span>
             </div>
 
             {notifications.length === 0 ? (
