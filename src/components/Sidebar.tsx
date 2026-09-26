@@ -96,8 +96,8 @@ export default function Sidebar({ mode }: SidebarProps) {
       </nav>
 
       <div className="p-4 border-t border-slate-200 space-y-4">
-        <RepWidget />
-        <button 
+        {mode === 'client' && <RepWidget />}
+        <button
           onClick={handleSignOut}
           className="flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-400 hover:text-rivix transition-colors w-full rounded-xl hover:bg-white/50"
         >
