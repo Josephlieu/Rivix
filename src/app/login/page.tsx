@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Mail, Lock, Loader2, ArrowRight, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { Mail, Lock, Loader2, ArrowRight, Eye, EyeOff, AlertCircle, ShieldCheck } from 'lucide-react';
 import { supabaseBrowser as supabase } from '@/lib/supabase-browser';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -12,6 +12,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
@@ -19,6 +20,7 @@ export default function LoginPage() {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session) {
+        setRedirecting(true);
         router.push('/portal');
       }
     });
@@ -38,6 +40,10 @@ export default function LoginPage() {
       });
       if (error) throw error;
 
+      // Show a "redirecting..." state rather than letting the button snap
+      // back to idle in the gap before navigation actually happens.
+      setRedirecting(true);
+
       // All email/password logins go to client portal
       // Admin access is gated separately via /admin/verify PIN
       router.push('/portal');
@@ -47,13 +53,29 @@ export default function LoginPage() {
           ? 'Incorrect email or password. Please try again.'
           : error.message
       );
-    } finally {
       setLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 font-sans">
+      {redirecting && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl px-10 py-8 flex flex-col items-center gap-4 text-center max-w-xs">
+            <div className="relative">
+              <div className="w-14 h-14 rounded-full bg-rivix/10 flex items-center justify-center text-rivix">
+                <ShieldCheck size={28} />
+              </div>
+              <Loader2 className="animate-spin absolute -bottom-1 -right-1 text-rivix bg-white rounded-full p-0.5" size={20} />
+            </div>
+            <div>
+              <p className="font-bold text-slate-900">Login successful</p>
+              <p className="text-sm text-slate-500 mt-1">Redirecting you to the Client Portal...</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
           <div className="mb-8 flex justify-center">
