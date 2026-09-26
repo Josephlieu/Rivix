@@ -17,6 +17,14 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Uniform Replication is Sales Rep/Admin-only per the 2026-09-25 decision —
+  // customers get zero access, not even a read-only view. The nav link is
+  // already hidden, but that alone doesn't stop someone hitting the URL
+  // directly, so block it here regardless of login state.
+  if (pathname.startsWith('/portal/replication')) {
+    return NextResponse.redirect(new URL('/portal', request.url));
+  }
+
   // Gate all /portal routes — require a real, logged-in Supabase session
   if (pathname.startsWith('/portal')) {
     let response = NextResponse.next({ request });
