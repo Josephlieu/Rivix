@@ -40,7 +40,10 @@ const clientLinks = [
   { href: '/portal', label: 'Overview', icon: LayoutDashboard },
   { href: '/portal/orders', label: 'My Orders', icon: FileText },
   { href: '/portal/products', label: 'Product Specs', icon: Package },
-  { href: '/portal/replication', label: 'Uniform Replication', icon: FileUp },
+  // Uniform Replication removed from the customer side per the 2026-09-25
+  // decision — it's a purely internal Admin/Sales Rep workflow now, the
+  // customer never gets access to the creation tool or any part of it.
+  // { href: '/portal/replication', label: 'Uniform Replication', icon: FileUp },
   { href: '/portal/certificates', label: 'Compliance Certs', icon: ShieldCheck },
   { href: '/portal/account', label: 'Account', icon: UserCircle },
 ];
