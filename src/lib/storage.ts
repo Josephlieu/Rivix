@@ -46,6 +46,35 @@ export const getMyOrders = async (): Promise<OrderData[]> => {
   return data || [];
 };
 
+export interface ProductSpecData {
+  id: string;
+  customer_id: string;
+  product_name: string;
+  safety_standard: string | null;
+  fabric: string | null;
+  description: string | null;
+  file_url: string | null;
+  file_label: string | null;
+  created_at: string;
+}
+
+// Real, RLS-scoped: returns only the logged-in customer's own product
+// specs — admin-managed per §5's 2026-09-25 decision, not a generic
+// catalog every customer sees the same version of.
+export const getMyProductSpecs = async (): Promise<ProductSpecData[]> => {
+  const { data, error } = await supabaseBrowser
+    .from('product_specs')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching my product specs:', error);
+    return [];
+  }
+
+  return data || [];
+};
+
 export interface OrderData {
   id: string;
   batch_number: string;
