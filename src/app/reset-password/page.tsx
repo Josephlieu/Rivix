@@ -50,8 +50,24 @@ export default function ResetPasswordPage() {
 
     setLoading(true);
     try {
+      // Re-check right before submitting — the recovery session can expire
+      // between loading this page and clicking the button. Catching this
+      // here means the user sees "your link expired, request a new one"
+      // instead of a raw SDK error like "Auth session missing!".
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setValidSession(false);
+        return;
+      }
+
       const { error } = await supabase.auth.updateUser({ password });
-      if (error) throw error;
+      if (error) {
+        if (error.name === 'AuthSessionMissingError') {
+          setValidSession(false);
+          return;
+        }
+        throw error;
+      }
       setSuccess(true);
       setTimeout(() => router.push('/portal'), 1500);
     } catch (err: any) {
