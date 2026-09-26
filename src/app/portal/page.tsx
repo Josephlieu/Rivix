@@ -74,7 +74,7 @@ export default function ClientPortalHome() {
       <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
         <div className="p-8 border-b border-slate-100 flex items-center justify-between">
           <h3 className="text-lg font-bold text-slate-900">Recent Orders</h3>
-          <button className="text-sm font-bold text-rivix hover:text-rivix-dark transition-colors">View History</button>
+          <Link href="/portal/orders" className="text-sm font-bold text-rivix hover:text-rivix-dark transition-colors">View History</Link>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left">
