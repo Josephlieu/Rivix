@@ -47,7 +47,7 @@ This directly explains why the current hardcoded "Welcome back, Pacific Mining C
 - **Admin/team manually uploads the file into the portal** once received from the manufacturer/factory.
 - Customer then sees it in their portal.
 - **CONFIRMED (client meeting, 2026-09-25, first session), three-way coordination**: customer requests a certificate **through their sales rep** → rep coordinates with **both admin and the manufacturer** → completed documentation gets uploaded. Refines §3's request flow below: the rep is the entry point for the customer's request (matching the confirmed "rep owns the customer relationship" model, §8d), not the customer going directly to admin.
-- **⚠ OPEN CONFLICT — flagged, not resolved (client meeting, 2026-09-25, second session)**: the same-day follow-up meeting (with Sayem) stated the opposite — certificate submissions "would go directly to admin rather than sales representatives," with a specific action item: *"add a button on the orders page for customers to request certificates, which notifies admin."* This directly contradicts the rep-first flow confirmed just above in the earlier session the same day. **Needs Joseph's direct confirmation before we build either version**: does a certificate request go to the rep first (who then loops in admin), or does it go straight to admin with the rep just kept informed? Not assuming either way.
+- **✅ RESOLVED by Joseph (2026-09-29) — supersedes both earlier versions**: *"Whenever a customer asks our sales rep, our sales rep should be able to ping us, and as admin we should be able to drop in a file on our end in order for the customer who requested (a certain product) to be able to see it. E.g. fabric detail documents, CSA certificates, anything related."* So the flow is: **customer asks their rep → rep pings admin in-app → admin uploads the file → the requesting customer sees it.** Rep-first (the 09-25 first-session version) is confirmed; a customer request does NOT go straight to admin. Two consequences: (1) this is broader than the 3 fixed cert types — admin can attach *any* document (fabric detail sheets, CSA certificates, etc.) tied to a customer and product/order; (2) the customer-side "Request Certificate" button from the second 09-25 session is no longer implied — open small question: still want a button (which would notify the assigned rep, not admin), or is the customer just asking the rep directly? Needs the rep ping + admin upload queue, which depend on the Sales Rep foundation.
 - **Wants it organized by month** (Jan–Dec) per order, so a customer can find "what did I order/receive documentation for in March" easily. **Refined (second session, 2026-09-25)**: also organize/group by **order**, differentiated by date and order number — likely meaning "by month, then by order" as already designed below, rather than a change to that structure.
 - This is an **admin-side upload workflow that doesn't exist yet** — currently `/admin` has no certificate upload feature, and `/portal/certificates` only shows hardcoded/fallback data (per finding #3/3c).
 
@@ -101,7 +101,7 @@ February 2026
 - **Clarified (2026-09-18): this is NOT a payment integration.** Joseph explicitly said so on the call: *"Not really purchasing, but seeing their order history, right? Whatever they ordered."* Orders/invoicing continue to happen the existing way (phone/email → invoice + PO created directly in QuickBooks by Joseph/Peter). The integration's only job is to **pull that data into the customer portal as read-only order history** — no cart, no checkout, no payment collection. Still requires QuickBooks API credentials from Joseph's side to build.
 - **Scope firmed up (2026-09-25)**: this is now the **exclusive source of invoices and Purchase Orders** shown anywhere in the portal — not just generic order history. Confirmed alongside removing Admin's "Manual Order Entry" entirely (see §8d): no invoice/PO is ever created manually inside the app, by admin or anyone else. The rep still submits the initial order/spec request in-app; admin then issues the real invoice/PO in QuickBooks as part of their operational work; that document syncs back into the portal for display. This makes the QuickBooks sync a harder dependency than before — the portal's order/invoice/PO display has no fallback without it.
 - **NEW (second session, 2026-09-25): customer-facing "Request Invoice" feature.** Add a way for the customer to request an invoice, handled through QuickBooks (fits the same read/sync model as above — customer requests, QuickBooks is the source of the actual document).
-- **⚠ OPEN CONFLICT — flagged, not resolved (second session, 2026-09-25)**: this same follow-up meeting also mentions *"QuickBooks integration for handling payments and purchase orders through bank transfers."* This reads as materially different from the "NOT a payment integration" confirmation directly above, which Joseph stated explicitly on 2026-09-18 ("Not really purchasing, but seeing their order history"). Possible readings: (a) scope has genuinely expanded to include payment collection via bank transfer, which QuickBooks would process outside the portal itself, with the portal just reflecting payment status — a plausible middle ground that wouldn't contradict "not really purchasing" in the portal's own UI; or (b) this is a scope change that needs to be confirmed and estimated as new work. **Needs Joseph's direct confirmation** — not assuming either reading. If real, this is a meaningfully bigger integration than read-only order/invoice history.
+- **✅ RESOLVED by Joseph (2026-09-29) — QuickBooks stays read-only, invoices only**: *"If there is a way to integrate invoices we produce for customers would be great; we just started to use it so there isn't much data — would that matter?"* No payment handling was mentioned, so the earlier "bank transfer / payments" line is treated as not in scope (read-only invoice display, as originally confirmed 09-18). **Low data volume doesn't matter** for the integration — it pulls whatever exists (and is easier to test with). Still to verify: that they're on **QuickBooks Online** (the API integration doesn't work with QuickBooks Desktop), and how QuickBooks customers map to portal customers (match by email, or admin links them once).
 - **NEW, also flagged for clarification: "catalog ordering functionality"** was mentioned in the same meeting alongside QuickBooks. This may be in tension with the "remove product/uniform spec examples from the customer portal entirely" decision in §5 below — or it may be a different thing entirely (a real, orderable product catalog vs. the *generic/example* spec content being removed). Needs Joseph's confirmation on what "catalog ordering" means before scoping it.
 
 ## 5. Product Specs / Tech Pack — AI image generation requested (NEW, bigger than current build)
@@ -430,6 +430,74 @@ Explicitly flagged: build/fix hours alone are not the whole picture. Once featur
 **Also applies to things that appear to "already work"**: several features in the current codebase have real, correctly-wired logic that we have **not personally live-tested end-to-end** (e.g., the Cal.com booking link generation in Hiring, whether the correspondence email actually sends once `RESEND_API_KEY` is configured, whether `saveCandidate`'s merge-by-name-or-email logic behaves correctly with real data volume). These should not be assumed to work just because the code reads correctly — they need the same live-testing treatment as everything else found broken in this audit, flagged as **"appears correct in code, not yet live-verified"** rather than either "working" or "broken."
 
 **Scope/estimate impact**: testing (and the fixing that follows from what testing finds) needs its own dedicated time allocation in the final estimate — separate from initial build/fix hours — rather than being assumed to happen for free within the build estimate. Recommend adding a distinct "Testing & QA" line item once the full scope is finalized.
+
+## 13. NEW FEATURE — Supplier Hub / Procurement Portal (RFQ bidding for manufacturers) — requested 2026-09-29
+
+**Where this came from — important:** Joseph spoke a brief (Friday 11:31 PM) and put it into ChatGPT. ChatGPT's reply, and the concept PDF `RIVIX_Supplier_Procurement_Portal_Concept_Final.pdf` (project root) built from it, are **ChatGPT's proposal, not Joseph's confirmed requirements.** Where they differ from his own words, his words win, and the difference is listed below rather than silently adopted. (The shared-chat text has been read in full.)
+
+**Full write-up: [17-supplier-hub.md](./17-supplier-hub.md).**
+
+### What Joseph actually said vs. what ChatGPT added
+| Topic | Joseph's own words | ChatGPT / the PDF added |
+|---|---|---|
+| Who | Suppliers (manufacturers), up to 50, each with a separate entrance | Formal "Supplier Hub" + "Procurement Command Center" names, modules for Production Orders, Messages, Performance |
+| Admin inputs | Tech pack, MOQ, fabric, specs, all together | Full RFQ field list (colour, certifications, embroidery, packaging, delivery date, etc.) |
+| Award rule | "The first one who can put the pricing in"; lower price or better lead time wins | **Closing deadline, locked bids after it, version history** (his words hint at first-to-respond; unclear) |
+| AI | AI "should be able to do it by themselves", but admin can manually override | **"I would not let AI auto-award without human authorization"** — recommend-only is ChatGPT's advice, *not* Joseph's decision |
+| Passwords | Each supplier chooses their own via an emailed link; admin separate. Also said "another password that's okay for all" (garbled) | ChatGPT read it as no shared password; each supplier fully separate |
+| Buyer side | Mentioned once at the end ("good for the buyer side, supplier side, admin side") | **Customer submits inquiry / uploads requirements / tracks status** — ChatGPT's assumption, he never described it |
+| Security | Wants suppliers unable to see each other | 2FA for admins, audit logs, session expiry, backups; suppliers also can't see how many were invited or who submitted first |
+| Supplier invite | Emailed link, supplier enters their company name | Admin enters company, contact person, email, phone, country, factory location, product categories, status |
+| Ending | "From there the supplier can go and just choose and decide" | (ignored by ChatGPT — still unexplained) |
+
+**One-line goal (from the deck):** move supplier sourcing out of scattered email threads into one controlled system where manufacturers compete privately, AI organizes the decision, and RIVIX keeps complete authority over who gets production.
+
+### Four sides now, not three
+Customer (deck calls it "Buyer"), Sales Rep, Admin, and **Supplier**. Supplier is a new role with strict isolation, same database-rule pattern as customers. The existing invite-link design (§8b) is reused for supplier onboarding.
+
+### The flow
+1. **Admin builds an RFQ** (request for quote): RFQ number, product name, tech pack + measurements, fabric composition + GSM, colour, quantity, **MOQ**, required certifications, embroidery/print and packaging requirements, delivery location + required date, **quote closing deadline**, and attached PDF/Excel/image/technical files.
+2. **Admin picks which suppliers to invite** (up to ~50 at launch). Each supplier has a **separate private account**; onboarding is an emailed invite link → supplier enters company info (e.g. "Spartan Industries") → **chooses their own password**. Admin has a separate login.
+3. **Supplier sees only their own RFQs** and submits a **structured quote**: fabric composition, GSM, MOQ, unit manufacturing cost, packaging, embroidery, logistics, **total landed cost**, production / shipping / **total lead time**, payment terms (e.g. 30/70), quote validity, supporting files.
+4. **Supplier can never see**: other suppliers' names, pricing, or lead times; AI recommendations; admin notes or internal scoring. (Deck: "privacy must be enforced in the backend, not just hidden on screen.")
+5. **Admin comparison dashboard**: all quotes side by side, sortable by price, lead time, MOQ, compliance, payment terms, supplier performance.
+6. **AI recommends, admin decides** ("AI assists. RIVIX decides."): AI checks compliance, landed cost, lead time, MOQ, payment terms, certifications, supplier history → returns a recommended supplier with reasons, risk flags, missing info, best-cost option and fastest-compliant option. Admin can approve, pick another supplier, request a revised quote, add an internal note, and award production.
+7. **Bid integrity**: submission timestamps, closing deadlines, version history, no silent quote deletion, **bids locked after the deadline**.
+
+### Security items ChatGPT added (each is extra work — confirm Joseph wants them)
+Admin **2FA**, session expiration, **audit logs**, secure file storage, backups. Note today's admin login is a single shared PIN (Finding #4, already slated for replacement with real individual logins) — the deck assumes real admin accounts, which fits.
+
+### Deck's own phasing
+- **Launch:** up to 50 supplier accounts, invite + login, RFQ creation + file upload, private quote form, deadline controls, admin comparison dashboard, AI recommendation, manual override.
+- **After launch:** supplier performance scoring, production order tracking, inspection/QC records, messaging inside each RFQ, shipment tracking, buyer status updates, automated reminders, more supplier capacity.
+
+### Conflicts and questions to confirm with Joseph (added to `16-meeting-questions.md`)
+1. **Customer submitting inquiries** — ChatGPT's deck gives the customer "submit product inquiry, upload requirements, track status." Joseph only said "buyer side" in passing. This contradicts the decision that customers get no access to tech-pack work and go through their rep. Does the customer submit inquiries themselves, or does the rep enter them? Not assumed.
+2. **AI: award by itself, or recommend only?** Joseph said AI should decide by itself with manual override. The recommend-only idea is ChatGPT's advice. **This is Joseph's call, not settled.** Suggest offering: recommend + admin approve by default, with an "auto-award" switch he can turn on per RFQ.
+3. **"The first one who can put the pricing in"** — Joseph's words. The deadline, locked bids and best-bid comparison are ChatGPT's additions. Confirm which he means, and whether he wants a deadline at all.
+4. **Who is told the result** — are losing suppliers notified? (Default proposed: told only that they weren't selected, never the winner or price.)
+5. **Tech-pack leakage.** This is the same concern that removed Replication from customers, except here tech packs are deliberately sent to up to 50 outside companies. Ask about NDAs, per-RFQ access expiry, and download logging.
+6. **Where the tech pack comes from** — presumably one already made in Replication (admin/rep tool). Confirm that link.
+7. **Currency and shipping terms** — CAD or USD; landed price only, or explicit shipping terms.
+8. **"Supplier history" for AI** — none exists at launch; AI can only use it after several RFQs have run.
+
+### Revised size estimate — Phase 1 only, now that the deck is read
+| Piece | Hours |
+|---|---|
+| Supplier role, invite link by email, own passwords, isolation rules | 12–18h |
+| Data model: suppliers, RFQs, files, quotes (with versions), awards | 8–12h |
+| Admin: build RFQ, upload files, select + invite suppliers | 12–16h |
+| Supplier portal: RFQ inbox, detail, structured quote form, revise before deadline | 12–16h |
+| Bid integrity: deadline lock, timestamps, version history, no deletion | 6–10h |
+| Admin: comparison dashboard, manual award, revised-quote request, internal notes | 10–14h |
+| AI recommendation (score, explain, risk flags, missing info) | 6–10h |
+| Audit logs | 4–6h |
+| Admin 2FA + session expiry | 4–6h |
+| **Phase 1 total** | **~74–108h** |
+
+Rough only. That adds about a third to the ~211–306h already remaining. Everything under the deck's "after launch" list (messaging, QC records, shipment tracking, performance scoring) is **not** in this number.
+
+**Recommendation, given the MVP-first decision:** treat this as its own phase after the Customer / Admin / Sales Rep MVP. It reuses infrastructure those phases build anyway (real admin logins, invite links, private file storage, notifications), so building them first makes this cheaper, not just later.
 
 ## 10. Process notes
 - No written spec exists — this document (and the full call recording) is the closest thing to one.

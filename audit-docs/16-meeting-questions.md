@@ -29,11 +29,27 @@ Everything still genuinely open, grouped for a live conversation. Already-resolv
 
 **Resolved 2026-09-25 (2nd session)**: Uniform Replication (tech pack creation) is Sales Rep/Admin-only — customers never access the creation tool directly, only rep-mediated requests and finished results.
 
-## C2. Two new conflicts from today's second meeting — need your direct answer, not assumed either way
+## C2. Answered by Joseph on 2026-09-29
 
-- [ ] **Certificate requests**: does the request go to the **sales rep first** (who loops in admin + manufacturer), or **directly to admin** (with a "Request Certificate" button on the orders page)? Your two sessions today said each of these.
-- [ ] **QuickBooks scope**: is QuickBooks integration still **read-only** (order/invoice history, as you confirmed on 2026-09-18), or does it now also **handle payments via bank transfer**, as mentioned in today's second session? These are very different builds.
-- [ ] **"Catalog ordering functionality"** — how does this relate to the decision to remove the example product catalog from the portal? Is this a different, real orderable catalog?
+- [x] **Certificate requests** — resolved: customer asks their **rep → rep pings admin → admin uploads the file → customer sees it.** Files can be any related document (fabric detail sheets, CSA certificates, etc.), not just the 3 fixed cert types.
+  - [ ] Small follow-up: should the customer still get a "request" button (that notifies their **rep**, not admin), or do they just ask the rep directly?
+- [x] **QuickBooks** — resolved: **invoices only, read-only**. Low data volume doesn't matter for the integration.
+  - [ ] Confirm they use **QuickBooks Online** (not Desktop) — the integration only works with Online.
+  - [ ] How should QuickBooks customers match to portal customers — by email, or admin links them once?
+- [ ] **"Catalog ordering functionality"** (from the 09-25 second call) — still unanswered. Is this a real orderable catalog, separate from the example catalog we removed?
+
+## C3. NEW — Supplier Hub (requested 2026-09-29) — need Joseph's answers
+
+- [ ] **Context: the PDF is ChatGPT's write-up of your brief, so several details are ChatGPT's, not yours** — worth confirming each is what you want. First: it lets the **customer** "submit product inquiry, upload requirements, track status." You only mentioned the "buyer side" in passing, and this contradicts the decision that customers go through their rep. **Do customers submit inquiries themselves, or does the rep enter them?**
+- [ ] **AI**: you said it should be able to decide by itself; ChatGPT advised against auto-award (recommend, admin approves). **Which do you want — or recommend by default with an auto-award switch you can turn on?**
+- [ ] **"The first one who can put the pricing in"** — first-to-respond wins, or best bid after a closing deadline? (The deadline and locked bids were ChatGPT's addition.)
+- [ ] ChatGPT also added **2FA for admins, audit logs, and version history on quotes**. Wanted, or overkill for launch? (Each adds hours.)
+- [ ] You ended with "the supplier can go and just choose and decide" — **what does the supplier choose?**
+- [ ] Are **losing suppliers told** they lost? Ever told the winning price? (Proposed default: told only that they weren't selected.)
+- [ ] **Tech packs go to up to 50 outside companies.** Any NDA, access expiry per RFQ, or download logging wanted, given the earlier worry about designs reaching competitors?
+- [ ] Should RFQs be created **from a tech pack already made in Replication**?
+- [ ] **CAD or USD**, and landed price only, or explicit shipping terms?
+- [ ] Priority: does this come **after** the Customer / Admin / Sales Rep launch (recommended), or in parallel?
 
 ## D. Notifications & internal communication
 

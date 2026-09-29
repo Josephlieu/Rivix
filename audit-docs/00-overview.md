@@ -42,5 +42,6 @@ middleware.ts        → the only route protection in the app (guards /admin onl
 - [05-environment-setup.md](./05-environment-setup.md) — env vars, local dev setup
 - [06-findings-and-severity.md](./06-findings-and-severity.md) — full audit findings report, with proof
 - [07-client-requirements.md](./07-client-requirements.md) — transcribed client requirements from kickoff call
+- [17-supplier-hub.md](./17-supplier-hub.md) — new Supplier Hub / RFQ bidding feature requested 2026-09-29 (full write-up)
 - [sessions/](./sessions/) — dated session logs, one file per work session (chronological record of what was done/found each day)
 - [diagrams/](./diagrams/) — flow and relationship diagrams for each role (SVG), referenced from [07-client-requirements.md](./07-client-requirements.md)
