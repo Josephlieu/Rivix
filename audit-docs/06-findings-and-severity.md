@@ -152,6 +152,8 @@ if (error) {
 
 ## 4. Admin access is a single shared PIN, not per-person — MEDIUM-HIGH SEVERITY
 
+> **RESOLVED 2026-09-29** — the shared PIN was removed. Admins now sign in at `/admin-login` with their own email and password (real Supabase accounts flagged with an admin role that users cannot grant themselves). Sign-out now really ends the session. Accounts are added with `node scripts/create-admin.mjs <email> <password>` until an in-app Team page exists. Original finding kept below for the record.
+
 **Proof:**
 
 `middleware.ts:6-15`:
@@ -267,6 +269,8 @@ There is no `getSession()` check on mount, and no loading state gates the initia
 ---
 
 ## 7c. Admin "Sign Out" doesn't actually log admin out — MEDIUM SEVERITY
+
+> **RESOLVED 2026-09-29** — the shared PIN was removed. Admins now sign in at `/admin-login` with their own email and password (real Supabase accounts flagged with an admin role that users cannot grant themselves). Sign-out now really ends the session. Accounts are added with `node scripts/create-admin.mjs <email> <password>` until an in-app Team page exists. Original finding kept below for the record.
 
 **Observed during this audit:** clicking "Sign Out" from the admin panel redirects to `/login`, but navigating back to `/admin` immediately afterward lands directly on the dashboard — no PIN prompt.
 

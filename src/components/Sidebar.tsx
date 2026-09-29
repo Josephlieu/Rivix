@@ -56,7 +56,7 @@ export default function Sidebar({ mode }: SidebarProps) {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    router.push('/login');
+    router.push(mode === 'admin' ? '/admin-login' : '/login');
   };
 
   const NavContent = () => (

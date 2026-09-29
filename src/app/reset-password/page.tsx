@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Lock, Loader2, Eye, EyeOff, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { supabaseBrowser as supabase } from '@/lib/supabase-browser';
+import { isAdminUser } from '@/lib/admin-auth';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -69,7 +70,9 @@ export default function ResetPasswordPage() {
         throw error;
       }
       setSuccess(true);
-      setTimeout(() => router.push('/portal'), 1500);
+      const { data: { user } } = await supabase.auth.getUser();
+      const destination = isAdminUser(user) ? '/admin' : '/portal';
+      setTimeout(() => router.push(destination), 1500);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -122,7 +125,7 @@ export default function ResetPasswordPage() {
               <div className="mx-auto w-14 h-14 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
                 <CheckCircle2 size={28} />
               </div>
-              <p className="font-bold text-slate-900">Password updated — taking you to the portal...</p>
+              <p className="font-bold text-slate-900">Password updated — signing you in...</p>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">

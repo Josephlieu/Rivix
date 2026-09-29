@@ -1,11 +1,17 @@
 import Sidebar from '@/components/Sidebar';
 import NotificationBell from '@/components/NotificationBell';
+import AccountMenu from '@/components/AccountMenu';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 
-export default function AdminLayout({
+export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const adminEmail = user?.email || 'Admin';
+
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
       <Sidebar mode="admin" />
@@ -18,10 +24,7 @@ export default function AdminLayout({
           </div>
           <div className="flex items-center gap-4">
             <NotificationBell mode="admin" />
-            <div className="flex items-center gap-4 text-[10px] text-slate-400 font-bold uppercase tracking-widest hidden sm:flex border-l border-slate-200 pl-4">
-              <span>RIVIX Supply Co.</span>
-              <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200" />
-            </div>
+            <AccountMenu name={adminEmail} initials={adminEmail[0].toUpperCase()} signOutHref="/admin-login" />
           </div>
         </header>
         <main className="flex-1 overflow-y-auto">

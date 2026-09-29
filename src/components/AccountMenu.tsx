@@ -9,10 +9,11 @@ import { supabaseBrowser } from '@/lib/supabase-browser';
 interface AccountMenuProps {
   name: string;
   initials: string;
-  profileHref: string;
+  profileHref?: string;
+  signOutHref?: string;
 }
 
-export default function AccountMenu({ name, initials, profileHref }: AccountMenuProps) {
+export default function AccountMenu({ name, initials, profileHref, signOutHref = '/login' }: AccountMenuProps) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -29,7 +30,7 @@ export default function AccountMenu({ name, initials, profileHref }: AccountMenu
 
   const handleSignOut = async () => {
     await supabaseBrowser.auth.signOut();
-    router.push('/login');
+    router.push(signOutHref);
   };
 
   return (
@@ -47,14 +48,16 @@ export default function AccountMenu({ name, initials, profileHref }: AccountMenu
 
       {open && (
         <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-20 animate-in fade-in zoom-in-95 duration-100">
-          <Link
-            href={profileHref}
-            onClick={() => setOpen(false)}
-            className="flex items-center gap-2.5 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-rivix transition-colors"
-          >
-            <UserCircle size={16} />
-            View Profile
-          </Link>
+          {profileHref && (
+            <Link
+              href={profileHref}
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2.5 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-rivix transition-colors"
+            >
+              <UserCircle size={16} />
+              View Profile
+            </Link>
+          )}
           <button
             onClick={handleSignOut}
             className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-rivix transition-colors"

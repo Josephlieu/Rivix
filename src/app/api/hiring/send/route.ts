@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
+import { isAdminUser } from '@/lib/admin-auth';
 
 // Email-only for now. SMS (Twilio) can be re-added later if needed.
 
@@ -9,11 +11,10 @@ interface SendBody {
   message: string;
 }
 
-function isAdminAuthorized(req: NextRequest): boolean {
-  const adminPin = process.env.ADMIN_PIN;
-  if (!adminPin) return false;
-  const pinCookie = req.cookies.get('rivix_admin_pin');
-  return Boolean(pinCookie && pinCookie.value === adminPin);
+async function isAdminAuthorized(): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  return isAdminUser(user);
 }
 
 function emailConfigured(): boolean {
@@ -58,7 +59,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  if (!isAdminAuthorized(req)) {
+  if (!(await isAdminAuthorized())) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

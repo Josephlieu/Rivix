@@ -11,7 +11,7 @@ title: Environment Setup
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL | Yes (bundled client-side) | Supabase dashboard or live JS bundle |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key | Yes (bundled client-side) | Supabase dashboard or live JS bundle |
 | `SUPABASE_SERVICE_ROLE_KEY` | Full-access key, bypasses RLS | No — server-only | Supabase dashboard → Project Settings → API → Legacy keys |
-| `ADMIN_PIN` | Gates `/admin` | No — server-only | Provided by team |
+| `ADMIN_PIN` | **No longer used** (2026-09-29) — admin now uses real individual logins. Safe to delete from `.env.local` and Vercel. | — | — |
 | `GEMINI_API_KEY` | Google GenAI (garment/resume analysis) | No | Team's Vercel env, or generate a free test key at aistudio.google.com |
 | `RESEND_API_KEY` | Transactional email | No | Team's Vercel env, or generate a free test key at resend.com |
 | `HIRING_FROM_EMAIL` | From-address for hiring emails | No (but was recoverable — see finding #6) | Team, or via the unauthenticated leak we found |
