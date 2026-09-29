@@ -61,8 +61,8 @@ export default function ProductSpecsPage() {
               key={spec.id}
               className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden flex flex-col lg:flex-row"
             >
-              <div className="flex-1 p-10">
-                <div className="mb-8 flex items-start justify-between gap-4">
+              <div className="flex-1 p-5 sm:p-10">
+                <div className="mb-8 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                   <div>
                     <h3 className="text-2xl font-bold text-slate-900">{spec.product_name}</h3>
                     {spec.safety_standard && (

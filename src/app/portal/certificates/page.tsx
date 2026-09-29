@@ -42,7 +42,7 @@ export default function CertificatesPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {certs.map((cert, i) => (
-          <div key={`${cert.number}-${i}`} className="bg-white rounded-3xl p-8 border border-slate-100 shadow-sm hover:border-rivix/20 transition-all group">
+          <div key={`${cert.number}-${i}`} className="bg-white rounded-3xl p-5 sm:p-8 border border-slate-100 shadow-sm hover:border-rivix/20 transition-all group">
             <div className="p-4 rounded-2xl bg-slate-50 group-hover:bg-rivix/5 text-slate-400 group-hover:text-rivix transition-all inline-block mb-6">
               <ShieldCheck size={32} />
             </div>
@@ -130,7 +130,7 @@ export default function CertificatesPage() {
                 <X size={20} />
               </button>
             </div>
-            <div className="flex-1 bg-slate-100 p-8 flex items-center justify-center overflow-hidden">
+            <div className="flex-1 bg-slate-100 p-2 sm:p-8 flex items-center justify-center overflow-hidden">
                {isClient && (
                  <PDFViewer style={{ width: '100%', height: '100%', borderRadius: '12px', border: 'none' }}>
                    <CertificatePDF 

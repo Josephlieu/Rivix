@@ -77,7 +77,7 @@ export default function AccountPage() {
         <p className="text-slate-500">View your profile and manage your password.</p>
       </div>
 
-      <div className="bg-white rounded-3xl p-8 border border-slate-100 shadow-sm space-y-6">
+      <div className="bg-white rounded-3xl p-5 sm:p-8 border border-slate-100 shadow-sm space-y-6">
         <div className="flex items-center gap-3">
           <div className="p-3 rounded-2xl bg-rivix/5 text-rivix">
             <UserCircle size={24} />
@@ -108,7 +108,7 @@ export default function AccountPage() {
         </p>
       </div>
 
-      <div className="bg-white rounded-3xl p-8 border border-slate-100 shadow-sm space-y-6">
+      <div className="bg-white rounded-3xl p-5 sm:p-8 border border-slate-100 shadow-sm space-y-6">
         <div className="flex items-center gap-3">
           <div className="p-3 rounded-2xl bg-rivix/5 text-rivix">
             <Lock size={24} />

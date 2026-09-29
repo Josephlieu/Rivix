@@ -114,11 +114,15 @@ export default function Sidebar({ mode }: SidebarProps) {
   return (
     <>
       {/* Mobile Toggle Button */}
-      <button 
-        onClick={() => setIsOpen(!isOpen)}
-        className="lg:hidden fixed top-4 left-4 z-[60] p-3 bg-white border border-slate-200 rounded-xl shadow-lg text-slate-600 hover:text-rivix transition-all"
+      <button
+        onClick={() => setIsOpen(true)}
+        aria-label="Open menu"
+        className={cn(
+          "lg:hidden fixed top-3 left-4 z-[45] p-2.5 bg-white border border-slate-200 rounded-xl shadow-md text-slate-600 hover:text-rivix transition-all",
+          isOpen && "invisible"
+        )}
       >
-        {isOpen ? <X size={20} /> : <Menu size={20} />}
+        <Menu size={20} />
       </button>
 
       {/* Mobile Overlay */}
@@ -131,9 +135,17 @@ export default function Sidebar({ mode }: SidebarProps) {
 
       {/* Sidebar Desktop & Mobile Drawer */}
       <div className={cn(
-        "fixed lg:static inset-y-0 left-0 z-[55] w-64 h-full bg-rivix-light border-r border-slate-200 text-slate-600 font-sans transition-transform duration-300 transform lg:translate-x-0 flex flex-col overflow-hidden",
+        "fixed lg:static inset-y-0 left-0 z-[55] w-64 h-dvh lg:h-full bg-rivix-light border-r border-slate-200 text-slate-600 font-sans transition-transform duration-300 transform lg:translate-x-0 flex flex-col overflow-hidden",
         isOpen ? "translate-x-0" : "-translate-x-full"
       )}>
+        {/* Close button lives inside the drawer (top-right) so it never covers the logo */}
+        <button
+          onClick={() => setIsOpen(false)}
+          aria-label="Close menu"
+          className="lg:hidden absolute top-4 right-4 z-10 p-2 bg-white border border-slate-200 rounded-xl text-slate-500 hover:text-rivix transition-all"
+        >
+          <X size={18} />
+        </button>
         <NavContent />
       </div>
     </>

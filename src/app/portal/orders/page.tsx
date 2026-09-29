@@ -48,14 +48,14 @@ export default function OrdersPage() {
         </div>
         
         <div className="flex items-center gap-3">
-          <div className="relative">
+          <div className="relative flex-1 sm:flex-none">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input 
               type="text" 
               placeholder="Search orders..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-rivix/20 focus:border-rivix outline-none transition-all w-64"
+              className="pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-rivix/20 focus:border-rivix outline-none transition-all w-full sm:w-64"
             />
           </div>
           <div className="relative" ref={filterRef}>
@@ -94,36 +94,36 @@ export default function OrdersPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
-        <table className="w-full text-left">
+      <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-x-auto">
+        <table className="w-full text-left min-w-[560px]">
           <thead className="bg-slate-50/50 border-b border-slate-100">
             <tr>
-              <th className="px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Order Info</th>
-              <th className="px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Product Specification</th>
-              <th className="px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Quantity</th>
-              <th className="px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest"></th>
+              <th className="px-4 sm:px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Order Info</th>
+              <th className="px-4 sm:px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Product Specification</th>
+              <th className="px-4 sm:px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Quantity</th>
+              <th className="px-4 sm:px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {filteredOrders.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-8 py-10 text-center text-sm text-slate-400">
+                <td colSpan={4} className="px-4 sm:px-8 py-10 text-center text-sm text-slate-400">
                   {orders.length === 0 ? 'No orders yet.' : 'No orders match your search or filter.'}
                 </td>
               </tr>
             )}
             {filteredOrders.map((order) => (
               <tr key={order.id} className="hover:bg-slate-50/50 transition-colors group">
-                <td className="px-8 py-6 whitespace-nowrap">
+                <td className="px-4 sm:px-8 py-6 whitespace-nowrap">
                   <p className="font-bold text-slate-900 mb-0.5">{order.batch_number}</p>
                 </td>
 
-                <td className="px-8 py-6">
+                <td className="px-4 sm:px-8 py-6">
                   <p className="text-sm font-semibold text-slate-700">{order.product_name}</p>
                   {order.material && <p className="text-xs text-slate-400">{order.material}</p>}
                 </td>
-                <td className="px-8 py-6 text-sm font-bold text-slate-600">{order.quantity} Units</td>
-                <td className="px-8 py-6 text-right">
+                <td className="px-4 sm:px-8 py-6 text-sm font-bold text-slate-600">{order.quantity} Units</td>
+                <td className="px-4 sm:px-8 py-6 text-right">
 
                   <Link 
                     href={`/portal/orders/${order.batch_number}`}

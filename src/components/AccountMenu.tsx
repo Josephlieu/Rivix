@@ -36,9 +36,9 @@ export default function AccountMenu({ name, initials, profileHref }: AccountMenu
     <div className="relative" ref={menuRef}>
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-4 hidden sm:flex border-l border-slate-200 pl-4 hover:opacity-80 transition-opacity"
+        className="flex items-center gap-2 sm:gap-4 sm:border-l sm:border-slate-200 sm:pl-4 hover:opacity-80 transition-opacity"
       >
-        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{name}</span>
+        <span className="hidden sm:inline text-[10px] text-slate-400 font-bold uppercase tracking-widest">{name}</span>
         <div className="w-8 h-8 rounded-full bg-rivix/10 border border-rivix/20 flex items-center justify-center text-[10px] font-bold text-rivix">
           {initials}
         </div>

@@ -72,7 +72,7 @@ export default function ClientPortalHome() {
 
 
       <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
-        <div className="p-8 border-b border-slate-100 flex items-center justify-between">
+        <div className="p-5 sm:p-8 border-b border-slate-100 flex items-center justify-between">
           <h3 className="text-lg font-bold text-slate-900">Recent Orders</h3>
           <Link href="/portal/orders" className="text-sm font-bold text-rivix hover:text-rivix-dark transition-colors">View History</Link>
         </div>
@@ -80,24 +80,24 @@ export default function ClientPortalHome() {
           <table className="w-full text-left">
             <thead className="bg-slate-50/50">
               <tr>
-                <th className="px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Order #</th>
-                <th className="px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Product</th>
-                <th className="px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Quantity</th>
-                <th className="px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest"></th>
+                <th className="px-4 sm:px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Order #</th>
+                <th className="px-4 sm:px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Product</th>
+                <th className="px-4 sm:px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Quantity</th>
+                <th className="px-4 sm:px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {orders.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-8 py-10 text-center text-sm text-slate-400">No orders yet.</td>
+                  <td colSpan={4} className="px-4 sm:px-8 py-10 text-center text-sm text-slate-400">No orders yet.</td>
                 </tr>
               )}
               {orders.slice(0, 5).map((order) => (
                 <tr key={order.id} className="hover:bg-slate-50/50 transition-colors group">
-                  <td className="px-8 py-6 font-bold text-slate-700 whitespace-nowrap">{order.batch_number}</td>
-                  <td className="px-8 py-6 text-slate-600 font-medium min-w-[200px]">{order.product_name}</td>
-                  <td className="px-8 py-6 text-slate-600 font-medium whitespace-nowrap">{order.quantity} units</td>
-                  <td className="px-8 py-6 text-right">
+                  <td className="px-4 sm:px-8 py-6 font-bold text-slate-700 whitespace-nowrap">{order.batch_number}</td>
+                  <td className="px-4 sm:px-8 py-6 text-slate-600 font-medium min-w-[200px]">{order.product_name}</td>
+                  <td className="px-4 sm:px-8 py-6 text-slate-600 font-medium whitespace-nowrap">{order.quantity} units</td>
+                  <td className="px-4 sm:px-8 py-6 text-right">
                     <Link href={`/portal/orders/${order.batch_number}`} className="text-xs font-bold text-slate-400 group-hover:text-rivix transition-colors whitespace-nowrap">Details →</Link>
                   </td>
                 </tr>

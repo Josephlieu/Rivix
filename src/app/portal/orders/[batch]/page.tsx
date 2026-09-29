@@ -87,7 +87,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ batch: s
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
-          <div className="bg-white rounded-3xl p-8 border border-slate-100 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="bg-white rounded-3xl p-5 sm:p-8 border border-slate-100 shadow-sm grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8">
             <div className="space-y-1">
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
                 <Calendar size={12} />
@@ -116,7 +116,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ batch: s
             <div className="p-6 border-b border-slate-100 flex items-center justify-between">
               <h3 className="font-bold text-slate-900">Technical Specifications</h3>
             </div>
-            <div className="p-8 grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="p-5 sm:p-8 grid grid-cols-1 sm:grid-cols-2 gap-6">
               {[
                 { label: 'Primary Fabric', value: order.material },
                 { label: 'Safety Standard', value: order.safety_standard },
@@ -134,7 +134,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ batch: s
         </div>
 
         <div className="space-y-8">
-          <div className="bg-white rounded-3xl p-8 border border-slate-100 shadow-sm">
+          <div className="bg-white rounded-3xl p-5 sm:p-8 border border-slate-100 shadow-sm">
             <h3 className="font-bold text-slate-900 mb-6 flex items-center gap-2">
               <ShieldCheck className="text-emerald-500" size={20} />
               Compliance Documentation
@@ -217,7 +217,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ batch: s
                 <X size={20} />
               </button>
             </div>
-            <div className="flex-1 bg-slate-100 p-8 flex items-center justify-center overflow-hidden">
+            <div className="flex-1 bg-slate-100 p-2 sm:p-8 flex items-center justify-center overflow-hidden">
                {isClient && (
                  <PDFViewer style={{ width: '100%', height: '100%', borderRadius: '12px', border: 'none' }}>
                    <CertificatePDF 
