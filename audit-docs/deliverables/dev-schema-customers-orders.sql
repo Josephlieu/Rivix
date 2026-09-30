@@ -11,17 +11,17 @@ create table if not exists public.customers (
   created_at timestamptz not null default now()
 );
 
--- Human-readable customer code, e.g. "PAC-0001" — generated from the first
--- 3 letters of the company name + a sequential number, so customers/admins
--- never have to deal with the raw uuid.
+-- Human-readable customer code, e.g. "CUS-0001" — a sequential number, so
+-- customers/admins never have to deal with the raw uuid. (Originally built from
+-- the company name's first 3 letters; switched to CUS- by
+-- dev-schema-customer-codes-cus.sql; this file now creates the CUS- format directly.)
 create sequence if not exists public.customer_code_seq;
 
 create or replace function public.generate_customer_code()
 returns trigger as $$
 begin
   if new.customer_code is null or new.customer_code = '' then
-    new.customer_code := upper(left(regexp_replace(new.company_name, '[^a-zA-Z]', '', 'g'), 3))
-      || '-' || lpad(nextval('public.customer_code_seq')::text, 4, '0');
+    new.customer_code := 'CUS-' || lpad(nextval('public.customer_code_seq')::text, 4, '0');
   end if;
   return new;
 end;

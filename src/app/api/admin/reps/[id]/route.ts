@@ -18,6 +18,16 @@ export async function PATCH(
   for (const key of ['name', 'title', 'email', 'phone'] as const) {
     if (key in body) update[key] = String(body[key] ?? '').trim() || null;
   }
+  // The email is the rep's sign-in, so once a login exists it can't be changed.
+  if ('email' in update) {
+    const { data: existing } = await createAdminClient().from('reps').select('email, user_id').eq('id', id).maybeSingle();
+    if (existing?.user_id) {
+      if (String(update.email).toLowerCase() !== existing.email.toLowerCase()) {
+        return NextResponse.json({ error: "This rep's email is their login and can't be changed." }, { status: 400 });
+      }
+      delete update.email;
+    }
+  }
   if ('active' in body) update.active = Boolean(body.active);
   if ((update.name === null) || (update.email === null)) {
     return NextResponse.json({ error: 'Name and email cannot be empty.' }, { status: 400 });

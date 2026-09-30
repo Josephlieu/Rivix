@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/require-admin';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { generateTempPassword } from '@/lib/temp-password';
+import { loadBannedMap } from '@/lib/customer-status';
 
 export async function GET() {
   const denied = await requireAdmin();
@@ -10,16 +11,20 @@ export async function GET() {
   const admin = createAdminClient();
   const { data, error } = await admin
     .from('customers')
-    .select('id, customer_code, company_name, contact_email, contact_phone, rep_id, created_at, orders(count)')
+    .select('id, user_id, customer_code, company_name, contact_email, contact_phone, rep_id, created_at, orders(count)')
     .order('created_at', { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  const banned = await loadBannedMap(admin);
 
   return NextResponse.json({
     customers: (data || []).map((c: any) => ({
       ...c,
       order_count: c.orders?.[0]?.count ?? 0,
+      disabled: c.user_id ? banned.get(c.user_id) === true : false,
       orders: undefined,
+      user_id: undefined,
     })),
   });
 }

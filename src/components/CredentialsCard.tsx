@@ -55,7 +55,7 @@ export default function CredentialsCard({
             {credentials.reset ? `New temporary password for ${credentials.name}` : `Account created for ${credentials.name}`}
           </h3>
           <p className="text-xs text-slate-500 mt-1">
-            The password is shown <strong>only now</strong> and can&apos;t be looked up later. Send it to them now — if it&apos;s lost, generate a new one.
+            The password is shown <strong>only now</strong>&nbsp; and can&apos;t be looked up later. Send it to them now — if it&apos;s lost, generate a new one.
           </p>
         </div>
         <button onClick={onDismiss} className="p-1 text-slate-400 hover:text-slate-600" aria-label="Dismiss">

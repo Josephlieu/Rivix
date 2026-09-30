@@ -7,6 +7,7 @@ import CredentialsCard, { NewCredentials } from '@/components/CredentialsCard';
 
 interface Rep {
   id: string;
+  rep_code?: string | null;
   name: string;
   title: string | null;
   email: string;
@@ -160,6 +161,8 @@ export default function TeamManagement() {
     setConfirm(null);
   };
 
+  const editingHasLogin = !!editingId && !!reps.find((r) => r.id === editingId)?.has_login;
+
   const inputClass =
     'w-full px-4 py-3 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-rivix/20 outline-none font-medium placeholder:text-slate-300';
 
@@ -209,7 +212,16 @@ export default function TeamManagement() {
             </div>
             <div className="space-y-1.5">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Email *</label>
-              <input required type="email" className={inputClass} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="tyler@rivix.ca" />
+              <input
+                required
+                type="email"
+                disabled={editingHasLogin}
+                className={`${inputClass} ${editingHasLogin ? 'opacity-60' : ''}`}
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                placeholder="tyler@rivix.ca"
+              />
+              {editingHasLogin && <p className="text-xs text-slate-400 px-1">This is their login, so it can&apos;t be changed.</p>}
             </div>
             <div className="space-y-1.5">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Phone</label>
@@ -286,6 +298,7 @@ export default function TeamManagement() {
                 <td className="px-4 sm:px-8 py-5">
                   <p className="font-bold text-slate-900">{rep.name}</p>
                   {rep.title && <p className="text-xs text-slate-400">{rep.title}</p>}
+                  {rep.rep_code && <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">{rep.rep_code}</p>}
                 </td>
                 <td className="px-4 sm:px-8 py-5 text-xs text-slate-500 space-y-1">
                   <p className="flex items-center gap-1.5"><Mail size={12} className="text-slate-400" />{rep.email}</p>
