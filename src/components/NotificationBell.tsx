@@ -5,7 +5,7 @@ import { Bell, Package, FileText, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
 
 interface NotificationBellProps {
-  mode: 'admin' | 'client';
+  mode: 'admin' | 'client' | 'rep';
 }
 
 // No real notifications system exists yet — no events (order status

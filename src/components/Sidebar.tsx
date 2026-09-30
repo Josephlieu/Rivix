@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   Settings,
   UserCircle,
+  PlusCircle,
   LogOut,
   Menu,
   X
@@ -22,7 +23,7 @@ import RepWidget from './RepWidget';
 import { supabaseBrowser as supabase } from '@/lib/supabase-browser';
 
 interface SidebarProps {
-  mode: 'admin' | 'client';
+  mode: 'admin' | 'client' | 'rep';
 }
 
 const adminLinks = [
@@ -48,11 +49,30 @@ const clientLinks = [
   { href: '/portal/account', label: 'Account', icon: UserCircle },
 ];
 
+const repLinks = [
+  { href: '/rep', label: 'Overview', icon: LayoutDashboard },
+  { href: '/rep/customers', label: 'My Customers', icon: Users },
+  { href: '/rep/orders', label: 'Orders', icon: FileText },
+  { href: '/rep/orders/new', label: 'New Order', icon: PlusCircle },
+  { href: '/rep/account', label: 'Account', icon: UserCircle },
+];
+
+// Section roots only match exactly; everything else also matches its sub-pages
+// (e.g. /rep/orders stays highlighted on /rep/orders/ORD-0002).
+const rootPaths = ['/admin', '/portal', '/rep'];
+const isLinkActive = (pathname: string, href: string, siblings: { href: string }[]) => {
+  if (pathname === href) return true;
+  if (rootPaths.includes(href)) return false;
+  if (!pathname.startsWith(href + '/')) return false;
+  // Don't highlight a parent when a more specific sibling link matches (Orders vs New Order)
+  return !siblings.some((l) => l.href !== href && l.href.length > href.length && (pathname === l.href || pathname.startsWith(l.href + '/')));
+};
+
 export default function Sidebar({ mode }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
-  const links = mode === 'admin' ? adminLinks : clientLinks;
+  const links = mode === 'admin' ? adminLinks : mode === 'rep' ? repLinks : clientLinks;
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -77,7 +97,7 @@ export default function Sidebar({ mode }: SidebarProps) {
       <nav className="flex-1 px-4 space-y-1 overflow-y-auto">
         {links.map((link) => {
           const Icon = link.icon;
-          const isActive = pathname === link.href;
+          const isActive = isLinkActive(pathname, link.href, links);
           
           return (
             <Link
