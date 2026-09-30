@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Lock, Loader2, Eye, EyeOff, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { supabaseBrowser as supabase } from '@/lib/supabase-browser';
-import { isAdminUser } from '@/lib/admin-auth';
+import { homePathFor } from '@/lib/admin-auth';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -71,7 +71,7 @@ export default function ResetPasswordPage() {
       }
       setSuccess(true);
       const { data: { user } } = await supabase.auth.getUser();
-      const destination = isAdminUser(user) ? '/admin' : '/portal';
+      const destination = homePathFor(user);
       setTimeout(() => router.push(destination), 1500);
     } catch (err: any) {
       setError(err.message);

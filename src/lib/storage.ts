@@ -46,6 +46,32 @@ export const getMyOrders = async (): Promise<OrderData[]> => {
   return data || [];
 };
 
+export interface AssignedRep {
+  name: string;
+  title: string | null;
+  email: string;
+  phone: string | null;
+}
+
+// Real, RLS-scoped: the logged-in customer's assigned rep, or null if none.
+// The database only lets a customer read the rep they're assigned to.
+export const getMyRep = async (): Promise<AssignedRep | null> => {
+  const { data: { user } } = await supabaseBrowser.auth.getUser();
+  if (!user) return null;
+
+  const { data, error } = await supabaseBrowser
+    .from('customers')
+    .select('rep:reps(name, title, email, phone)')
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error fetching assigned rep:', error);
+    return null;
+  }
+  return (data?.rep as unknown as AssignedRep | null) ?? null;
+};
+
 export interface ProductSpecData {
   id: string;
   customer_id: string;

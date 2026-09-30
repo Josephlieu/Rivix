@@ -1,22 +1,16 @@
 'use client';
 
-import { Mail, UserX } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Mail, Phone, UserX } from 'lucide-react';
+import { getMyRep, AssignedRep } from '@/lib/storage';
 
-interface RepWidgetProps {
-  // Real rep assignment doesn't exist in the data model yet (no Sales Rep
-  // system built) — this is always undefined for now. Once a real
-  // customer<->rep relationship exists, pass the assigned rep in here and
-  // this component can show their real name/contact instead of the
-  // "not assigned" fallback below.
-  rep?: {
-    name: string;
-    title: string;
-    email: string;
-    phone?: string;
-  };
-}
+export default function RepWidget() {
+  const [rep, setRep] = useState<AssignedRep | null>(null);
 
-export default function RepWidget({ rep }: RepWidgetProps) {
+  useEffect(() => {
+    getMyRep().then(setRep);
+  }, []);
+
   if (!rep) {
     return (
       <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
@@ -56,7 +50,7 @@ export default function RepWidget({ rep }: RepWidgetProps) {
         </div>
         <div>
           <h4 className="text-sm font-bold text-slate-900">{rep.name}</h4>
-          <p className="text-[11px] text-slate-500 font-medium">{rep.title}</p>
+          {rep.title && <p className="text-[11px] text-slate-500 font-medium">{rep.title}</p>}
         </div>
       </div>
 
@@ -65,6 +59,12 @@ export default function RepWidget({ rep }: RepWidgetProps) {
           <Mail size={14} className="text-slate-400" />
           {rep.email}
         </a>
+        {rep.phone && (
+          <a href={`tel:${rep.phone.replace(/[^+\d]/g, '')}`} className="flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-rivix transition-colors">
+            <Phone size={14} className="text-slate-400" />
+            {rep.phone}
+          </a>
+        )}
       </div>
     </div>
   );

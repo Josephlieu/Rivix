@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Mail, Lock, Loader2, ArrowRight, Eye, EyeOff, AlertCircle, ShieldCheck } from 'lucide-react';
 import { supabaseBrowser as supabase } from '@/lib/supabase-browser';
+import { homePathFor } from '@/lib/admin-auth';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -21,7 +22,7 @@ export default function LoginPage() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session) {
         setRedirecting(true);
-        router.push('/portal');
+        router.push(homePathFor(session.user));
       }
     });
 
@@ -34,7 +35,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -44,9 +45,8 @@ export default function LoginPage() {
       // back to idle in the gap before navigation actually happens.
       setRedirecting(true);
 
-      // All email/password logins go to client portal
-      // Admin access is gated separately via /admin/verify PIN
-      router.push('/portal');
+      // Admins, reps and customers each land in their own area
+      router.push(homePathFor(data.user));
     } catch (error: any) {
       setError(
         error.message === 'Invalid login credentials'

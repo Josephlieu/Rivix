@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requireAdmin } from '@/lib/require-admin';
 import { GoogleGenAI } from '@google/genai';
 
 const mammoth = require('mammoth');
@@ -39,6 +40,9 @@ If a piece of contact info or data is missing, leave it as an empty string (or f
 `;
 
 export async function POST(req: Request) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   try {
     const formData = await req.formData();
     const file = formData.get('resume') as File | null;
