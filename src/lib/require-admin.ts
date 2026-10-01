@@ -12,3 +12,11 @@ export async function requireAdmin(): Promise<NextResponse | null> {
   }
   return null;
 }
+
+// Same check, but also returns who the admin is (for "who did this" records).
+export async function getAdminIdentity(): Promise<{ denied: NextResponse } | { email: string }> {
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!isAdminUser(user)) return { denied: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
+  return { email: user?.email || 'admin' };
+}

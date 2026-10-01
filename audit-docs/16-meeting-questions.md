@@ -38,18 +38,34 @@ Everything still genuinely open, grouped for a live conversation. Already-resolv
   - [ ] How should QuickBooks customers match to portal customers — by email, or admin links them once?
 - [ ] **"Catalog ordering functionality"** (from the 09-25 second call) — still unanswered. Is this a real orderable catalog, separate from the example catalog we removed?
 
-## C3. NEW — Supplier Hub (requested 2026-09-29) — need Joseph's answers
+## C3. Supplier Hub (requested 2026-09-29) — ANSWERED 2026-09-30, a few new questions remain
 
-- [ ] **Context: the PDF is ChatGPT's write-up of your brief, so several details are ChatGPT's, not yours** — worth confirming each is what you want. First: it lets the **customer** "submit product inquiry, upload requirements, track status." You only mentioned the "buyer side" in passing, and this contradicts the decision that customers go through their rep. **Do customers submit inquiries themselves, or does the rep enter them?**
-- [ ] **AI**: you said it should be able to decide by itself; ChatGPT advised against auto-award (recommend, admin approves). **Which do you want — or recommend by default with an auto-award switch you can turn on?**
-- [ ] **"The first one who can put the pricing in"** — first-to-respond wins, or best bid after a closing deadline? (The deadline and locked bids were ChatGPT's addition.)
-- [ ] ChatGPT also added **2FA for admins, audit logs, and version history on quotes**. Wanted, or overkill for launch? (Each adds hours.)
-- [ ] You ended with "the supplier can go and just choose and decide" — **what does the supplier choose?**
-- [ ] Are **losing suppliers told** they lost? Ever told the winning price? (Proposed default: told only that they weren't selected.)
-- [ ] **Tech packs go to up to 50 outside companies.** Any NDA, access expiry per RFQ, or download logging wanted, given the earlier worry about designs reaching competitors?
-- [ ] Should RFQs be created **from a tech pack already made in Replication**?
-- [ ] **CAD or USD**, and landed price only, or explicit shipping terms?
-- [ ] Priority: does this come **after** the Customer / Admin / Sales Rep launch (recommended), or in parallel?
+Joseph's written answers are recorded in [17-supplier-hub.md §0](./17-supplier-hub.md).
+
+**Answered**
+- [x] Customers submit inquiries? → **No. Admin only** uploads the RFP/tender and chooses which manufacturers can see it.
+- [x] AI decides or recommends? → **AI picks the winner; admin can always override.**
+- [x] First response or best bid? → **Best bid**, with a deadline; compare price, lead time, supplier performance; response time is still tracked; admin can close/award early.
+- [x] 2FA, audit logs, quote history? → **Yes to all**, plus records of quote changes, who viewed/downloaded files, and who awarded.
+- [x] "The supplier can go and choose and decide"? → the supplier **accepts or declines** the opportunity, then enters price and lead time.
+- [x] Tech-pack leakage? → **NDA per supplier, invite-only visibility, no competitor names, file access expiring at close, admin can revoke, download logging, watermarking** with supplier name.
+- [x] Create an RFQ from a Replication tech pack? → Not needed: admin uploads the tender; AI drafts a tech file from written specs when none exists.
+- [x] Priority? → **After** the customer, admin and sales-rep sides are live.
+- [x] QuickBooks Online? → **Yes**, invoices only; match by email first, then save the QuickBooks customer ID.
+
+**New questions from his answers — ask Joseph only the BUSINESS ones** (technical ones we decide ourselves, see `17-supplier-hub.md` §0b)
+- [ ] **NDA wording:** can you (or your lawyer) send the NDA text? One NDA for every supplier? *(how it is signed is our call)*
+- [ ] **AI screening criteria:** which certifications can your suppliers meet or not, minimum quantities for custom manufacturing, any regional / union / Canadian-made rules? *(an editable criteria page in the app is our call — yes)*
+- [ ] **Winner notification:** told **immediately**, or after a short admin review window so you can override first? (we recommend the window)
+- [ ] **Negotiation round:** should you approve each "can you improve your offer?" message, and how many rounds? (we suggest: you approve, up to 2 rounds)
+- [ ] Are **losing suppliers told** they weren't selected? (we suggest: yes, never the winner or the price)
+- [ ] **CAD or USD**, and landed price only or explicit shipping terms?
+- [ ] **Where do the tenders come from?** (the example looks like a Government of Ontario / Ontario Parks tender — is that the kind you bid on?)
+- [ ] **Whole tenders or selected styles:** the example has 57 garments. Do you bid on the whole tender or pick styles, and can a supplier quote only part of it?
+- [ ] **Main RFP:** do you have the full RFP that goes with the Ontario Parks attachment (closing date, evaluation, mandatory forms) so we can test screening on a real one?
+- [ ] **Sizes:** should **tall** and **maternity** be separate options on the order form?
+- [ ] **AI bill:** whose account pays for the AI (screening, summaries, tech-file drafts, bid comparison), and is a monthly cap wanted? Also **storage:** tenders as big as the example (64 MB) need a paid storage plan — okay to include that monthly cost?
+- [ ] **Email domain:** supplier emails need rivix.ca connected for sending (Resend + GoDaddy DNS) — see section I.
 
 ## D. Notifications & internal communication
 
@@ -80,9 +96,10 @@ Everything still genuinely open, grouped for a live conversation. Already-resolv
 
 ## I. Access we need from you
 
-- [ ] **QuickBooks** login/API access, when ready to connect it
+- [ ] **QuickBooks** login/API access, when ready to connect it (confirmed 2026-09-30: QuickBooks Online, invoices only)
 - [ ] **Okay to set up a separate practice/staging version of the database**, so we never risk touching real customer data while building?
-- [ ] A few **real tech-pack example files**, to tune the AI feature to match your actual format
+- [ ] A few **real tech-pack example files**, to tune the AI feature to match your actual format (2026-10-01: received — Ontario Parks tender attachment; more examples of different garment types still welcome)
+- [ ] **DNS access for rivix.ca (GoDaddy)** so branded emails can send through Resend — now also needed for supplier notification emails. Plan: we send the DNS records for Joseph to paste, or he adds us as a delegate; never share the password
 
 ---
 

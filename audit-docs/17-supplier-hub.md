@@ -6,6 +6,63 @@ title: Supplier Hub (Supplier Procurement Portal)
 
 Requested by Joseph on 2026-09-29. This is a **new feature**, separate from the Customer / Admin / Sales Rep work. The short version lives in [07-client-requirements.md §13](./07-client-requirements.md); this file is the complete record.
 
+## 0. Joseph's answers (2026-09-30) — these supersede ChatGPT's proposal wherever they differ
+
+Joseph replied to the C3 questions in writing. **These are now the confirmed requirements** for the Supplier Hub. It is a bigger and different feature than the ChatGPT deck: it starts with **RFPs/tenders** RIVIX receives, screens them with AI, then sources bids from manufacturers.
+
+### The confirmed flow
+1. **Admin uploads the tender / RFP.** Admin only — customers and reps do **not** submit inquiries. (Resolves the old conflict.)
+2. **AI screens it first** against criteria the admin sets, and returns **GOOD / POSSIBLE / POOR MATCH**, explains why, and recommends **Proceed / Review Before Proceeding / Skip**. Admin makes the final decision. Things it must flag: a specific manufacturer/brand required with no equivalent; closing date too soon; unrealistic sample deadline; too many mandatory forms/registrations; certifications our suppliers can't meet; Canadian-made / union-made / geographic restrictions; past-project requirements we don't meet; quantity too small for custom manufacturing; unrealistic delivery timeline; unusual testing/inspection; no substitutions allowed.
+3. **If admin proceeds, AI summarizes the tender** and extracts what a manufacturer needs to quote on: product requirements, quantity, materials, certifications, delivery, dates, photos, files, special instructions.
+4. **If there are only written specs** (no photos / tech pack), **AI drafts a tech file** from the written requirements plus the **example tech file Joseph already sent**. Admin reviews it before it goes live to suppliers.
+5. **Admin selects suppliers** (each supplier only ever sees tenders they're invited to; suppliers never see who else was invited).
+6. **Suppliers get an email** with a short AI summary: product type, approximate quantity, key specs, quote deadline, required delivery timeline, major certification requirements. They log in to see the full tender.
+7. **In the portal a supplier can:** view the tender, AI summary, photos/files and tech file; **accept or decline**; enter **price and lead time**; add notes/conditions; upload supporting files; submit the final bid; **ask questions** (through the tender page, by email, or by requesting a quick call) — admin replies. Admin can also **send an update to every supplier on that tender** if something changes.
+8. **Best bid wins, not first response.** Suppliers have a **deadline**. Compare on price, lead time and supplier performance. **Response time is still tracked** (becomes part of a supplier score later). Admin can close or award early.
+9. **AI picks the winner** (price, lead time, supplier history, other factors added later). **Admin can always override.**
+10. **Negotiation round:** once the best bid is identified, admin can tell the other suppliers where the leading bid sits ("Current leading price: $X, lead time: X days — can you improve your offer?"). They **never** see the winning supplier's name or any confidential information.
+11. **Winner is notified and confirms.** Everything is saved to the tender history and the supplier performance record.
+
+### Security and design protection (all confirmed — "yes")
+- **2FA for admin**, activity logs, quote history, record of quote changes, record of who viewed/downloaded files, record of who awarded the tender.
+- **Every supplier signs an NDA before they can access tenders, tech packs or confidential files.** NDA acceptance is recorded on the supplier account with the date.
+- A supplier only sees tenders they're invited to; can't see other invited manufacturers or competitors' names; can't see customer information (unless allowed) or RIVIX's selling price / margin.
+- **File access can expire** when the tender closes; **admin can remove access at any time**; **downloads are logged**; **tech packs and sensitive files watermarked** with the supplier company name/account if possible.
+
+### Other answers
+- **Timing:** build **after** the customer, admin and sales-rep sides are live. (Confirms the recommendation.)
+- **QuickBooks:** **QuickBooks Online — confirmed.** Only for invoices right now. Match customers by email at first, but **once matched, save the QuickBooks customer ID on the portal account** so a later email change doesn't break the link.
+
+### What this changes
+- **Scope grew a lot.** The earlier Phase-1 estimate (~74–108h, RFQ + quotes + comparison) no longer fits. See the revised estimate in §10b.
+- The old questions are answered: inquiries = admin only; AI decides but admin overrides; best bid + deadline (+ response time tracked); 2FA/logs/history wanted; NDA + access expiry + download logging wanted; "the supplier can go and choose and decide" = supplier **accepts or declines** the opportunity.
+- **Email is now a hard dependency.** Supplier notification emails need a properly verified sending domain (Resend + rivix.ca DNS via GoDaddy). Supabase's default sender is rate-limited and unbranded and will not do.
+- **The example tech file:** received 2026-10-01 — an Ontario Parks uniform tender attachment (57 garments, 723 pages, 64 MB). Analysis in [19-tech-pack-example.md](./19-tech-pack-example.md): the draft tech file should follow its 11-section layout; it also shows what real tenders look like (Made-in-Canada, bilingual labels, CGSB/CSA/ISO/AATCC testing, Pantone colour control, tall/maternity sizes), a tender can hold **57 line items** (design for many products per tender, partial bids), and a 64 MB file may exceed the Supabase free-plan 50 MB upload limit (verify).
+- The old items about customer inquiries, "create an RFQ from a Replication tech pack", and the ChatGPT "buyer side" are **superseded / dropped**.
+
+### Still open (new questions from these answers)
+1. **NDA:** what is the NDA text (Joseph / his lawyer), and how is it "signed" — a click-to-accept box, or an uploaded signed PDF / e-signature? Same NDA for every supplier?
+2. **AI screening criteria:** Joseph said "criteria we set." Which certifications can RIVIX's suppliers meet or not, minimum quantities for custom manufacturing, regions/restrictions — who maintains this list, and should admin be able to edit it in the app?
+3. **Winner notification:** after AI picks, is the winner notified **immediately**, or does admin get a review window first (recommended) so an override can happen before anyone is told?
+4. **Negotiation round:** does admin approve each "can you improve?" message, or does the system send it automatically? How many rounds?
+5. **Losing suppliers:** are they told they weren't selected? (Not answered; default: told only that they weren't selected.)
+6. **Currency:** CAD or USD? (Not answered.)
+7. **Where do the tenders come from?** Government/public tenders that RIVIX receives and bids on? This affects the screening rules and how documents arrive.
+8. **AI cost:** screening, summarizing, drafting tech files and comparing bids all use paid AI calls per tender — who pays the Gemini/AI bill (the existing key problem), and any monthly cap?
+
+### 0b. Technical decisions we make ourselves (not for Joseph) — proposed 2026-10-01
+| Question | Our decision |
+|---|---|
+| How is the NDA signed? | Click-to-accept in the portal with the supplier's **typed full name**, the **NDA version**, date/time and IP stored on the supplier account; supplier can't open any tender until it's accepted. Optional uploaded signed PDF later if his lawyer insists. |
+| Editable screening criteria? | **Yes** — an admin settings page holds the criteria (certifications suppliers can't meet, minimum quantities, restricted regions, etc.) and the AI is prompted from it. Joseph supplies the *content*; we build the editor. |
+| Reading very large tenders | Chunk by section/garment, summarise each piece, then combine; keep the original file private. Choose the AI model for cost vs quality at build time. |
+| Big files (64 MB example) | Needs a storage plan that allows files over 50 MB (verify the Supabase free-plan cap); cost passed to the client as a running cost. |
+| Partial bids / many products per tender | Model a tender as **many line items**; a supplier can accept/decline and quote **per item or the whole tender**. |
+| Admin 2FA | Authenticator-app (TOTP) for admin accounts. |
+| Logs | One activity log (who viewed/downloaded, quote changes, who awarded) plus a version history on quotes. |
+| File protection | Short-lived private links, access that ends when the tender closes, admin can revoke, downloads logged, supplier name stamped on PDFs/images (watermark). |
+| AI draft tech file | Follow the 11-section layout of the Ontario Parks example; mark it clearly as a **draft** and require admin review before suppliers see it; measurements always need a person's check. |
+
 ## 1. Where this came from (read this first)
 
 Three inputs, and they are not equal:
@@ -117,7 +174,7 @@ Three portals over one database: **Buyer portal** (submit inquiry), **Admin port
 
 **After launch:** supplier performance scoring, production order tracking, inspection/QC records, messaging inside each RFQ, shipment tracking, buyer status updates, automated reminders, more supplier capacity.
 
-## 8. Open questions for Joseph
+## 8. Open questions for Joseph (original list — **mostly answered 2026-09-30, see §0**)
 
 Also in [16-meeting-questions.md](./16-meeting-questions.md) group C3.
 
@@ -132,7 +189,7 @@ Also in [16-meeting-questions.md](./16-meeting-questions.md) group C3.
 9. **CAD or USD**; landed price only, or explicit shipping terms?
 10. **Priority:** after the Customer / Admin / Sales Rep launch (recommended), or in parallel?
 
-## 9. Rough data model (my sketch, not from Joseph or ChatGPT)
+## 9. Rough data model (my sketch, not from Joseph or ChatGPT — **§0 adds: NDA acceptance, tender screening results, Q&A, tender updates, activity log, negotiation rounds, watermarked downloads**)
 
 - `suppliers`: company, contact, email, status, linked to a login
 - `rfqs`: number, product, MOQ, fabric, GSM, quantity, delivery date, closing deadline, status, created by admin
@@ -159,6 +216,30 @@ Supplier isolation would use the same database-level rule pattern already in pla
 | **Total** | **~74–108** |
 
 A first estimate only. It includes the items ChatGPT added (2FA, audit logs, versioning) which Joseph may not want at launch. It excludes everything under "after launch." It sits on top of the ~211–306 hours already remaining elsewhere.
+
+## 10b. Revised estimate after Joseph's answers (2026-09-30) — rough, my numbers
+
+| Piece | Hours |
+|---|---|
+| Supplier accounts: invite by email, own passwords, **NDA acceptance recorded**, isolation rules | 16–24 |
+| Data model: suppliers, tenders, files, invites, quotes + versions, awards, Q&A, updates, activity log | 12–18 |
+| Admin: upload tender/RFP, choose suppliers, close/award early, remove access | 14–20 |
+| **AI tender screening** (admin-set criteria, Good/Possible/Poor + reasons + Proceed/Review/Skip) | 14–20 |
+| **AI summary + key-point extraction** from the tender (incl. reading PDFs) | 10–14 |
+| **AI draft tech file** from written specs + the example tech file (needs the example) | 16–24 |
+| Supplier notification email with AI summary (needs verified sending domain) | 6–10 |
+| Supplier portal: tender view, files, accept/decline, price/lead time/notes/uploads, submit, revise before deadline | 18–26 |
+| Deadline, early close/award, bid integrity | 8–12 |
+| Supplier questions + call request + admin reply; broadcast updates to all suppliers on a tender | 10–16 |
+| AI bid comparison + winner selection (price, lead time, history) + admin override | 10–16 |
+| Negotiation round (anonymous "leading price / lead time — can you improve?") | 8–12 |
+| Design protection: access expiry, revoke access, download logging, **watermarking** with supplier name | 14–22 |
+| Activity logs: quote history, who viewed/downloaded, who awarded | 8–12 |
+| Admin 2FA + session expiry | 6–8 |
+| Winner notification + confirmation; supplier performance record (response time) | 6–10 |
+| **Total** | **~176–264** |
+
+Roughly 2.4× the first estimate (74–108h), because the brief now includes AI on both ends (screening and winner selection), AI-drafted tech files, negotiation, a Q&A channel, NDA and watermarking. **Highest-uncertainty items:** the AI draft tech file (depends on the example file and image-generation quality), watermarking, and reading arbitrary tender PDFs. Excludes the "after launch" list (production tracking, QC records, shipment tracking, full performance scoring). Ongoing AI usage costs are extra. Built **after** the customer/admin/rep sides, as Joseph agreed.
 
 ## 11. Recommendation
 

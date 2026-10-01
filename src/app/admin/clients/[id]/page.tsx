@@ -254,7 +254,7 @@ export default function ClientDetail({ params }: { params: Promise<{ id: string 
               <tbody className="divide-y divide-slate-100">
                 {orders.map((o) => (
                   <tr key={o.id}>
-                    <td className="px-4 sm:px-8 py-4 text-sm font-bold text-slate-900">{o.batch_number}</td>
+                    <td className="px-4 sm:px-8 py-4 text-sm font-bold text-slate-900"><Link href={`/admin/orders/${o.id}`} className="hover:text-rivix">{o.batch_number}</Link></td>
                     <td className="px-4 sm:px-8 py-4 text-sm text-slate-600">{o.product_name}</td>
                     <td className="px-4 sm:px-8 py-4 text-sm text-slate-600">{o.quantity}</td>
                     <td className="px-4 sm:px-8 py-4 text-sm text-slate-600">{o.order_date || '—'}</td>
