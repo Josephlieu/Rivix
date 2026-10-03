@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { generateTempPassword } from '@/lib/temp-password';
+import { notifyUsers } from '@/lib/notify';
 
 export interface RepLoginResult {
   ok: boolean;
@@ -50,6 +51,14 @@ export async function createOrResetRepLogin(
     await admin.auth.admin.deleteUser(created.user.id);
     return { ok: false, status: 500, error: linkErr.message };
   }
+
+  // Waiting in their bell for the first login
+  await notifyUsers(admin, [created.user.id], {
+    kind: 'welcome',
+    title: 'Welcome to the RIVIX Sales Portal',
+    body: 'See your customers, create orders and follow their progress here.',
+    link: '/rep/customers',
+  });
 
   return { ok: true, credentials: { email, password } };
 }

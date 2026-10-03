@@ -17,16 +17,30 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
-  // Listen for auth state changes (crucial for OAuth redirects)
+  // If this browser already has a saved sign-in, ask the SERVER whether it is still
+  // good before redirecting. (Trusting the saved copy caused a loop: the portal
+  // rejected a disabled account while this page kept sending it back.) A saved
+  // sign-in the server no longer accepts is cleared so the form can be used.
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session) {
+    let active = true;
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session || !active) return;
+      const { data, error } = await supabase.auth.getUser();
+      if (!active) return;
+      if (data?.user) {
         setRedirecting(true);
-        router.push(homePathFor(session.user));
+        router.replace(homePathFor(data.user));
+        return;
       }
-    });
-
-    return () => subscription.unsubscribe();
+      await supabase.auth.signOut({ scope: 'local' });
+      setError(
+        /banned|disabled/i.test(error?.message || '')
+          ? 'This account has been disabled. Please contact your sales rep.'
+          : 'Your session has ended. Please sign in again.'
+      );
+    })();
+    return () => { active = false; };
   }, [router]);
 
   const handleAuthAction = async (e: React.FormEvent) => {
@@ -51,6 +65,8 @@ export default function LoginPage() {
       setError(
         error.message === 'Invalid login credentials'
           ? 'Incorrect email or password. Please try again.'
+          : /banned/i.test(error.message)
+          ? 'This account has been disabled. Please contact your sales rep.'
           : error.message
       );
       setLoading(false);

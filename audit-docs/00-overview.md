@@ -46,5 +46,7 @@ middleware.ts        → the only route protection in the app (guards /admin onl
 - [18-order-flow.md](./18-order-flow.md) — the real order flow after launch (customer → rep → admin), data model, stages, build status and the admin Orders plan (2026-09-30)
 - [19-tech-pack-example.md](./19-tech-pack-example.md) — the example tech file Joseph sent (Ontario Parks uniform tender, 57 garments): structure, what it shows about real tenders, limits (2026-10-01)
 - [20-remaining-work.md](./20-remaining-work.md) — what is left per panel (customer / rep / admin), milestones and hour estimates (2026-10-01)
+- [21-manual-test-plan.md](./21-manual-test-plan.md) — full manual end-to-end test (admin / rep / customer), plus a gap and consistency checklist (2026-10-03)
+- [22-code-quality-review.md](./22-code-quality-review.md) — code size / duplication review and a plan to split big files and reuse components (2026-10-03)
 - [sessions/](./sessions/) — dated session logs, one file per work session (chronological record of what was done/found each day)
 - [diagrams/](./diagrams/) — flow and relationship diagrams for each role (SVG), referenced from [07-client-requirements.md](./07-client-requirements.md)

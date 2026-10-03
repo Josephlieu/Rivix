@@ -17,3 +17,9 @@ export const isOrderStage = (v: unknown): v is OrderStage =>
 
 // Carriers offered as suggestions; the field also accepts any other name.
 export const CARRIERS = ['Canada Post', 'Purolator', 'UPS', 'FedEx', 'DHL', 'Day & Ross', 'Manitoulin', 'Freight / LTL'];
+
+// The stages at which a customer may ask for a document (certificates come once the
+// order is finished). Change this list to change when the button appears; the server
+// enforces the same list.
+export const DOCUMENT_REQUEST_STAGES: readonly OrderStage[] = ['Shipped', 'Delivered'];
+export const canRequestDocuments = (status: string) => (DOCUMENT_REQUEST_STAGES as readonly string[]).includes(status);

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminIdentity } from '@/lib/require-admin';
 import { createAdminClient } from '@/lib/supabase-admin';
+import { customerParties, notifyUsers } from '@/lib/notify';
 
 // Add a note to the order's timeline. `customer_visible: false` keeps it
 // internal — the customer's read rule only returns visible events.
@@ -14,7 +15,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!note) return NextResponse.json({ error: 'Write a note first.' }, { status: 400 });
 
   const admin = createAdminClient();
-  const { data: order } = await admin.from('orders').select('id').eq('id', id).maybeSingle();
+  const { data: order } = await admin.from('orders').select('id, batch_number, customer_id').eq('id', id).maybeSingle();
   if (!order) return NextResponse.json({ error: 'Order not found.' }, { status: 404 });
 
   const { error } = await admin.from('order_events').insert({
@@ -24,5 +25,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     created_by: who.email,
   });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (body?.customer_visible !== false) {
+    const parties = await customerParties(admin, order.customer_id);
+    await notifyUsers(admin, [parties.customerUserId], {
+      kind: 'order_note',
+      title: `New update on order ${order.batch_number}`,
+      body: note,
+      link: `/portal/orders/${order.batch_number}`,
+      order_id: order.id,
+    });
+  }
   return NextResponse.json({ ok: true }, { status: 201 });
 }

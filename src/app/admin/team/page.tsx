@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import ConfirmModal from '@/components/ConfirmModal';
+import Modal from '@/components/Modal';
 import { UserPlus, Mail, Phone, Loader2, AlertCircle, Pencil, Trash2, KeyRound, X, Check } from 'lucide-react';
 import CredentialsCard, { NewCredentials } from '@/components/CredentialsCard';
 
@@ -173,7 +174,7 @@ export default function TeamManagement() {
           <h1 className="text-2xl font-bold text-slate-900">Team & Reps</h1>
           <p className="text-slate-500">Add your sales reps, then assign each customer to one from the Clients page.</p>
         </div>
-        {!showForm && (
+        {(
           <button
             onClick={openAdd}
             className="bg-rivix text-white px-6 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-rivix/30 hover:bg-rivix-dark transition-all flex items-center justify-center gap-2"
@@ -184,7 +185,7 @@ export default function TeamManagement() {
         )}
       </div>
 
-      {error && (
+      {error && !showForm && (
         <div className="flex items-start gap-2 bg-red-50 border border-red-100 text-red-600 text-xs font-semibold rounded-2xl px-4 py-3">
           <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
           <span>{error}</span>
@@ -194,13 +195,20 @@ export default function TeamManagement() {
       {credentials && <CredentialsCard credentials={credentials} onDismiss={() => setCredentials(null)} />}
 
       {showForm && (
-        <form onSubmit={handleSubmit} className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 sm:p-8 space-y-5">
+        <Modal onClose={closeForm} busy={saving}>
+        <form onSubmit={handleSubmit} className="space-y-5">
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-slate-900">{editingId ? 'Edit rep' : 'New rep'}</h3>
             <button type="button" onClick={closeForm} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg" aria-label="Close">
               <X size={18} />
             </button>
           </div>
+          {error && (
+            <div className="flex items-start gap-2 bg-red-50 border border-red-100 text-red-600 text-xs font-semibold rounded-2xl px-4 py-3">
+              <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
+              <span>{error}</span>
+            </div>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Full name *</label>
@@ -236,7 +244,7 @@ export default function TeamManagement() {
                   className="mt-0.5 h-4 w-4 accent-[#c61213]"
                 />
                 <span className="text-sm text-slate-600">
-                  <strong className="text-slate-900">Also create a login</strong> so this rep can sign in.
+                  <strong className="text-slate-900">Also create a login</strong>{' '}so this rep can sign in.
                   You&apos;ll get a temporary password to send them.
                 </span>
               </label>
@@ -273,6 +281,7 @@ export default function TeamManagement() {
             </button>
           </div>
         </form>
+        </Modal>
       )}
 
       <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-x-auto">

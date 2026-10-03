@@ -17,9 +17,10 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { getMyOrders, getCurrentCustomer } from '@/lib/storage';
 import { supabaseBrowser } from '@/lib/supabase-browser';
-import OrderStatusBadge from '@/components/OrderStatusBadge';
+import OrderHeading from '@/components/OrderHeading';
 import SizeBreakdown from '@/components/SizeBreakdown';
 import DocumentList from '@/components/DocumentList';
+import RequestDocument from './RequestDocument';
 import type { DocumentRow } from '@/lib/documents';
 
 export default function OrderDetailPage({ params }: { params: Promise<{ batch: string }> }) {
@@ -86,11 +87,8 @@ export default function OrderDetailPage({ params }: { params: Promise<{ batch: s
 
       <div className="flex flex-col lg:flex-row justify-between items-start gap-6">
         <div>
-          <div className="flex items-center gap-4 mb-2">
-            <h1 className="text-3xl font-extrabold text-slate-900 leading-none">Order {order.batch_number}</h1>
-            <OrderStatusBadge status={order.status} />
-          </div>
-          <p className="text-slate-500 font-medium">{order.product_name}</p>
+          <OrderHeading number={order.batch_number} status={order.status} />
+          <p className="text-slate-500 font-medium mt-2">{order.product_name}</p>
         </div>
       </div>
 
@@ -194,6 +192,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ batch: s
               Compliance Documentation
             </h3>
             <DocumentList documents={docs} empty="No documents yet. When RIVIX uploads certificates or other files for this order, they will appear here." />
+            <RequestDocument orderId={order.id} status={order.status} />
           </div>
         </div>
       </div>

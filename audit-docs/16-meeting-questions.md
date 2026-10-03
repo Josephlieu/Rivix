@@ -69,9 +69,12 @@ Joseph's written answers are recorded in [17-supplier-hub.md §0](./17-supplier-
 
 ## D. Notifications & internal communication
 
+- [ ] **Customer "Request a document" button (built 2026-10-03, awaiting the database change):** a customer can ask for a certificate or file on their order; it goes to **their sales rep**, who sends it to admin or dismisses it. Shown only when the order is Shipped or Delivered. Is that the flow you want, or should customers ask the rep by phone only?
 - [ ] For notifications (new order, sample ready, certificate ready, etc.) — **should these also send an email**, or just show in the app? Different rules for different event types?
 - [ ] Do you want a way for **Admin to message a rep internally** about a specific order — separate from the customer-facing chat — or is that better handled outside the app (Slack, phone)?
 - [ ] Should admin accounts be **flat** (everyone equal) or **tiered** (a "Super Admin" — probably you — who controls who else gets admin access)?
+
+- [ ] **What should a client record hold?** Today only company name, login email and phone. Do you also want a **contact person**, a **delivery / billing address**, and **internal notes** per client? Should changing a client's login email ever be allowed (it also changes their sign-in)?
 
 ## E. Sales Hiring — one open detail
 

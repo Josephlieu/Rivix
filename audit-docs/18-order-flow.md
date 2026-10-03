@@ -39,7 +39,7 @@ Human-friendly unique codes sit next to the internal database id: customers `CUS
 | Admin Orders page + order detail (change stage, tracking, notes, timeline) | **Built 2026-10-01**, script-tested (27 checks pass); browser look not yet checked by me |
 | Customer order page: items with sizes, stage timeline, tracking | **Built 2026-10-01** (the old generated placeholder certificates were removed 2026-10-01; the page shows "No documents yet" until uploads exist) |
 | Documents / certificates on an order | **Built 2026-10-01** (private Supabase bucket, direct-to-storage upload, checked download links); 33 script checks pass; upload form not yet clicked through in a browser |
-| Rep "ping admin" for a document; notifications | After documents |
+| Rep "request a document" (ping admin) + in-app notifications for all three roles | **Built 2026-10-03**, 35 script checks pass; bell and request form not yet seen in a browser; email notifications not built |
 | Rep version of Uniform Replication (internal tool) | Later, big |
 | Rep-shared sign-up link for new customers | Later |
 | QuickBooks invoice/PO display | Blocked on Joseph |

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentRep } from '@/lib/current-rep';
 import { createAdminClient } from '@/lib/supabase-admin';
+import { adminUserIds, customerParties, notifyUsers } from '@/lib/notify';
 import { cleanSizeLabel, sizesToText, totalQty as sumSizes, type SizeQty } from '@/lib/sizes';
 
 const MAX_ITEMS = 50;
@@ -63,7 +64,7 @@ export async function POST(req: NextRequest) {
   // The customer must be assigned to THIS rep.
   const { data: customer } = await admin
     .from('customers')
-    .select('id, rep_id')
+    .select('id, rep_id, company_name')
     .eq('id', customerId)
     .maybeSingle();
   if (!customer || customer.rep_id !== rep.id) {
@@ -100,6 +101,24 @@ export async function POST(req: NextRequest) {
     await admin.from('orders').delete().eq('id', order.id);
     return NextResponse.json({ error: itemsErr.message }, { status: 500 });
   }
+
+  await notifyUsers(admin, await adminUserIds(admin), {
+    kind: 'new_order',
+    title: `New order ${order.batch_number}`,
+    body: `${rep.name} entered an order for ${(customer as any).company_name || 'a customer'} (${totalQty} units)`,
+    link: `/admin/orders/${order.id}`,
+    order_id: order.id,
+  });
+
+  // Confirm to the customer that the order they asked their rep for is now in the portal.
+  const parties = await customerParties(admin, customer.id);
+  await notifyUsers(admin, [parties.customerUserId], {
+    kind: 'order_created',
+    title: `Order ${order.batch_number} was created for you`,
+    body: `${rep.name} entered your order (${totalQty} units). You can follow its progress here.`,
+    link: `/portal/orders/${order.batch_number}`,
+    order_id: order.id,
+  });
 
   return NextResponse.json({ order }, { status: 201 });
 }

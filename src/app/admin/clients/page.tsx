@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Plus, Search, Mail, Loader2, AlertCircle, X, Check, KeyRound, Trash2 } from 'lucide-react';
+import { Plus, Search, Mail, Loader2, AlertCircle, X, Check, KeyRound, Trash2, Pencil } from 'lucide-react';
 import ConfirmModal from '@/components/ConfirmModal';
+import Modal from '@/components/Modal';
 import CredentialsCard, { NewCredentials } from '@/components/CredentialsCard';
 
 interface Rep { id: string; name: string; active: boolean }
@@ -33,6 +34,10 @@ export default function ClientDirectory() {
   const [confirm, setConfirm] = useState<{ kind: 'delete' | 'disable' | 'reset'; customer: Customer } | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [keyBusyId, setKeyBusyId] = useState<string | null>(null);
+  const [editing, setEditing] = useState<Customer | null>(null);
+  const [editForm, setEditForm] = useState({ company_name: '', contact_phone: '', rep_id: '' });
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
   const closeForm = () => {
     setShowForm(false);
@@ -155,6 +160,29 @@ export default function ClientDirectory() {
     setConfirm(null);
   };
 
+  const openEdit = (c: Customer) => {
+    setEditing(c);
+    setEditForm({ company_name: c.company_name, contact_phone: c.contact_phone || '', rep_id: c.rep_id || '' });
+    setEditError(null);
+  };
+
+  const saveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editing) return;
+    setEditSaving(true);
+    setEditError(null);
+    const res = await fetch(`/api/admin/customers/${editing.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ company_name: editForm.company_name, contact_phone: editForm.contact_phone, rep_id: editForm.rep_id || null }),
+    });
+    const data = await res.json();
+    setEditSaving(false);
+    if (!res.ok) { setEditError(data.error || 'Could not save the changes.'); return; }
+    setEditing(null);
+    load();
+  };
+
   const inputClass =
     'w-full px-4 py-3 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-rivix/20 outline-none font-medium placeholder:text-slate-300';
   const activeReps = reps.filter((r) => r.active);
@@ -187,17 +215,8 @@ export default function ClientDirectory() {
       {credentials && <CredentialsCard credentials={credentials} onDismiss={() => setCredentials(null)} />}
 
       {showForm && (
-        <div
-          className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm overflow-y-auto"
-          onClick={() => !saving && closeForm()}
-        >
-        <form
-          role="dialog"
-          aria-modal="true"
-          onClick={(e) => e.stopPropagation()}
-          onSubmit={handleCreate}
-          className="bg-white rounded-3xl shadow-2xl w-full max-w-xl p-5 sm:p-8 space-y-5 my-auto"
-        >
+        <Modal onClose={closeForm} busy={saving}>
+        <form onSubmit={handleCreate} className="space-y-5">
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-slate-900">New client</h3>
             <button type="button" onClick={closeForm} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg" aria-label="Close">
@@ -241,7 +260,7 @@ export default function ClientDirectory() {
             </button>
           </div>
         </form>
-        </div>
+        </Modal>
       )}
 
       <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
@@ -317,6 +336,14 @@ export default function ClientDirectory() {
                   </td>
                   <td className="px-4 sm:px-8 py-5 text-right whitespace-nowrap">
                     <button
+                      onClick={() => openEdit(c)}
+                      title="Edit client details"
+                      className="p-2 text-slate-400 hover:text-rivix transition-colors"
+                      aria-label={`Edit ${c.company_name}`}
+                    >
+                      <Pencil size={16} />
+                    </button>
+                    <button
                       onClick={() => setConfirm({ kind: 'reset', customer: c })}
                       disabled={keyBusyId === c.id}
                       title="Generate a new temporary password"
@@ -341,6 +368,60 @@ export default function ClientDirectory() {
           </table>
         </div>
       </div>
+
+      {editing && (
+        <Modal onClose={() => setEditing(null)} busy={editSaving}>
+          <form onSubmit={saveEdit} className="space-y-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-slate-900">Edit client</h3>
+                <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">{editing.customer_code}</p>
+              </div>
+              <button type="button" onClick={() => setEditing(null)} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg" aria-label="Close">
+                <X size={18} />
+              </button>
+            </div>
+            {editError && (
+              <div className="flex items-start gap-2 bg-red-50 border border-red-100 text-red-600 text-xs font-semibold rounded-2xl px-4 py-3">
+                <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
+                <span>{editError}</span>
+              </div>
+            )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Company name *</label>
+                <input required className={inputClass} value={editForm.company_name} onChange={(e) => setEditForm({ ...editForm, company_name: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Phone (for WhatsApp)</label>
+                <input className={inputClass} value={editForm.contact_phone} onChange={(e) => setEditForm({ ...editForm, contact_phone: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Login email</label>
+                <input disabled className={`${inputClass} opacity-60`} value={editing.contact_email || ''} />
+                <p className="text-[11px] text-slate-400 px-1">This is their sign-in, so it can&apos;t be changed.</p>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Sales rep</label>
+                <select className={inputClass} value={editForm.rep_id} onChange={(e) => setEditForm({ ...editForm, rep_id: e.target.value })}>
+                  <option value="">Unassigned</option>
+                  {reps.filter((r) => r.active || r.id === editing.rep_id).map((r) => (
+                    <option key={r.id} value={r.id}>{r.name}{r.active ? '' : ' (disabled)'}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <button disabled={editSaving} className="bg-slate-950 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-rivix transition-all flex items-center gap-2 disabled:opacity-60">
+                {editSaving ? <Loader2 className="animate-spin" size={16} /> : <Check size={16} />}
+                Save changes
+              </button>
+              <button type="button" onClick={() => setEditing(null)} className="px-6 py-3 rounded-xl font-bold text-sm text-slate-500 hover:bg-slate-50">Cancel</button>
+              <Link href={`/admin/clients/${editing.id}`} className="ml-auto text-xs font-bold text-slate-400 hover:text-rivix">Full details →</Link>
+            </div>
+          </form>
+        </Modal>
+      )}
 
       <ConfirmModal
         open={confirm !== null}

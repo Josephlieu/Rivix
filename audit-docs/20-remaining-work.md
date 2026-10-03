@@ -8,7 +8,7 @@ Done and tested: customer / rep / admin logins and role separation; admin create
 ## Customer panel — left
 | Item | Hours | Note |
 |---|---|---|
-| Real notifications (bell: order stage changed, document uploaded) | shared, see below | bell is empty now |
+| Real notifications (bell: order stage changed, document uploaded) | **done 10-03 (in-app)** | email notifications still open (needs Joseph's decision + DNS) |
 | Customer overview numbers | done 10-01 | "Compliance Certificates" was `orders × 3` (fake) — now a real document count |
 | Product Specs: admin-managed technical files per customer | 5–7 | table + private bucket exist; **no admin upload screen yet** |
 | QuickBooks invoices / POs shown read-only, "Request Invoice" button | 20–30 | **needs Joseph** (QuickBooks access; confirmed Online, invoices only; save QuickBooks customer ID on the account) |
@@ -19,7 +19,7 @@ Done and tested: customer / rep / admin logins and role separation; admin create
 ## Sales rep panel — left
 | Item | Hours | Note |
 |---|---|---|
-| "Ping admin" (rep asks admin for a document / certificate) | 4–6 | Joseph 09-29; needs an admin inbox for requests |
+| "Ping admin" (rep asks admin for a document / certificate) | **done 10-03** | Request form on the rep's order page; admin sees it on the order and in the bell |
 | Rep-shared sign-up link so customers register under their rep | 6–10 | Joseph 09-25 (no open self-signup) |
 | Uniform Replication as an internal rep/admin tool (real data, chat, status, carrier choices) | 28–37 | current admin Replication Queue is 2,000 lines of fake/local data; **needs Joseph** on "approved sample → order" handoff (§6b) |
 | Rep edit/cancel own order before admin picks it up | 2–4 | rule not defined yet |
@@ -40,7 +40,7 @@ Done and tested: customer / rep / admin logins and role separation; admin create
 ## Cross-cutting — left
 | Item | Hours | Note |
 |---|---|---|
-| Notifications system (events, bell for all three roles, optional email) | 10–14 | **needs Joseph**: email too, or in-app only? |
+| Notifications system (events, bell for all three roles) | **done 10-03 (in-app)**; email part 3–5 | **needs Joseph**: email too, or in-app only? |
 | Branded emails via Resend (reset password, new account) | 4–6 | **needs GoDaddy DNS access** |
 | Production launch: apply every SQL file to the real Supabase project, fix `rep_client_chats` (security off, real names/emails exposed), env keys, Vercel production deploy, data migration | 12–20 | **needs Joseph**: production project access/plan, which data to bring over |
 | Testing and fixes across all roles (dedicated, not free) | 15–25 | per §12 of the requirements |
@@ -55,6 +55,7 @@ Done and tested: customer / rep / admin logins and role separation; admin create
 | M5 | QuickBooks invoices / POs | ~20–30 | QuickBooks access |
 | M6 | Launch prep: production database, QA, deploy | ~27–45 | production access + plan |
 | | **Total remaining (without Supplier Hub)** | **~131–194** | |
+| MQ | Code quality: shared UI kit, split mid-size pages, shared helpers, tests moved into the repo, lint (see `22-code-quality-review.md`); splitting Hiring/Replication is inside M3/M4 (+6–8h there) | ~16–22 | — (can be done any time, best between milestones) |
 | M7 | Supplier Hub (after the above go live) | ~176–264 | Joseph's remaining answers, DNS, tech file format |
 
 Recommended order: M2 → M3 (the parts not blocked) while waiting on Joseph for M4/M5/M6 inputs; do M6 once everything Joseph-approved is built. Pace depends on weekly hours; at ~20–25h/week, M2–M6 is roughly 6–9 weeks.

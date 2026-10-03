@@ -3,9 +3,10 @@ import { notFound } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { getCurrentRep } from '@/lib/current-rep';
 import { createAdminClient } from '@/lib/supabase-admin';
-import OrderStatusBadge from '@/components/OrderStatusBadge';
+import OrderHeading from '@/components/OrderHeading';
 import SizeBreakdown from '@/components/SizeBreakdown';
 import DocumentList from '@/components/DocumentList';
+import RequestDocument from './RequestDocument';
 
 const Row = ({ label, value }: { label: string; value?: string | null }) => (
   <div className="flex justify-between gap-6 text-sm border-b border-slate-50 pb-3">
@@ -30,10 +31,11 @@ export default async function RepOrderPage({ params }: { params: Promise<{ id: s
   // Only orders of this rep's own customers
   if (!order || (order as any).customers?.rep_id !== rep.id) notFound();
 
-  const [{ data: items }, { data: events }, { data: documents }] = await Promise.all([
+  const [{ data: items }, { data: events }, { data: documents }, { data: requests }] = await Promise.all([
     admin.from('order_items').select('*').eq('order_id', id).order('position'),
     admin.from('order_events').select('*').eq('order_id', id).order('created_at', { ascending: false }),
     admin.from('documents').select('id, customer_id, order_id, title, doc_type, file_name, file_size, mime_type, created_at').eq('order_id', id).order('created_at', { ascending: false }),
+    admin.from('document_requests').select('id, doc_type, note, status, created_at, requested_by').eq('order_id', id).order('created_at', { ascending: false }),
   ]);
 
   const customer = (order as any).customers;
@@ -44,10 +46,7 @@ export default async function RepOrderPage({ params }: { params: Promise<{ id: s
         <ArrowLeft size={16} />Back to orders
       </Link>
 
-      <div className="flex items-center gap-3 flex-wrap">
-        <h1 className="text-2xl font-bold text-slate-900">{order.batch_number}</h1>
-        <OrderStatusBadge status={order.status} />
-      </div>
+      <OrderHeading number={order.batch_number} status={order.status} />
       <p className="text-slate-500 text-sm -mt-3">
         <Link href={`/rep/customers/${order.customer_id}`} className="hover:text-rivix font-semibold">{customer?.company_name}</Link> · {customer?.customer_code}
       </p>
@@ -76,6 +75,12 @@ export default async function RepOrderPage({ params }: { params: Promise<{ id: s
       <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 sm:p-8 space-y-4">
         <h3 className="font-bold text-slate-900">Documents</h3>
         <DocumentList documents={(documents as any[]) || []} empty="No documents uploaded for this order yet." />
+      </div>
+
+      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 sm:p-8 space-y-4">
+        <h3 className="font-bold text-slate-900">Request a document</h3>
+        <p className="text-xs text-slate-400">Customer asked for a certificate or file? Ask admin here — they&apos;re notified, and you&apos;re told when it&apos;s uploaded.</p>
+        <RequestDocument orderId={id} requests={(requests as any[]) || []} />
       </div>
 
       <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 sm:p-8 space-y-3">

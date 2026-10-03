@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminIdentity, requireAdmin } from '@/lib/require-admin';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { isOrderStage } from '@/lib/order-stages';
+import { customerParties, notifyUsers } from '@/lib/notify';
 
 const clean = (v: unknown, max: number) => String(v ?? '').trim().slice(0, max);
 
@@ -20,15 +21,16 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     .maybeSingle();
   if (!order) return NextResponse.json({ error: 'Order not found.' }, { status: 404 });
 
-  const [{ data: items }, { data: events }, docs] = await Promise.all([
+  const [{ data: items }, { data: events }, docs, reqs] = await Promise.all([
     admin.from('order_items').select('*').eq('order_id', id).order('position'),
     admin.from('order_events').select('*').eq('order_id', id).order('created_at', { ascending: false }),
     admin.from('documents').select('id, title, doc_type, file_name, file_size, mime_type, uploaded_by, created_at').eq('order_id', id).order('created_at', { ascending: false }),
+    admin.from('document_requests').select('id, doc_type, note, status, created_at, done_at, rep:reps(name)').eq('order_id', id).order('created_at', { ascending: false }),
   ]);
 
   const { customers, ...rest } = order as any;
   // `documents` is empty until the documents SQL has been run.
-  return NextResponse.json({ order: rest, customer: customers, items: items || [], events: events || [], documents: docs.data || [] });
+  return NextResponse.json({ order: rest, customer: customers, items: items || [], events: events || [], documents: docs.data || [], requests: reqs.data || [] });
 }
 
 // Admin runs the order: change stage, set carrier + tracking. Every stage
@@ -43,7 +45,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!body) return NextResponse.json({ error: 'Bad request' }, { status: 400 });
 
   const admin = createAdminClient();
-  const { data: current } = await admin.from('orders').select('id, status, carrier, tracking_number').eq('id', id).maybeSingle();
+  const { data: current } = await admin.from('orders').select('id, batch_number, customer_id, status, carrier, tracking_number').eq('id', id).maybeSingle();
   if (!current) return NextResponse.json({ error: 'Order not found.' }, { status: 404 });
 
   const update: Record<string, unknown> = {};
@@ -84,6 +86,22 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       .limit(1)
       .maybeSingle();
     if (ev) await admin.from('order_events').update({ created_by: who.email, note }).eq('id', ev.id);
+
+    const parties = await customerParties(admin, current.customer_id);
+    await notifyUsers(admin, [parties.customerUserId], {
+      kind: 'stage_changed',
+      title: `Order ${current.batch_number} is now ${newStatus}`,
+      body: note,
+      link: `/portal/orders/${current.batch_number}`,
+      order_id: id,
+    });
+    await notifyUsers(admin, [parties.repUserId], {
+      kind: 'stage_changed',
+      title: `${parties.companyName || 'Customer'}: ${current.batch_number} is now ${newStatus}`,
+      body: note,
+      link: `/rep/orders/${id}`,
+      order_id: id,
+    });
   }
 
   if (shippingChanged) {

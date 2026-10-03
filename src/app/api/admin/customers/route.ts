@@ -3,6 +3,7 @@ import { requireAdmin } from '@/lib/require-admin';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { generateTempPassword } from '@/lib/temp-password';
 import { loadBannedMap } from '@/lib/customer-status';
+import { notifyUsers } from '@/lib/notify';
 
 export async function GET() {
   const denied = await requireAdmin();
@@ -79,6 +80,23 @@ export async function POST(req: NextRequest) {
     await admin.auth.admin.deleteUser(created.user.id);
     return NextResponse.json({ error: custErr.message }, { status: 500 });
   }
+
+  if (repId) {
+    const { data: rep } = await admin.from('reps').select('user_id').eq('id', repId).maybeSingle();
+    await notifyUsers(admin, [rep?.user_id], {
+      kind: 'customer_assigned',
+      title: `New customer assigned: ${company}`,
+      body: 'You can now see their orders and create new ones.',
+      link: `/rep/customers/${customer.id}`,
+    });
+  }
+
+  await notifyUsers(admin, [created.user.id], {
+    kind: 'welcome',
+    title: 'Welcome to your RIVIX portal',
+    body: 'Track your orders, see their progress and download your documents here.',
+    link: '/portal/orders',
+  });
 
   return NextResponse.json(
     { customer, credentials: { email, password } },

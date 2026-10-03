@@ -3,7 +3,7 @@
 import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Loader2, AlertCircle, Check, Truck, MessageSquarePlus, FileText, Upload } from 'lucide-react';
-import OrderStatusBadge from '@/components/OrderStatusBadge';
+import OrderHeading from '@/components/OrderHeading';
 import SizeBreakdown from '@/components/SizeBreakdown';
 import ConfirmModal from '@/components/ConfirmModal';
 import ComboInput from '@/components/ComboInput';
@@ -35,6 +35,7 @@ export default function AdminOrderDetail({ params }: { params: Promise<{ id: str
   const [items, setItems] = useState<Item[]>([]);
   const [events, setEvents] = useState<EventRow[]>([]);
   const [docs, setDocs] = useState<DocumentRow[]>([]);
+  const [requests, setRequests] = useState<any[]>([]);
   const [docFile, setDocFile] = useState<File | null>(null);
   const [docTitle, setDocTitle] = useState('');
   const [docType, setDocType] = useState<string>(DOC_TYPES[0]);
@@ -57,7 +58,7 @@ export default function AdminOrderDetail({ params }: { params: Promise<{ id: str
     const res = await fetch(`/api/admin/orders/${id}`);
     const data = await res.json();
     if (!res.ok) { setError(data.error || 'Could not load this order.'); setLoading(false); return; }
-    setOrder(data.order); setCustomer(data.customer); setItems(data.items); setEvents(data.events); setDocs(data.documents || []);
+    setOrder(data.order); setCustomer(data.customer); setItems(data.items); setEvents(data.events); setDocs(data.documents || []); setRequests(data.requests || []);
     setStage(data.order.status); setCarrier(data.order.carrier || ''); setTracking(data.order.tracking_number || '');
     setLoading(false);
   };
@@ -119,6 +120,14 @@ export default function AdminOrderDetail({ params }: { params: Promise<{ id: str
     setDocDelete(null); setNotice('Document deleted.'); await load();
   };
 
+  const markRequestDone = async (reqId: string) => {
+    setBusy('req' + reqId); setError(null); setNotice(null);
+    const res = await fetch(`/api/admin/document-requests/${reqId}`, { method: 'PATCH' });
+    setBusy(null);
+    if (!res.ok) { setError((await res.json()).error || 'Could not update the request.'); return; }
+    setNotice('Request marked as done.'); await load();
+  };
+
   const addNote = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy('note'); setError(null); setNotice(null);
@@ -151,11 +160,8 @@ export default function AdminOrderDetail({ params }: { params: Promise<{ id: str
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl font-bold text-slate-900">{order.batch_number}</h1>
-            <OrderStatusBadge status={order.status} />
-          </div>
-          <p className="text-sm text-slate-500 mt-1">
+          <OrderHeading number={order.batch_number} status={order.status} />
+          <p className="text-sm text-slate-500 mt-2">
             <Link href={`/admin/clients/${customer.id}`} className="font-semibold hover:text-rivix">{customer.company_name}</Link> · {customer.customer_code} · Rep: {customer.rep?.name || 'Unassigned'} · Created {new Date(order.created_at).toLocaleDateString()}
           </p>
         </div>
@@ -193,6 +199,21 @@ export default function AdminOrderDetail({ params }: { params: Promise<{ id: str
           <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 sm:p-8 space-y-5">
             <div className="flex items-center gap-2"><FileText size={18} className="text-slate-400" /><h3 className="font-bold text-slate-900">Documents</h3></div>
             <p className="text-xs text-slate-400">Files uploaded here are visible to {customer.company_name} and their rep. PDF, image, Word or Excel, up to 20 MB.</p>
+            {requests.some((r) => r.status === 'open') && (
+              <div className="rounded-2xl bg-amber-50/60 border border-amber-100 p-4 space-y-2">
+                <p className="text-xs font-black text-amber-700 uppercase tracking-widest">Requested by the rep</p>
+                {requests.filter((r) => r.status === 'open').map((r) => (
+                  <div key={r.id} className="flex items-center justify-between gap-3 text-sm">
+                    <div className="min-w-0">
+                      <p className="font-bold text-slate-800">{r.doc_type}{r.rep?.name ? <span className="text-slate-400 font-semibold"> · {r.rep.name}</span> : null}</p>
+                      {r.note && <p className="text-xs text-slate-500">{r.note}</p>}
+                    </div>
+                    <button onClick={() => markRequestDone(r.id)} disabled={busy === 'req' + r.id} className="px-3 py-1.5 rounded-lg border border-amber-200 bg-white text-xs font-bold text-amber-700 hover:bg-amber-50 disabled:opacity-50 whitespace-nowrap">Mark done</button>
+                  </div>
+                ))}
+                <p className="text-[11px] text-amber-700/70">Uploading a document of the same type marks its request as done automatically.</p>
+              </div>
+            )}
             <DocumentList documents={docs} onDelete={setDocDelete} empty="No documents uploaded for this order yet." />
             <form onSubmit={uploadDocument} className="rounded-2xl border border-dashed border-slate-200 p-4 space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
