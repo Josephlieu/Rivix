@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { getMyOrders, OrderData } from '@/lib/storage';
-import { Package, Search, Filter, ArrowUpRight, CheckCircle2, Clock, Check } from 'lucide-react';
+import { Package, Search, Filter, ArrowUpRight, CheckCircle2, Clock, Check, Truck } from 'lucide-react';
+import OrderStatusBadge from '@/components/OrderStatusBadge';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
@@ -35,7 +36,8 @@ export default function OrdersPage() {
 
   const filteredOrders = orders.filter(o =>
     (o.batch_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      o.product_name.toLowerCase().includes(searchTerm.toLowerCase())) &&
+      o.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (o.po_number || '').toLowerCase().includes(searchTerm.toLowerCase())) &&
     (!statusFilter || o.status === statusFilter)
   );
 
@@ -44,7 +46,7 @@ export default function OrdersPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Order History</h1>
-          <p className="text-slate-500">Access your compliance certificates and product history.</p>
+          <p className="text-slate-500">Track your orders and see their progress.</p>
         </div>
         
         <div className="flex items-center gap-3">
@@ -95,19 +97,22 @@ export default function OrdersPage() {
       </div>
 
       <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-x-auto">
-        <table className="w-full text-left min-w-[560px]">
+        <table className="w-full text-left min-w-[860px]">
           <thead className="bg-slate-50/50 border-b border-slate-100">
             <tr>
-              <th className="px-4 sm:px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Order Info</th>
-              <th className="px-4 sm:px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Product Specification</th>
+              <th className="px-4 sm:px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Order #</th>
+              <th className="px-4 sm:px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Product</th>
               <th className="px-4 sm:px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Quantity</th>
+              <th className="px-4 sm:px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Order date</th>
+              <th className="px-4 sm:px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">PO number</th>
+              <th className="px-4 sm:px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Stage</th>
               <th className="px-4 sm:px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {filteredOrders.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-4 sm:px-8 py-10 text-center text-sm text-slate-400">
+                <td colSpan={7} className="px-4 sm:px-8 py-10 text-center text-sm text-slate-400">
                   {orders.length === 0 ? 'No orders yet.' : 'No orders match your search or filter.'}
                 </td>
               </tr>
@@ -122,7 +127,19 @@ export default function OrdersPage() {
                   <p className="text-sm font-semibold text-slate-700">{order.product_name}</p>
                   {order.material && <p className="text-xs text-slate-400">{order.material}</p>}
                 </td>
-                <td className="px-4 sm:px-8 py-6 text-sm font-bold text-slate-600">{order.quantity} Units</td>
+                <td className="px-4 sm:px-8 py-6 text-sm font-bold text-slate-600 whitespace-nowrap">{order.quantity} Units</td>
+                <td className="px-4 sm:px-8 py-6 text-sm text-slate-500 whitespace-nowrap">
+                  {order.order_date || (order.created_at ? new Date(order.created_at).toISOString().slice(0, 10) : '—')}
+                </td>
+                <td className="px-4 sm:px-8 py-6 text-sm text-slate-600 whitespace-nowrap">{order.po_number || <span className="text-slate-300">—</span>}</td>
+                <td className="px-4 sm:px-8 py-6">
+                  <div className="flex items-center gap-2">
+                    <OrderStatusBadge status={order.status} />
+                    {order.tracking_number && (
+                      <span title={`Tracking: ${order.tracking_number}`} className="text-slate-400"><Truck size={16} /></span>
+                    )}
+                  </div>
+                </td>
                 <td className="px-4 sm:px-8 py-6 text-right">
 
                   <Link 

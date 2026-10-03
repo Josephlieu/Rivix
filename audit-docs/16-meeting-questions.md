@@ -99,6 +99,7 @@ Joseph's written answers are recorded in [17-supplier-hub.md §0](./17-supplier-
 - [ ] **QuickBooks** login/API access, when ready to connect it (confirmed 2026-09-30: QuickBooks Online, invoices only)
 - [ ] **Okay to set up a separate practice/staging version of the database**, so we never risk touching real customer data while building?
 - [ ] A few **real tech-pack example files**, to tune the AI feature to match your actual format (2026-10-01: received — Ontario Parks tender attachment; more examples of different garment types still welcome)
+- [ ] **Hosting costs:** a real launch will likely need paid plans for the database/storage (Supabase, ~$25/month) and hosting (Vercel, ~$20/month per person), plus AI usage — see `05-environment-setup.md` "Running costs". Is that okay? And for the **existing production Supabase project**: which plan is it on, who pays for it, and are backups on?
 - [ ] **DNS access for rivix.ca (GoDaddy)** so branded emails can send through Resend — now also needed for supplier notification emails. Plan: we send the DNS records for Joseph to paste, or he adds us as a delegate; never share the password
 
 ---

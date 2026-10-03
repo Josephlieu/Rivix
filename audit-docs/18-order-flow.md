@@ -37,8 +37,8 @@ Human-friendly unique codes sit next to the internal database id: customers `CUS
 | Rep creates an order (multi-product, size grid, validation, rollback on failure) | Done, script- and browser-tested |
 | Rep portal (overview, customers, customer page, orders, order detail read-only, account) in the customer-portal layout | Done |
 | Admin Orders page + order detail (change stage, tracking, notes, timeline) | **Built 2026-10-01**, script-tested (27 checks pass); browser look not yet checked by me |
-| Customer order page: items with sizes, stage timeline, tracking | **Built 2026-10-01** (the old generated certificate PDFs on that page are still there until the documents feature replaces them) |
-| Documents / certificates on an order | After admin Orders |
+| Customer order page: items with sizes, stage timeline, tracking | **Built 2026-10-01** (the old generated placeholder certificates were removed 2026-10-01; the page shows "No documents yet" until uploads exist) |
+| Documents / certificates on an order | **Built 2026-10-01** (private Supabase bucket, direct-to-storage upload, checked download links); 33 script checks pass; upload form not yet clicked through in a browser |
 | Rep "ping admin" for a document; notifications | After documents |
 | Rep version of Uniform Replication (internal tool) | Later, big |
 | Rep-shared sign-up link for new customers | Later |

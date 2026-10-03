@@ -2,11 +2,14 @@
 
 import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Loader2, AlertCircle, Check, Truck, MessageSquarePlus, FileText } from 'lucide-react';
+import { ArrowLeft, Loader2, AlertCircle, Check, Truck, MessageSquarePlus, FileText, Upload } from 'lucide-react';
 import OrderStatusBadge from '@/components/OrderStatusBadge';
 import SizeBreakdown from '@/components/SizeBreakdown';
 import ConfirmModal from '@/components/ConfirmModal';
 import ComboInput from '@/components/ComboInput';
+import DocumentList from '@/components/DocumentList';
+import { supabaseBrowser } from '@/lib/supabase-browser';
+import { DOC_TYPES, DOC_ACCEPT, MAX_DOC_BYTES, ALLOWED_DOC_MIME, DocumentRow } from '@/lib/documents';
 import { ORDER_STAGES, CARRIERS } from '@/lib/order-stages';
 
 interface Order {
@@ -31,6 +34,12 @@ export default function AdminOrderDetail({ params }: { params: Promise<{ id: str
   const [customer, setCustomer] = useState<CustomerInfo | null>(null);
   const [items, setItems] = useState<Item[]>([]);
   const [events, setEvents] = useState<EventRow[]>([]);
+  const [docs, setDocs] = useState<DocumentRow[]>([]);
+  const [docFile, setDocFile] = useState<File | null>(null);
+  const [docTitle, setDocTitle] = useState('');
+  const [docType, setDocType] = useState<string>(DOC_TYPES[0]);
+  const [docDelete, setDocDelete] = useState<DocumentRow | null>(null);
+  const [fileKey, setFileKey] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -48,7 +57,7 @@ export default function AdminOrderDetail({ params }: { params: Promise<{ id: str
     const res = await fetch(`/api/admin/orders/${id}`);
     const data = await res.json();
     if (!res.ok) { setError(data.error || 'Could not load this order.'); setLoading(false); return; }
-    setOrder(data.order); setCustomer(data.customer); setItems(data.items); setEvents(data.events);
+    setOrder(data.order); setCustomer(data.customer); setItems(data.items); setEvents(data.events); setDocs(data.documents || []);
     setStage(data.order.status); setCarrier(data.order.carrier || ''); setTracking(data.order.tracking_number || '');
     setLoading(false);
   };
@@ -73,6 +82,41 @@ export default function AdminOrderDetail({ params }: { params: Promise<{ id: str
     if (stage === order?.status) return;
     if (stage === 'Delivered' || stage === 'Cancelled') setConfirmStage(true);
     else updateStage();
+  };
+
+
+  const uploadDocument = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!docFile) return;
+    setError(null); setNotice(null);
+    if (!(ALLOWED_DOC_MIME as readonly string[]).includes(docFile.type)) { setError('That file type is not allowed. Use PDF, an image, Word or Excel.'); return; }
+    if (docFile.size > MAX_DOC_BYTES) { setError('Files must be 20 MB or smaller.'); return; }
+    setBusy('doc');
+    try {
+      // 1) ask the server for a one-time upload link  2) send the file straight to storage  3) record it
+      const r1 = await fetch(`/api/admin/orders/${id}/documents/upload-url`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ file_name: docFile.name, size: docFile.size, mime: docFile.type }) });
+      const d1 = await r1.json();
+      if (!r1.ok) throw new Error(d1.error || 'Could not start the upload.');
+      const up = await supabaseBrowser.storage.from('documents').uploadToSignedUrl(d1.path, d1.token, docFile, { contentType: docFile.type });
+      if (up.error) throw new Error(up.error.message || 'The upload failed.');
+      const r2 = await fetch(`/api/admin/orders/${id}/documents`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: d1.path, file_name: docFile.name, title: docTitle, doc_type: docType }) });
+      const d2 = await r2.json();
+      if (!r2.ok) throw new Error(d2.error || 'Could not save the document.');
+      setNotice('Document uploaded.'); setDocFile(null); setDocTitle(''); setFileKey((k) => k + 1);
+      await load();
+    } catch (err: any) {
+      setError(err.message || 'Upload failed.');
+    }
+    setBusy(null);
+  };
+
+  const deleteDocument = async () => {
+    if (!docDelete) return;
+    setBusy('docdel'); setError(null); setNotice(null);
+    const res = await fetch(`/api/admin/documents/${docDelete.id}`, { method: 'DELETE' });
+    setBusy(null);
+    if (!res.ok) { setError((await res.json()).error || 'Could not delete the document.'); return; }
+    setDocDelete(null); setNotice('Document deleted.'); await load();
   };
 
   const addNote = async (e: React.FormEvent) => {
@@ -146,9 +190,28 @@ export default function AdminOrderDetail({ params }: { params: Promise<{ id: str
             ))}
           </div>
 
-          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 sm:p-8 space-y-3">
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 sm:p-8 space-y-5">
             <div className="flex items-center gap-2"><FileText size={18} className="text-slate-400" /><h3 className="font-bold text-slate-900">Documents</h3></div>
-            <p className="text-sm text-slate-400">Certificates and files for this order will be uploaded here — coming next.</p>
+            <p className="text-xs text-slate-400">Files uploaded here are visible to {customer.company_name} and their rep. PDF, image, Word or Excel, up to 20 MB.</p>
+            <DocumentList documents={docs} onDelete={setDocDelete} empty="No documents uploaded for this order yet." />
+            <form onSubmit={uploadDocument} className="rounded-2xl border border-dashed border-slate-200 p-4 space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className={label}>Type</label>
+                  <select className={input} value={docType} onChange={(e) => setDocType(e.target.value)}>
+                    {DOC_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className={label}>Title (optional)</label>
+                  <input className={input} value={docTitle} onChange={(e) => setDocTitle(e.target.value)} placeholder="Defaults to the file name" />
+                </div>
+              </div>
+              <input key={fileKey} type="file" accept={DOC_ACCEPT} onChange={(e) => setDocFile(e.target.files?.[0] || null)} className="block w-full text-sm text-slate-500 file:mr-3 file:px-4 file:py-2 file:rounded-xl file:border-0 file:bg-slate-100 file:text-slate-700 file:font-bold file:text-xs hover:file:bg-slate-200" />
+              <button disabled={!docFile || busy === 'doc'} className="bg-slate-950 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-rivix transition-all flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-slate-950">
+                {busy === 'doc' ? <Loader2 className="animate-spin" size={16} /> : <Upload size={16} />}Upload document
+              </button>
+            </form>
           </div>
         </div>
 
@@ -222,6 +285,17 @@ export default function AdminOrderDetail({ params }: { params: Promise<{ id: str
         confirmLabel={stage === 'Cancelled' ? 'Cancel order' : 'Mark delivered'}
         onConfirm={updateStage}
         onCancel={() => setConfirmStage(false)}
+      />
+
+      <ConfirmModal
+        open={docDelete !== null}
+        danger
+        loading={busy === 'docdel'}
+        title={`Delete "${docDelete?.title}"?`}
+        message="The customer and rep will no longer see this document. This can't be undone."
+        confirmLabel="Delete document"
+        onConfirm={deleteDocument}
+        onCancel={() => setDocDelete(null)}
       />
     </div>
   );

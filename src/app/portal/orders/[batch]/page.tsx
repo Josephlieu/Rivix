@@ -14,28 +14,26 @@ import {
   X
 } from 'lucide-react';
 import Link from 'next/link';
-import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer';
-import { CertificatePDF } from '@/lib/CertificatePDF';
 import { useEffect, useState } from 'react';
 import { getMyOrders, getCurrentCustomer } from '@/lib/storage';
 import { supabaseBrowser } from '@/lib/supabase-browser';
 import OrderStatusBadge from '@/components/OrderStatusBadge';
 import SizeBreakdown from '@/components/SizeBreakdown';
+import DocumentList from '@/components/DocumentList';
+import type { DocumentRow } from '@/lib/documents';
 
 export default function OrderDetailPage({ params }: { params: Promise<{ batch: string }> }) {
-  const [isClient, setIsClient] = useState(false);
   const [order, setOrder] = useState<any>(null);
   const [companyName, setCompanyName] = useState('');
   const [notFound, setNotFound] = useState(false);
-  const [viewingCert, setViewingCert] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
   const [events, setEvents] = useState<any[]>([]);
+  const [docs, setDocs] = useState<DocumentRow[]>([]);
 
 
   useEffect(() => {
     const loadData = async () => {
       const { batch } = await params;
-      setIsClient(true);
       const [myOrders, customer] = await Promise.all([getMyOrders(), getCurrentCustomer()]);
       setCompanyName(customer?.company_name || '');
       const found = myOrders.find(o => o.batch_number === batch);
@@ -43,19 +41,16 @@ export default function OrderDetailPage({ params }: { params: Promise<{ batch: s
       if (found) {
         // Both are protected by row security: a customer only ever gets their own
         // order's items and the timeline entries admin marked customer-visible.
-        const [{ data: its }, { data: evs }] = await Promise.all([
+        const [{ data: its }, { data: evs }, { data: dcs }] = await Promise.all([
           supabaseBrowser.from('order_items').select('*').eq('order_id', found.id).order('position'),
           supabaseBrowser.from('order_events').select('*').eq('order_id', found.id).order('created_at', { ascending: false }),
+          supabaseBrowser.from('documents').select('*').eq('order_id', found.id).order('created_at', { ascending: false }),
         ]);
+        setDocs((dcs as DocumentRow[]) || []);
         setItems(its || []);
         setEvents(evs || []);
         setOrder({
           ...found,
-          certs: [
-            { id: '1', type: 'Certificate of Origin', number: `COO-${found.batch_number}` },
-            { id: '2', type: 'Quality Inspection Report', number: `QIR-${found.batch_number}` },
-            { id: '3', type: 'Certificate of Compliance', number: `COC-${found.batch_number}` },
-          ]
         });
       } else {
         // Not one of this customer's orders — either it doesn't exist,
@@ -198,116 +193,11 @@ export default function OrderDetailPage({ params }: { params: Promise<{ batch: s
               <ShieldCheck className="text-emerald-500" size={20} />
               Compliance Documentation
             </h3>
-            <div className="space-y-4">
-              {order.certs.map((cert: any) => (
-                <div key={cert.id} className="p-4 rounded-2xl border border-slate-50 bg-slate-50/50 space-y-4">
-                  <div className="flex-1">
-                    <h4 className="text-xs font-bold text-slate-900 mb-1 leading-tight">{cert.type}</h4>
-                    <p className="text-[10px] text-slate-400 font-medium">No: {cert.number}</p>
-                  </div>
-                  
-                  <div className="w-full flex gap-2">
-                    <button 
-                      onClick={() => setViewingCert(cert)}
-                      className="flex-1 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-[10px] font-bold text-slate-500 rounded-lg transition-all flex items-center justify-center gap-2"
-                    >
-                      <Eye size={12} />
-                      View
-                    </button>
-                    
-                    {isClient ? (
-                      <PDFDownloadLink
-                        document={
-                          <CertificatePDF 
-                            data={{
-                              batch_number: order.batch_number,
-                              client_name: order.client_name || companyName,
-                              product_name: order.product_name,
-                              quantity: order.quantity.toString(),
-                              material: order.material,
-                              origin: order.origin,
-                              order_date: order.order_date,
-                              ship_date: order.ship_date,
-                              cert_type: cert.type,
-                              cert_id: cert.number,
-                              safety_standard: order.safety_standard
-                            }} 
-                          />
-                        }
-                        fileName={`${cert.number}.pdf`}
-                        className="flex-1 py-2 bg-rivix text-[10px] font-bold text-white rounded-lg transition-all flex items-center justify-center gap-2 shadow-sm shadow-rivix/20"
-                      >
-                        {({ loading }) => (
-                          loading ? '...' : <><Download size={12} /> Save</>
-                        )}
-                      </PDFDownloadLink>
-                    ) : (
-                      <div className="flex-1 py-2 bg-slate-50 text-[10px] font-bold text-slate-300 rounded-lg flex items-center justify-center gap-2 cursor-not-allowed">
-                        <Download size={12} />
-                        Save
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
+            <DocumentList documents={docs} empty="No documents yet. When RIVIX uploads certificates or other files for this order, they will appear here." />
           </div>
         </div>
       </div>
 
-      {/* PDF Viewer Modal */}
-      {viewingCert && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-white">
-              <div className="flex items-center gap-3">
-                <div className="bg-rivix/10 p-2 rounded-lg text-rivix">
-                  <ShieldCheck size={20} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900">{viewingCert.type}</h3>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{viewingCert.number}</p>
-                </div>
-              </div>
-              <button 
-                onClick={() => setViewingCert(null)}
-                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <div className="flex-1 bg-slate-100 p-2 sm:p-8 flex items-center justify-center overflow-hidden">
-               {isClient && (
-                 <PDFViewer style={{ width: '100%', height: '100%', borderRadius: '12px', border: 'none' }}>
-                   <CertificatePDF 
-                      data={{
-                        batch_number: order.batch_number,
-                        client_name: order.client_name || companyName,
-                        product_name: order.product_name,
-                        quantity: order.quantity.toString(),
-                        material: order.material,
-                        origin: order.origin,
-                        order_date: order.order_date,
-                        ship_date: order.ship_date,
-                        cert_type: viewingCert.type,
-                        cert_id: viewingCert.number,
-                        safety_standard: order.safety_standard
-                      }} 
-                    />
-                 </PDFViewer>
-               )}
-            </div>
-            <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end">
-               <button 
-                onClick={() => setViewingCert(null)}
-                className="bg-slate-900 text-white px-6 py-2 rounded-xl font-bold text-xs hover:bg-slate-800 transition-all"
-              >
-                Close Preview
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

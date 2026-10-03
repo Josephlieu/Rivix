@@ -1,168 +1,90 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { getMyOrders, getCurrentCustomer } from '@/lib/storage';
-import { ShieldCheck, Download, Search, FileText, Eye, X } from 'lucide-react';
-import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer';
-import { CertificatePDF } from '@/lib/CertificatePDF';
+import { useEffect, useMemo, useState } from 'react';
+import { Search, ShieldCheck } from 'lucide-react';
+import DocumentList from '@/components/DocumentList';
+import { supabaseBrowser } from '@/lib/supabase-browser';
+import type { DocumentRow } from '@/lib/documents';
 
+// Every document RIVIX has uploaded for this customer, newest month first.
+// Row security means the query below only ever returns the signed-in customer's own files.
 export default function CertificatesPage() {
-  const [certs, setCerts] = useState<any[]>([]);
-  const [isClient, setIsClient] = useState(false);
-  const [viewingCert, setViewingCert] = useState<any>(null);
-  const [companyName, setCompanyName] = useState('');
+  const [docs, setDocs] = useState<DocumentRow[]>([]);
+  const [orderNumbers, setOrderNumbers] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
-    const loadData = async () => {
-      setIsClient(true);
-      const [myOrders, customer] = await Promise.all([getMyOrders(), getCurrentCustomer()]);
-      setCompanyName(customer?.company_name || '');
-
-      const allCerts = myOrders.flatMap(batch => [
-        { ...batch, type: 'Certificate of Origin', number: `COO-${batch.batch_number}` },
-        { ...batch, type: 'Quality Inspection Report', number: `QIR-${batch.batch_number}` },
-        { ...batch, type: 'Certificate of Compliance', number: `COC-${batch.batch_number}` },
+    (async () => {
+      const [{ data: d }, { data: o }] = await Promise.all([
+        supabaseBrowser.from('documents').select('*').order('created_at', { ascending: false }),
+        supabaseBrowser.from('orders').select('id, batch_number'),
       ]);
-      
-      setCerts(allCerts);
-    };
-    loadData();
+      setDocs((d as DocumentRow[]) || []);
+      setOrderNumbers(Object.fromEntries((o || []).map((x: any) => [x.id, x.batch_number])));
+      setLoading(false);
+    })();
   }, []);
+
+  const q = search.trim().toLowerCase();
+  const filtered = docs.filter(
+    (d) =>
+      !q ||
+      d.title.toLowerCase().includes(q) ||
+      d.doc_type.toLowerCase().includes(q) ||
+      (d.order_id && (orderNumbers[d.order_id] || '').toLowerCase().includes(q))
+  );
+
+  const groups = useMemo(() => {
+    const m = new Map<string, DocumentRow[]>();
+    filtered.forEach((d) => {
+      const key = new Date(d.created_at).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+      m.set(key, [...(m.get(key) || []), d]);
+    });
+    return Array.from(m.entries());
+  }, [filtered]);
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Compliance Documents</h1>
-        <p className="text-slate-500">Access and download all authenticated certificates for your shipments.</p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Compliance Documents</h1>
+          <p className="text-slate-500">Certificates and files RIVIX has uploaded for your orders.</p>
+        </div>
+        {docs.length > 0 && (
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <input
+              type="text"
+              placeholder="Search documents..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-rivix/20 focus:border-rivix outline-none transition-all w-full sm:w-64"
+            />
+          </div>
+        )}
       </div>
 
-      {certs.length === 0 && (
-        <p className="text-sm text-slate-400 py-10 text-center">No certificates yet — these are generated once you have an order in the system.</p>
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {certs.map((cert, i) => (
-          <div key={`${cert.number}-${i}`} className="bg-white rounded-3xl p-5 sm:p-8 border border-slate-100 shadow-sm hover:border-rivix/20 transition-all group">
-            <div className="p-4 rounded-2xl bg-slate-50 group-hover:bg-rivix/5 text-slate-400 group-hover:text-rivix transition-all inline-block mb-6">
-              <ShieldCheck size={32} />
-            </div>
-            
-            <h3 className="text-sm font-bold text-slate-900 mb-1">{cert.type}</h3>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-6">No: {cert.number}</p>
-            
-            <div className="space-y-3 mb-8">
-               <div className="flex justify-between text-xs font-medium border-b border-slate-50 pb-2">
-                <span className="text-slate-400">Order</span>
-                <span className="text-slate-900 font-bold whitespace-nowrap">{cert.batch_number}</span>
-
-              </div>
-
-              <div className="flex justify-between text-xs font-medium border-b border-slate-50 pb-2">
-                <span className="text-slate-400">Product</span>
-                <span className="text-slate-900 font-bold truncate ml-4">{cert.product_name}</span>
-              </div>
-            </div>
-
-            <div className="flex gap-3">
-              <button 
-                onClick={() => setViewingCert(cert)}
-                className="flex-1 py-3 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2"
-              >
-                <Eye size={16} />
-                View
-              </button>
-              
-              {isClient ? (
-                <PDFDownloadLink
-                  document={
-                    <CertificatePDF 
-                      data={{
-                        batch_number: cert.batch_number,
-                        client_name: cert.client_name || companyName,
-                        product_name: cert.product_name,
-                        quantity: cert.quantity?.toString() || '0',
-                        material: cert.material || 'Not specified',
-                        origin: cert.origin || 'Not specified',
-                        order_date: cert.order_date || 'Not specified',
-                        ship_date: cert.ship_date || 'Not specified',
-                        cert_type: cert.type,
-                        cert_id: cert.number,
-                        safety_standard: cert.safety_standard
-                      }} 
-                    />
-                  }
-                  fileName={`${cert.number}.pdf`}
-                  className="flex-1 py-3 bg-rivix text-white rounded-xl text-xs font-bold hover:bg-rivix-dark transition-all flex items-center justify-center gap-2 shadow-lg shadow-rivix/20"
-                >
-                  {({ loading }) => (
-                    loading ? '...' : <><Download size={16} /> Save</>
-                  )}
-                </PDFDownloadLink>
-              ) : (
-                <div className="flex-1 py-3 bg-slate-100 text-slate-300 rounded-xl text-xs font-bold flex items-center justify-center gap-2">
-                  <Download size={16} /> Save
-                </div>
-              )}
-            </div>
+      {!loading && docs.length === 0 && (
+        <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-10 text-center space-y-3 max-w-xl">
+          <div className="mx-auto w-14 h-14 rounded-full bg-slate-50 flex items-center justify-center text-slate-300">
+            <ShieldCheck size={28} />
           </div>
-        ))}
-      </div>
-
-      {/* PDF Viewer Modal */}
-      {viewingCert && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 lg:p-12 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
-
-            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-white">
-              <div className="flex items-center gap-3">
-                <div className="bg-rivix/10 p-2 rounded-lg text-rivix">
-                  <ShieldCheck size={20} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900">{viewingCert.type}</h3>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{viewingCert.number}</p>
-                </div>
-              </div>
-              <button 
-                onClick={() => setViewingCert(null)}
-                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <div className="flex-1 bg-slate-100 p-2 sm:p-8 flex items-center justify-center overflow-hidden">
-               {isClient && (
-                 <PDFViewer style={{ width: '100%', height: '100%', borderRadius: '12px', border: 'none' }}>
-                   <CertificatePDF 
-                      data={{
-                        batch_number: viewingCert.batch_number,
-                        client_name: viewingCert.client_name || companyName,
-                        product_name: viewingCert.product_name,
-                        quantity: viewingCert.quantity?.toString() || '150',
-                        material: viewingCert.material || 'Not specified',
-                        origin: viewingCert.origin || 'Not specified',
-                        order_date: viewingCert.order_date || 'Not specified',
-                        ship_date: viewingCert.ship_date || 'Not specified',
-                        cert_type: viewingCert.type,
-                        cert_id: viewingCert.number,
-                        safety_standard: viewingCert.safety_standard
-                      }} 
-                    />
-                 </PDFViewer>
-               )}
-            </div>
-            <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end">
-               <button 
-                onClick={() => setViewingCert(null)}
-                className="bg-slate-900 text-white px-6 py-2 rounded-xl font-bold text-xs hover:bg-slate-800 transition-all"
-              >
-                Close Preview
-              </button>
-            </div>
-          </div>
+          <p className="font-bold text-slate-900">No documents yet</p>
+          <p className="text-sm text-slate-500">
+            When RIVIX uploads a certificate or document for one of your orders, it will appear here. If you need one, ask your sales rep.
+          </p>
         </div>
       )}
-    </div>
 
+      {docs.length > 0 && filtered.length === 0 && <p className="text-sm text-slate-400">No documents match your search.</p>}
+
+      {groups.map(([month, list]) => (
+        <section key={month} className="space-y-3 max-w-3xl">
+          <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest">{month}</h2>
+          <DocumentList documents={list} showOrder={orderNumbers} />
+        </section>
+      ))}
+    </div>
   );
 }

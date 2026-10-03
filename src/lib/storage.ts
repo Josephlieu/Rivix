@@ -115,6 +115,11 @@ export interface OrderData {
   certs_generated?: boolean;
   safety_standard?: string;
   inspector_name?: string;
+  po_number?: string | null;
+  delivery_location?: string | null;
+  carrier?: string | null;
+  tracking_number?: string | null;
+  created_at?: string;
 }
 
 export const getOrders = async (): Promise<OrderData[]> => {

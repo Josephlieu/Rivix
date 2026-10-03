@@ -35,3 +35,21 @@ Runs against whatever `.env.local` points to — **currently the real production
 
 ## Known code fix already applied during this audit
 `signup/page.tsx` and `login/page.tsx` originally hardcoded all auth redirects to `https://portal.rivix.ca/portal`, which broke local testing entirely (a local signup would always redirect to production). Fixed to use `window.location.origin` dynamically. See finding #7.
+
+## Running costs and plans (added 2026-10-01)
+
+Development and testing run on free plans. A real launch will probably need paid ones. These come from my understanding of the providers' plans — **check current prices and limits before quoting a number to Joseph.**
+
+| Item | Free plan today | Why a paid plan is likely for production | Rough cost (verify) |
+|---|---|---|---|
+| **Supabase** (database, logins, file storage) | Dev project on free | Free projects can be paused after inactivity (portal offline); paid plans include automatic daily backups, which free plans do not; free plans cap total storage (~1 GB) and per-file size (~50 MB) — the 64 MB Ontario Parks tender would not upload | ~$25/month (Pro) |
+| **Vercel** (hosting) | Hobby | The Hobby plan is meant for personal, non-commercial use; a company portal should be on the paid plan | ~$20/month per person |
+| **AI calls** (garment/tech-pack analysis, resume scoring, later tender screening, summaries, bid comparison) | pay per use | Running cost, grows with use; whose account pays is an open question | varies |
+| **Email** (Resend) | free tier | Likely enough at first volumes; needs the rivix.ca domain connected | free at first |
+| **QuickBooks API** | — | I believe Intuit's developer access is free; confirm when we get there | check |
+
+**Files and backups:** documents go in a private Supabase Storage bucket (same pattern as product specs). I'm **not sure** how Supabase backs up stored files compared with the database — confirm before launch and, if needed, keep our own copy.
+
+**Dev and production are separate Supabase projects.** The real production project already exists (from the original developer). Unknown to us: which plan it is on, who pays for it, and whether backups are on. Every new table, bucket and SQL file in `audit-docs/deliverables/` must be applied to production before launch (none has been).
+
+**What to tell Joseph:** a realistic floor is roughly $45+/month for Supabase and Vercel together, plus AI usage, so the first bill is not a surprise.

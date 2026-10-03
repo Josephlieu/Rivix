@@ -5,6 +5,7 @@ import { getCurrentRep } from '@/lib/current-rep';
 import { createAdminClient } from '@/lib/supabase-admin';
 import OrderStatusBadge from '@/components/OrderStatusBadge';
 import SizeBreakdown from '@/components/SizeBreakdown';
+import DocumentList from '@/components/DocumentList';
 
 const Row = ({ label, value }: { label: string; value?: string | null }) => (
   <div className="flex justify-between gap-6 text-sm border-b border-slate-50 pb-3">
@@ -29,9 +30,10 @@ export default async function RepOrderPage({ params }: { params: Promise<{ id: s
   // Only orders of this rep's own customers
   if (!order || (order as any).customers?.rep_id !== rep.id) notFound();
 
-  const [{ data: items }, { data: events }] = await Promise.all([
+  const [{ data: items }, { data: events }, { data: documents }] = await Promise.all([
     admin.from('order_items').select('*').eq('order_id', id).order('position'),
     admin.from('order_events').select('*').eq('order_id', id).order('created_at', { ascending: false }),
+    admin.from('documents').select('id, customer_id, order_id, title, doc_type, file_name, file_size, mime_type, created_at').eq('order_id', id).order('created_at', { ascending: false }),
   ]);
 
   const customer = (order as any).customers;
@@ -69,6 +71,11 @@ export default async function RepOrderPage({ params }: { params: Promise<{ id: s
             {it.branding && <p className="text-slate-500">Branding: {it.branding}</p>}
           </div>
         ))}
+      </div>
+
+      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 sm:p-8 space-y-4">
+        <h3 className="font-bold text-slate-900">Documents</h3>
+        <DocumentList documents={(documents as any[]) || []} empty="No documents uploaded for this order yet." />
       </div>
 
       <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 sm:p-8 space-y-3">

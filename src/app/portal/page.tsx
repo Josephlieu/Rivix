@@ -9,6 +9,7 @@ import {
 
 import { useEffect, useState } from 'react';
 import { getMyOrders, getCurrentCustomer, OrderData } from '@/lib/storage';
+import { supabaseBrowser } from '@/lib/supabase-browser';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
@@ -16,12 +17,16 @@ import { cn } from '@/lib/utils';
 export default function ClientPortalHome() {
   const [orders, setOrders] = useState<OrderData[]>([]);
   const [companyName, setCompanyName] = useState('');
+  const [docCount, setDocCount] = useState(0);
 
   useEffect(() => {
     const loadData = async () => {
       const [myOrders, customer] = await Promise.all([getMyOrders(), getCurrentCustomer()]);
       setOrders(myOrders);
       setCompanyName(customer?.company_name || '');
+      // Real number of documents RIVIX has uploaded for this customer (row security limits it to their own).
+      const { count } = await supabaseBrowser.from('documents').select('id', { count: 'exact', head: true });
+      setDocCount(count || 0);
     };
     loadData();
   }, []);
@@ -29,7 +34,7 @@ export default function ClientPortalHome() {
 
   const stats = [
     { label: 'Total Orders', value: orders.length.toString(), icon: FileText, color: 'text-rivix' },
-    { label: 'Compliance Certificates', value: (orders.length * 3).toString(), icon: ShieldCheck, color: 'text-emerald-600' },
+    { label: 'Documents', value: docCount.toString(), icon: ShieldCheck, color: 'text-emerald-600' },
   ];
 
 

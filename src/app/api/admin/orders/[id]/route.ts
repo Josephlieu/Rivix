@@ -20,13 +20,15 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     .maybeSingle();
   if (!order) return NextResponse.json({ error: 'Order not found.' }, { status: 404 });
 
-  const [{ data: items }, { data: events }] = await Promise.all([
+  const [{ data: items }, { data: events }, docs] = await Promise.all([
     admin.from('order_items').select('*').eq('order_id', id).order('position'),
     admin.from('order_events').select('*').eq('order_id', id).order('created_at', { ascending: false }),
+    admin.from('documents').select('id, title, doc_type, file_name, file_size, mime_type, uploaded_by, created_at').eq('order_id', id).order('created_at', { ascending: false }),
   ]);
 
   const { customers, ...rest } = order as any;
-  return NextResponse.json({ order: rest, customer: customers, items: items || [], events: events || [] });
+  // `documents` is empty until the documents SQL has been run.
+  return NextResponse.json({ order: rest, customer: customers, items: items || [], events: events || [], documents: docs.data || [] });
 }
 
 // Admin runs the order: change stage, set carrier + tracking. Every stage
