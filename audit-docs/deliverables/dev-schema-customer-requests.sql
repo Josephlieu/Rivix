@@ -16,8 +16,12 @@ alter table public.document_requests
   add constraint document_requests_status_check
   check (status in ('pending_rep', 'open', 'done', 'dismissed'));
 
--- A customer can read (only) their own requests, so the order page can show their status.
+-- A customer can read (only) the requests THEY made, so the order page can show their status.
+-- Requests a rep sent to admin (requested_by = 'rep') stay private: they can carry internal notes.
 drop policy if exists "customers can view own document requests" on public.document_requests;
 create policy "customers can view own document requests"
   on public.document_requests for select
-  using (customer_id in (select id from public.customers where user_id = auth.uid()));
+  using (
+    requested_by = 'customer'
+    and customer_id in (select id from public.customers where user_id = auth.uid())
+  );

@@ -45,7 +45,7 @@ const clientLinks = [
   // decision — it's a purely internal Admin/Sales Rep workflow now, the
   // customer never gets access to the creation tool or any part of it.
   // { href: '/portal/replication', label: 'Uniform Replication', icon: FileUp },
-  { href: '/portal/certificates', label: 'Compliance Certs', icon: ShieldCheck },
+  { href: '/portal/certificates', label: 'Documents', icon: ShieldCheck },
   { href: '/portal/account', label: 'Account', icon: UserCircle },
 ];
 
@@ -79,7 +79,7 @@ export default function Sidebar({ mode }: SidebarProps) {
     router.push(mode === 'admin' ? '/admin-login' : '/login');
   };
 
-  const NavContent = () => (
+  const navContent = (
     <>
       <div className="p-6 flex flex-col gap-2 mb-4">
         <div className="relative h-12 w-full">
@@ -166,7 +166,7 @@ export default function Sidebar({ mode }: SidebarProps) {
         >
           <X size={18} />
         </button>
-        <NavContent />
+        {navContent}
       </div>
     </>
   );

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Bell, Loader2, CheckCheck, Check } from 'lucide-react';
 import { supabaseBrowser } from '@/lib/supabase-browser';
 import { notificationIcon, timeAgo } from '@/lib/notification-ui';
+import { formatDateTime } from '@/lib/format';
 
 interface Notif {
   id: string;
@@ -130,7 +131,7 @@ export default function NotificationsPage() {
                     <div className="flex-1 min-w-0 space-y-0.5">
                       <p className={`text-sm leading-snug ${n.read_at ? 'font-semibold text-slate-600' : 'font-bold text-slate-900'}`}>{n.title}</p>
                       {n.body && <p className="text-xs text-slate-500 leading-relaxed">{n.body}</p>}
-                      <p className="text-[11px] font-bold text-slate-400 pt-1">{timeAgo(n.created_at)} · {new Date(n.created_at).toLocaleString()}</p>
+                      <p className="text-[11px] font-bold text-slate-400 pt-1">{timeAgo(n.created_at)} · {formatDateTime(n.created_at)}</p>
                     </div>
                   </button>
                   {!n.read_at && (

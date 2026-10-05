@@ -48,3 +48,12 @@ Done by measuring the code (file sizes, who imports what, repeated patterns), no
 - A page file over ~300 lines gets split into section components; logic goes into hooks/lib.
 - New repeated UI goes into the shared kit, not copied.
 - Every new feature ships with its test script in `scripts/e2e`.
+
+## Progress (2026-10-03)
+Done:
+- **Tests are now in the project:** `scripts/e2e/*.test.mjs` (10 files, ~177 checks) with `npm run test:e2e` (needs the dev server running; refuses to run unless `.env.local` points at the dev Supabase project). The first full run found a real privacy gap (below).
+- **Lint works again:** the project is on Next 16, which removed `next lint`; replaced with ESLint 9 + `eslint-config-next` 16 and a flat config (`eslint.config.mjs`). Result: **0 errors**, 88 warnings (mostly loose `any`). Fixed the real errors: a component created inside a component in the Sidebar (reset its state every render), a `require()` import and two `let`→`const` in old files. The "load data when the page opens" pattern is a warning, to be replaced by a shared data hook (plan D).
+- **Type check is clean:** 0 errors (the 3 old Hiring errors were a real bug — the AI resume summary was saved in a `bio` field that nothing reads; it now goes to `background`).
+- **Dead code hidden, NOT deleted (rule from the user: never delete code, comment out / hide it):** the old customer Replication page (1,044 lines, unreachable) now lives in `src/app/portal/_replication-disabled/` (a folder starting with `_` is not a web page in Next.js; rename it back to `replication` to restore), and `CertificatePDF.tsx` has an "UNUSED" note at the top. Both are left out of lint. Kept as normal files: `TechPackPDF`, `captureFlatSketch`, `garmentAiAnalysis` (future tech-file feature) and the legacy Hiring/Replication pages (to be rebuilt; ignored by lint for now).
+- **One date style everywhere** (`src/lib/format.ts`: "Oct 3, 2026"), and one name for the documents area ("Documents"); order pages share one heading; the shared `Modal` is used by Add Rep, Edit client and Add Client.
+Still to do from the plan: the shared UI kit (PageHeader, Card, table pieces, FormField, Notice, EmptyState), splitting the mid-size pages into sections, one fetch helper and shared types, and cleaning the loose `any` types.

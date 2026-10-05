@@ -1,3 +1,4 @@
+import { formatDate } from '@/lib/format';
 import { Bell, Package, FileText, Truck, MessageSquare, CheckCircle, Sparkles, UserPlus, UserMinus, UserCog } from 'lucide-react';
 
 // Icon and colour for each kind of notification (used by the bell and the full page).
@@ -28,7 +29,7 @@ export const timeAgo = (iso: string) => {
   if (h < 24) return `${h} hr ago`;
   const d = Math.round(h / 24);
   if (d < 7) return `${d} day${d === 1 ? '' : 's'} ago`;
-  return new Date(iso).toLocaleDateString();
+  return formatDate(iso);
 };
 
 export const notificationsPath = (mode: 'admin' | 'client' | 'rep') =>

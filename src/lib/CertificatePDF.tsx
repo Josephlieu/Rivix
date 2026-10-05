@@ -1,3 +1,5 @@
+// UNUSED (2026-10-03): the app used to generate placeholder certificates from this; real uploaded documents
+// replaced that. Kept for reference only — nothing imports it.
 'use client';
 
 import React from 'react';

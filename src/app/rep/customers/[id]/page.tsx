@@ -4,6 +4,7 @@ import { ArrowLeft, Mail, Phone, Plus, Eye } from 'lucide-react';
 import { getCurrentRep } from '@/lib/current-rep';
 import { createAdminClient } from '@/lib/supabase-admin';
 import OrderStatusBadge from '@/components/OrderStatusBadge';
+import { formatDate } from '@/lib/format';
 
 // One of the rep's own customers: their details and every order they have.
 export default async function RepCustomerDetail({ params }: { params: Promise<{ id: string }> }) {
@@ -54,7 +55,7 @@ export default async function RepCustomerDetail({ params }: { params: Promise<{ 
         </div>
         <div>
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Customer since</p>
-          <p className="text-sm font-semibold text-slate-700">{new Date(customer.created_at).toLocaleDateString()}</p>
+          <p className="text-sm font-semibold text-slate-700">{formatDate(customer.created_at)}</p>
         </div>
       </div>
 
@@ -79,7 +80,7 @@ export default async function RepCustomerDetail({ params }: { params: Promise<{ 
                 <tr key={o.id} className="hover:bg-slate-50/50 transition-colors group">
                   <td className="px-4 sm:px-8 py-4 font-bold text-slate-700 whitespace-nowrap">{o.batch_number}</td>
                   <td className="px-4 sm:px-8 py-4 text-slate-600 font-medium">{o.product_name} <span className="text-slate-400">× {o.quantity}</span></td>
-                  <td className="px-4 sm:px-8 py-4 text-sm text-slate-500 whitespace-nowrap">{new Date(o.created_at).toLocaleDateString()}</td>
+                  <td className="px-4 sm:px-8 py-4 text-sm text-slate-500 whitespace-nowrap">{formatDate(o.created_at)}</td>
                   <td className="px-4 sm:px-8 py-4"><OrderStatusBadge status={o.status} /></td>
                   <td className="px-4 sm:px-8 py-4 text-right">
                     <Link href={`/rep/orders/${o.id}`} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-600 hover:border-rivix hover:text-rivix transition-all whitespace-nowrap"><Eye size={14} />View details</Link>

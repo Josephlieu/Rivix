@@ -6,6 +6,7 @@ import { Package, Search, Filter, ArrowUpRight, CheckCircle2, Clock, Check, Truc
 import OrderStatusBadge from '@/components/OrderStatusBadge';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import { formatDate } from '@/lib/format';
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<OrderData[]>([]);
@@ -129,7 +130,7 @@ export default function OrdersPage() {
                 </td>
                 <td className="px-4 sm:px-8 py-6 text-sm font-bold text-slate-600 whitespace-nowrap">{order.quantity} Units</td>
                 <td className="px-4 sm:px-8 py-6 text-sm text-slate-500 whitespace-nowrap">
-                  {order.order_date || (order.created_at ? new Date(order.created_at).toISOString().slice(0, 10) : '—')}
+                  {formatDate(order.order_date || order.created_at)}
                 </td>
                 <td className="px-4 sm:px-8 py-6 text-sm text-slate-600 whitespace-nowrap">{order.po_number || <span className="text-slate-300">—</span>}</td>
                 <td className="px-4 sm:px-8 py-6">

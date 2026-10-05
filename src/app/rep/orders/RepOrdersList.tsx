@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Search, Plus, Eye } from 'lucide-react';
 import OrderStatusBadge from '@/components/OrderStatusBadge';
+import { formatDate } from '@/lib/format';
 
 interface Row {
   id: string;
@@ -81,7 +82,7 @@ export default function RepOrdersList({ orders }: { orders: Row[] }) {
                 <td className="px-4 sm:px-8 py-5 font-bold text-slate-700 whitespace-nowrap">{o.batch_number}</td>
                 <td className="px-4 sm:px-8 py-5 text-slate-600 font-medium">{o.customer}</td>
                 <td className="px-4 sm:px-8 py-5 text-slate-600 font-medium">{o.product_name} <span className="text-slate-400">× {o.quantity}</span></td>
-                <td className="px-4 sm:px-8 py-5 text-sm text-slate-500 whitespace-nowrap">{new Date(o.created_at).toLocaleDateString()}</td>
+                <td className="px-4 sm:px-8 py-5 text-sm text-slate-500 whitespace-nowrap">{formatDate(o.created_at)}</td>
                 <td className="px-4 sm:px-8 py-5"><OrderStatusBadge status={o.status} /></td>
                 <td className="px-4 sm:px-8 py-5 text-right">
                   <Link href={`/rep/orders/${o.id}`} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-600 hover:border-rivix hover:text-rivix transition-all whitespace-nowrap"><Eye size={14} />View details</Link>

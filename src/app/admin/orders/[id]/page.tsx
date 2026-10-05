@@ -11,6 +11,7 @@ import DocumentList from '@/components/DocumentList';
 import { supabaseBrowser } from '@/lib/supabase-browser';
 import { DOC_TYPES, DOC_ACCEPT, MAX_DOC_BYTES, ALLOWED_DOC_MIME, DocumentRow } from '@/lib/documents';
 import { ORDER_STAGES, CARRIERS } from '@/lib/order-stages';
+import { formatDate, formatDateTime } from '@/lib/format';
 
 interface Order {
   id: string; batch_number: string; status: string; created_at: string;
@@ -162,7 +163,7 @@ export default function AdminOrderDetail({ params }: { params: Promise<{ id: str
         <div>
           <OrderHeading number={order.batch_number} status={order.status} />
           <p className="text-sm text-slate-500 mt-2">
-            <Link href={`/admin/clients/${customer.id}`} className="font-semibold hover:text-rivix">{customer.company_name}</Link> · {customer.customer_code} · Rep: {customer.rep?.name || 'Unassigned'} · Created {new Date(order.created_at).toLocaleDateString()}
+            <Link href={`/admin/clients/${customer.id}`} className="font-semibold hover:text-rivix">{customer.company_name}</Link> · {customer.customer_code} · Rep: {customer.rep?.name || 'Unassigned'} · Created {formatDate(order.created_at)}
           </p>
         </div>
       </div>
@@ -290,7 +291,7 @@ export default function AdminOrderDetail({ params }: { params: Promise<{ id: str
                   {!e.customer_visible && <span className="ml-2 text-[10px] font-black uppercase text-amber-500">internal</span>}
                 </p>
                 {e.note && <p className="text-slate-500">{e.note}</p>}
-                <p className="text-xs text-slate-400">{new Date(e.created_at).toLocaleString()}{e.created_by ? ` · ${e.created_by}` : ''}</p>
+                <p className="text-xs text-slate-400">{formatDateTime(e.created_at)}{e.created_by ? ` · ${e.created_by}` : ''}</p>
               </div>
             ))}
           </div>

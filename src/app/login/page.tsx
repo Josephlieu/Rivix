@@ -108,7 +108,7 @@ export default function LoginPage() {
             COMPLIANCE <span className="text-rivix">PORTAL</span>
           </h1>
           <p className="text-slate-500 font-medium mt-2">
-            Access your compliance certificates
+            Track your orders and documents
           </p>
         </div>
 

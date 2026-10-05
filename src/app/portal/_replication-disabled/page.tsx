@@ -1,3 +1,6 @@
+// HIDDEN, NOT DELETED (2026-10-03). Customers cannot use Uniform Replication (decision 2026-09-25), so this old
+// customer copy is parked in a folder starting with `_`, which Next.js does not turn into a web page.
+// Kept as reference for the rep/admin Replication rebuild. To bring it back, rename the folder to `replication`.
 'use client';
 
 import { useEffect, useState } from 'react';

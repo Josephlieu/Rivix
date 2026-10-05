@@ -22,6 +22,7 @@ import SizeBreakdown from '@/components/SizeBreakdown';
 import DocumentList from '@/components/DocumentList';
 import RequestDocument from './RequestDocument';
 import type { DocumentRow } from '@/lib/documents';
+import { formatDate, formatDateTime } from '@/lib/format';
 
 export default function OrderDetailPage({ params }: { params: Promise<{ batch: string }> }) {
   const [order, setOrder] = useState<any>(null);
@@ -70,7 +71,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ batch: s
         <p className="text-slate-400 font-bold uppercase tracking-widest">Order not found</p>
         <Link href="/portal/orders" className="inline-flex items-center gap-2 text-sm font-bold text-rivix hover:text-rivix-dark transition-colors">
           <ArrowLeft size={16} />
-          Back to Orders
+          Back to My Orders
         </Link>
       </div>
     );
@@ -80,9 +81,9 @@ export default function OrderDetailPage({ params }: { params: Promise<{ batch: s
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-12">
-      <Link href="/portal" className="inline-flex items-center gap-2 text-sm font-bold text-slate-400 hover:text-rivix transition-colors">
+      <Link href="/portal/orders" className="inline-flex items-center gap-2 text-sm font-bold text-slate-400 hover:text-rivix transition-colors">
         <ArrowLeft size={16} />
-        Back to Dashboard
+        Back to My Orders
       </Link>
 
       <div className="flex flex-col lg:flex-row justify-between items-start gap-6">
@@ -100,7 +101,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ batch: s
                 <Calendar size={12} />
                 Order Date
               </p>
-              <p className="text-sm font-bold text-slate-900">{order.order_date || '—'}</p>
+              <p className="text-sm font-bold text-slate-900">{formatDate(order.order_date)}</p>
             </div>
             <div className="space-y-1">
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
@@ -157,7 +158,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ batch: s
                 <div key={e.id} className="text-sm border-l-2 border-slate-100 pl-4">
                   <p className="font-semibold text-slate-900">{e.status || 'Update'}</p>
                   {e.note && <p className="text-slate-500">{e.note}</p>}
-                  <p className="text-xs text-slate-400">{new Date(e.created_at).toLocaleString()}</p>
+                  <p className="text-xs text-slate-400">{formatDateTime(e.created_at)}</p>
                 </div>
               ))}
             </div>
@@ -189,7 +190,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ batch: s
           <div className="bg-white rounded-3xl p-5 sm:p-8 border border-slate-100 shadow-sm">
             <h3 className="font-bold text-slate-900 mb-6 flex items-center gap-2">
               <ShieldCheck className="text-emerald-500" size={20} />
-              Compliance Documentation
+              Documents
             </h3>
             <DocumentList documents={docs} empty="No documents yet. When RIVIX uploads certificates or other files for this order, they will appear here." />
             <RequestDocument orderId={order.id} status={order.status} />
