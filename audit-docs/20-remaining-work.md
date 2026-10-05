@@ -28,7 +28,7 @@ Done and tested: customer / rep / admin logins and role separation; admin create
 ## Admin panel — left
 | Item | Hours | Note |
 |---|---|---|
-| Dashboard with real numbers (orders by stage, new orders, clients) | 4–6 | currently fake |
+| Dashboard with real numbers (orders by stage, new orders, clients) | **done 10-05** | real counts via `/api/admin/dashboard`; revenue card shows "Coming soon" until QuickBooks; old page kept in `src/app/admin/_dashboard-old/` |
 | Product Specs upload per customer (see customer panel) | counted above | |
 | Products page (static catalog PDF → upload a new version yourself) | 2–4 | **needs Joseph** (does he want this?) |
 | Sales Hiring: fix missing table / silent local-storage fallback, remove in-app SOP panel (delivered as PDF), per-job criteria | 8–12 | real candidate data present |
