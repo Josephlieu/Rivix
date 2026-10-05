@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { Users, FileText, Inbox, FolderOpen, TrendingUp } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { ORDER_STAGES } from '@/lib/order-stages';
-import { formatDateTime, businessDateKey } from '@/lib/format';
+import { formatDateTime, localDateKey, activeTimeZone } from '@/lib/format';
 
 type Period = 'day' | 'week' | 'month' | 'year';
 
@@ -18,11 +18,11 @@ type Dashboard = {
 
 type Bucket = { start: string; count: number };
 
-// Group order timestamps into day/week/month/year buckets by calendar day in the business
-// time zone (see BUSINESS_TZ), oldest first, empty periods included. Bucket starts are plain
+// Group order timestamps into day/week/month/year buckets by calendar day in the viewer's
+// time zone (see activeTimeZone), oldest first, empty periods included. Bucket starts are plain
 // "YYYY-MM-DD" keys, so the comparison is simple string order and daylight-saving safe.
 function buildSeries(dates: string[]): Record<Period, Bucket[]> {
-  const [ty, tm, td] = businessDateKey().split('-').map(Number);
+  const [ty, tm, td] = localDateKey().split('-').map(Number);
   const key = (ms: number) => new Date(ms).toISOString().slice(0, 10);
   const todayMs = Date.UTC(ty, tm - 1, td);
   const mondayMs = todayMs - ((new Date(todayMs).getUTCDay() + 6) % 7) * 86400000;
@@ -32,7 +32,7 @@ function buildSeries(dates: string[]): Record<Period, Bucket[]> {
     month: Array.from({ length: 12 }, (_, i) => key(Date.UTC(ty, tm - 1 - (11 - i), 1))),
     year: Array.from({ length: 5 }, (_, i) => key(Date.UTC(ty - (4 - i), 0, 1))),
   };
-  const dayKeys = dates.map((iso) => businessDateKey(iso)).filter(Boolean);
+  const dayKeys = dates.map((iso) => localDateKey(iso)).filter(Boolean);
   const out = {} as Record<Period, Bucket[]>;
   (Object.keys(starts) as Period[]).forEach((k) => {
     const list = starts[k];
@@ -184,7 +184,7 @@ export default function AdminDashboard() {
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <div>
             <h3 className="font-bold text-slate-900">Orders created</h3>
-            <span className="text-xs text-slate-400">{PERIODS.find((p) => p.key === period)?.span}</span>
+            <span className="text-xs text-slate-400">{PERIODS.find((p) => p.key === period)?.span}{data ? ` · times in ${activeTimeZone().replace(/_/g, ' ')}` : ''}</span>
           </div>
           <div className="inline-flex rounded-xl bg-slate-100 p-1" role="group" aria-label="Group orders by">
             {PERIODS.map((p) => (

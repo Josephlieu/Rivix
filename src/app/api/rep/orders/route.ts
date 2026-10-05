@@ -3,7 +3,7 @@ import { getCurrentRep } from '@/lib/current-rep';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { adminUserIds, customerParties, notifyUsers } from '@/lib/notify';
 import { cleanSizeLabel, sizesToText, totalQty as sumSizes, type SizeQty } from '@/lib/sizes';
-import { businessDateKey } from '@/lib/format';
+import { localDateKey } from '@/lib/format';
 
 const MAX_ITEMS = 50;
 
@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
       batch_number: '', // filled in by the database (ORD-0001, ...)
       product_name: summary.slice(0, 200),
       quantity: totalQty,
-      order_date: businessDateKey(), // today in business time (not UTC)
+      order_date: localDateKey(), // today in the default time zone (not UTC)
       delivery_location: clean(body.delivery_location, 500) || null,
       po_number: clean(body.po_number, 100) || null,
       pricing: clean(body.pricing, 500) || null,
