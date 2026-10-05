@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer';
+import { formatDate } from '@/lib/format';
 
 const styles = StyleSheet.create({
   page: {
@@ -256,7 +257,7 @@ export interface TechPackData {
 const PageFooter = () => (
   <View style={styles.footer}>
     <Text style={styles.footerText}>RIVIX Manufacturing & Industrial Supply — portal.rivix.ca — Confidential</Text>
-    <Text style={styles.footerText}>{new Date().toLocaleDateString()}</Text>
+    <Text style={styles.footerText}>{formatDate(new Date())}</Text>
   </View>
 );
 
@@ -321,7 +322,7 @@ export const TechPackPDF = ({ data }: { data: TechPackData }) => (
         )}
         <View style={styles.infoCol}>
           <Text style={styles.label}>Date</Text>
-          <Text style={styles.value}>{new Date().toLocaleDateString()}</Text>
+          <Text style={styles.value}>{formatDate(new Date())}</Text>
         </View>
       </View>
 

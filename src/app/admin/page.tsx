@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { Users, FileText, Inbox, FolderOpen, TrendingUp } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { ORDER_STAGES } from '@/lib/order-stages';
-import { formatDateTime } from '@/lib/format';
+import { formatDateTime, businessDateKey } from '@/lib/format';
 
 type Period = 'day' | 'week' | 'month' | 'year';
 
@@ -18,28 +18,29 @@ type Dashboard = {
 
 type Bucket = { start: string; count: number };
 
-// Group order timestamps into day/week/month/year buckets in the viewer's local time zone
-// (so a late-night order lands on the day the admin actually sees), oldest first, empty periods included.
+// Group order timestamps into day/week/month/year buckets by calendar day in the business
+// time zone (see BUSINESS_TZ), oldest first, empty periods included. Bucket starts are plain
+// "YYYY-MM-DD" keys, so the comparison is simple string order and daylight-saving safe.
 function buildSeries(dates: string[]): Record<Period, Bucket[]> {
-  const now = new Date();
-  const y = now.getFullYear(), m = now.getMonth(), d = now.getDate();
-  const key = (dt: Date) => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
-  const monday = new Date(y, m, d - ((now.getDay() + 6) % 7));
-  const starts: Record<Period, Date[]> = {
-    day: Array.from({ length: 14 }, (_, i) => new Date(y, m, d - (13 - i))),
-    week: Array.from({ length: 8 }, (_, i) => new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() - (7 - i) * 7)),
-    month: Array.from({ length: 12 }, (_, i) => new Date(y, m - (11 - i), 1)),
-    year: Array.from({ length: 5 }, (_, i) => new Date(y - (4 - i), 0, 1)),
+  const [ty, tm, td] = businessDateKey().split('-').map(Number);
+  const key = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+  const todayMs = Date.UTC(ty, tm - 1, td);
+  const mondayMs = todayMs - ((new Date(todayMs).getUTCDay() + 6) % 7) * 86400000;
+  const starts: Record<Period, string[]> = {
+    day: Array.from({ length: 14 }, (_, i) => key(todayMs - (13 - i) * 86400000)),
+    week: Array.from({ length: 8 }, (_, i) => key(mondayMs - (7 - i) * 7 * 86400000)),
+    month: Array.from({ length: 12 }, (_, i) => key(Date.UTC(ty, tm - 1 - (11 - i), 1))),
+    year: Array.from({ length: 5 }, (_, i) => key(Date.UTC(ty - (4 - i), 0, 1))),
   };
+  const dayKeys = dates.map((iso) => businessDateKey(iso)).filter(Boolean);
   const out = {} as Record<Period, Bucket[]>;
   (Object.keys(starts) as Period[]).forEach((k) => {
     const list = starts[k];
-    const buckets = list.map((dt) => ({ start: key(dt), count: 0 }));
-    dates.forEach((iso) => {
-      const t = new Date(iso).getTime();
-      if (isNaN(t) || t < list[0].getTime()) return;
+    const buckets = list.map((start) => ({ start, count: 0 }));
+    dayKeys.forEach((dk) => {
+      if (dk < list[0]) return;
       let idx = list.length - 1;
-      while (idx > 0 && list[idx].getTime() > t) idx--;
+      while (idx > 0 && list[idx] > dk) idx--;
       buckets[idx].count += 1;
     });
     out[k] = buckets;
