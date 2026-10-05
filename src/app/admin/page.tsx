@@ -7,11 +7,65 @@ import { ORDER_STAGES } from '@/lib/order-stages';
 import { formatDateTime } from '@/lib/format';
 
 type Dashboard = {
+  weekly: { start: string; count: number }[];
   clients: number;
   documents: number;
   byStage: Record<string, number>;
   recent: { id: string; status: string; created_at: string; batch_number: string; customer: string }[];
 };
+
+// Orders created per week. Plain SVG: one series, so no legend; hover shows the exact value.
+function WeeklyOrdersChart({ weekly }: { weekly: Dashboard['weekly'] }) {
+  const [hover, setHover] = useState<number | null>(null);
+  const W = 560, H = 220, L = 32, R = 8, T = 16, B = 28;
+  const max = Math.max(4, ...weekly.map((w) => w.count));
+  const top = Math.ceil(max / 4) * 4;
+  const ticks = [0, top / 4, top / 2, (top * 3) / 4, top];
+  const slot = (W - L - R) / weekly.length;
+  const barW = Math.min(28, slot * 0.6);
+  const y = (n: number) => T + (H - T - B) * (1 - n / top);
+  const label = (s: string) => new Date(s + 'T00:00:00Z').toLocaleDateString('en-CA', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+  const total = weekly.reduce((n, w) => n + w.count, 0);
+
+  return (
+    <div className="relative">
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" role="img" aria-label={`Orders created per week, last ${weekly.length} weeks, ${total} in total`}>
+        {ticks.map((t) => (
+          <g key={t}>
+            <line x1={L} x2={W - R} y1={y(t)} y2={y(t)} className="stroke-slate-100" strokeWidth={1} />
+            <text x={L - 6} y={y(t) + 3} textAnchor="end" className="fill-slate-400" fontSize={10}>{t}</text>
+          </g>
+        ))}
+        {weekly.map((w, i) => {
+          const x = L + slot * i + (slot - barW) / 2;
+          const h = Math.max(0, y(0) - y(w.count));
+          return (
+            <g key={w.start} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}>
+              <rect x={L + slot * i} y={T} width={slot} height={H - T - B} fill="transparent" />
+              {w.count > 0 && (
+                <rect x={x} y={y(w.count)} width={barW} height={h} rx={4} className={hover === i ? 'fill-rivix' : 'fill-rivix/80'} />
+              )}
+              <text x={L + slot * i + slot / 2} y={H - 8} textAnchor="middle" className="fill-slate-400" fontSize={10}>{label(w.start)}</text>
+            </g>
+          );
+        })}
+      </svg>
+      {hover !== null && (
+        <div
+          className="pointer-events-none absolute -translate-x-1/2 -translate-y-full bg-slate-900 text-white text-xs rounded-lg px-3 py-1.5 shadow-lg whitespace-nowrap"
+          style={{ left: `${((L + slot * hover + slot / 2) / W) * 100}%`, top: `${(y(weekly[hover].count) / H) * 100}%` }}
+        >
+          <span className="font-bold">{weekly[hover].count}</span> order{weekly[hover].count === 1 ? '' : 's'} · week of {label(weekly[hover].start)}
+        </div>
+      )}
+      <table className="sr-only">
+        <caption>Orders created per week</caption>
+        <thead><tr><th>Week starting</th><th>Orders</th></tr></thead>
+        <tbody>{weekly.map((w) => (<tr key={w.start}><td>{w.start}</td><td>{w.count}</td></tr>))}</tbody>
+      </table>
+    </div>
+  );
+}
 
 export default function AdminDashboard() {
   const [data, setData] = useState<Dashboard | null>(null);
@@ -64,6 +118,14 @@ export default function AdminDashboard() {
             </div>
           );
         })}
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+        <div className="flex items-baseline justify-between mb-4">
+          <h3 className="font-bold text-slate-900">Orders per week</h3>
+          <span className="text-xs text-slate-400">Last 8 weeks</span>
+        </div>
+        {data ? <WeeklyOrdersChart weekly={data.weekly} /> : <p className="text-sm text-slate-400 italic">Loading…</p>}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
