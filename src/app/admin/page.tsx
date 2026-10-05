@@ -6,37 +6,57 @@ import { useEffect, useState } from 'react';
 import { ORDER_STAGES } from '@/lib/order-stages';
 import { formatDateTime } from '@/lib/format';
 
+type Period = 'day' | 'week' | 'month' | 'year';
+
 type Dashboard = {
-  weekly: { start: string; count: number }[];
+  series: Record<Period, { start: string; count: number }[]>;
   clients: number;
   documents: number;
   byStage: Record<string, number>;
   recent: { id: string; status: string; created_at: string; batch_number: string; customer: string }[];
 };
 
-// Orders created per week. Plain SVG: one series, so no legend; hover shows the exact value.
-function WeeklyOrdersChart({ weekly }: { weekly: Dashboard['weekly'] }) {
+const PERIODS: { key: Period; label: string; span: string }[] = [
+  { key: 'day', label: 'Day', span: 'Last 14 days' },
+  { key: 'week', label: 'Week', span: 'Last 8 weeks' },
+  { key: 'month', label: 'Month', span: 'Last 12 months' },
+  { key: 'year', label: 'Year', span: 'Last 5 years' },
+];
+
+const fmtBucket = (start: string, period: Period, long = false) => {
+  const d = new Date(start + 'T00:00:00Z');
+  const o = (opts: Intl.DateTimeFormatOptions) => d.toLocaleDateString('en-CA', { ...opts, timeZone: 'UTC' });
+  if (period === 'year') return o({ year: 'numeric' });
+  if (period === 'month') return long ? o({ month: 'long', year: 'numeric' }) : o({ month: 'short' });
+  return o({ month: 'short', day: 'numeric' });
+};
+
+// Orders created per day/week/month/year. Plain SVG: one series, so no legend; hover shows the exact value.
+function OrdersChart({ series, period }: { series: Dashboard['series']; period: Period }) {
   const [hover, setHover] = useState<number | null>(null);
+  const items = series[period];
   const W = 560, H = 220, L = 32, R = 8, T = 16, B = 28;
-  const max = Math.max(4, ...weekly.map((w) => w.count));
+  const max = Math.max(4, ...items.map((w) => w.count));
   const top = Math.ceil(max / 4) * 4;
   const ticks = [0, top / 4, top / 2, (top * 3) / 4, top];
-  const slot = (W - L - R) / weekly.length;
+  const slot = (W - L - R) / items.length;
   const barW = Math.min(28, slot * 0.6);
   const y = (n: number) => T + (H - T - B) * (1 - n / top);
-  const label = (s: string) => new Date(s + 'T00:00:00Z').toLocaleDateString('en-CA', { month: 'short', day: 'numeric', timeZone: 'UTC' });
-  const total = weekly.reduce((n, w) => n + w.count, 0);
+  const total = items.reduce((n, w) => n + w.count, 0);
+  const every = items.length > 10 ? 2 : 1; // thin out x labels when there are many bars
+  const unit = { day: 'on', week: 'week of', month: 'in', year: 'in' }[period];
+  const cx = hover === null ? 0 : (L + slot * hover + slot / 2) / W;
 
   return (
     <div className="relative">
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" role="img" aria-label={`Orders created per week, last ${weekly.length} weeks, ${total} in total`}>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" role="img" aria-label={`Orders created per ${period}, ${total} in total`}>
         {ticks.map((t) => (
           <g key={t}>
             <line x1={L} x2={W - R} y1={y(t)} y2={y(t)} className="stroke-slate-100" strokeWidth={1} />
             <text x={L - 6} y={y(t) + 3} textAnchor="end" className="fill-slate-400" fontSize={10}>{t}</text>
           </g>
         ))}
-        {weekly.map((w, i) => {
+        {items.map((w, i) => {
           const x = L + slot * i + (slot - barW) / 2;
           const h = Math.max(0, y(0) - y(w.count));
           return (
@@ -45,23 +65,29 @@ function WeeklyOrdersChart({ weekly }: { weekly: Dashboard['weekly'] }) {
               {w.count > 0 && (
                 <rect x={x} y={y(w.count)} width={barW} height={h} rx={4} className={hover === i ? 'fill-rivix' : 'fill-rivix/80'} />
               )}
-              <text x={L + slot * i + slot / 2} y={H - 8} textAnchor="middle" className="fill-slate-400" fontSize={10}>{label(w.start)}</text>
+              {i % every === (items.length - 1) % every && (
+                <text x={L + slot * i + slot / 2} y={H - 8} textAnchor="middle" className="fill-slate-400" fontSize={10}>{fmtBucket(w.start, period)}</text>
+              )}
             </g>
           );
         })}
       </svg>
       {hover !== null && (
         <div
-          className="pointer-events-none absolute -translate-x-1/2 -translate-y-full bg-slate-900 text-white text-xs rounded-lg px-3 py-1.5 shadow-lg whitespace-nowrap"
-          style={{ left: `${((L + slot * hover + slot / 2) / W) * 100}%`, top: `${(y(weekly[hover].count) / H) * 100}%` }}
+          className="pointer-events-none absolute -translate-y-full bg-slate-900 text-white text-xs rounded-lg px-3 py-1.5 shadow-lg whitespace-nowrap"
+          style={{
+            left: `${cx * 100}%`,
+            top: `${(y(items[hover].count) / H) * 100}%`,
+            transform: `translate(${cx > 0.8 ? '-100%' : cx < 0.2 ? '0' : '-50%'}, -100%)`,
+          }}
         >
-          <span className="font-bold">{weekly[hover].count}</span> order{weekly[hover].count === 1 ? '' : 's'} · week of {label(weekly[hover].start)}
+          <span className="font-bold">{items[hover].count}</span> order{items[hover].count === 1 ? '' : 's'} · {unit} {fmtBucket(items[hover].start, period, true)}
         </div>
       )}
       <table className="sr-only">
-        <caption>Orders created per week</caption>
-        <thead><tr><th>Week starting</th><th>Orders</th></tr></thead>
-        <tbody>{weekly.map((w) => (<tr key={w.start}><td>{w.start}</td><td>{w.count}</td></tr>))}</tbody>
+        <caption>Orders created per {period}</caption>
+        <thead><tr><th>Period starting</th><th>Orders</th></tr></thead>
+        <tbody>{items.map((w) => (<tr key={w.start}><td>{w.start}</td><td>{w.count}</td></tr>))}</tbody>
       </table>
     </div>
   );
@@ -70,6 +96,7 @@ function WeeklyOrdersChart({ weekly }: { weekly: Dashboard['weekly'] }) {
 export default function AdminDashboard() {
   const [data, setData] = useState<Dashboard | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [period, setPeriod] = useState<Period>('week');
 
   useEffect(() => {
     (async () => {
@@ -121,11 +148,26 @@ export default function AdminDashboard() {
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-        <div className="flex items-baseline justify-between mb-4">
-          <h3 className="font-bold text-slate-900">Orders per week</h3>
-          <span className="text-xs text-slate-400">Last 8 weeks</span>
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div>
+            <h3 className="font-bold text-slate-900">Orders created</h3>
+            <span className="text-xs text-slate-400">{PERIODS.find((p) => p.key === period)?.span}</span>
+          </div>
+          <div className="inline-flex rounded-xl bg-slate-100 p-1" role="group" aria-label="Group orders by">
+            {PERIODS.map((p) => (
+              <button
+                key={p.key}
+                type="button"
+                onClick={() => setPeriod(p.key)}
+                aria-pressed={period === p.key}
+                className={`px-3 py-1 text-xs font-bold rounded-lg transition-colors ${period === p.key ? 'bg-white text-rivix shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
         </div>
-        {data ? <WeeklyOrdersChart weekly={data.weekly} /> : <p className="text-sm text-slate-400 italic">Loading…</p>}
+        {data ? <OrdersChart series={data.series} period={period} /> : <p className="text-sm text-slate-400 italic">Loading…</p>}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
