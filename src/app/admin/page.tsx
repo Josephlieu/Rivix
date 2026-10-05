@@ -2,19 +2,50 @@
 
 import Link from 'next/link';
 import { Users, FileText, Inbox, FolderOpen, TrendingUp } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ORDER_STAGES } from '@/lib/order-stages';
 import { formatDateTime } from '@/lib/format';
 
 type Period = 'day' | 'week' | 'month' | 'year';
 
 type Dashboard = {
-  series: Record<Period, { start: string; count: number }[]>;
+  orderDates: string[];
   clients: number;
   documents: number;
   byStage: Record<string, number>;
   recent: { id: string; status: string; created_at: string; batch_number: string; customer: string }[];
 };
+
+type Bucket = { start: string; count: number };
+
+// Group order timestamps into day/week/month/year buckets in the viewer's local time zone
+// (so a late-night order lands on the day the admin actually sees), oldest first, empty periods included.
+function buildSeries(dates: string[]): Record<Period, Bucket[]> {
+  const now = new Date();
+  const y = now.getFullYear(), m = now.getMonth(), d = now.getDate();
+  const key = (dt: Date) => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+  const monday = new Date(y, m, d - ((now.getDay() + 6) % 7));
+  const starts: Record<Period, Date[]> = {
+    day: Array.from({ length: 14 }, (_, i) => new Date(y, m, d - (13 - i))),
+    week: Array.from({ length: 8 }, (_, i) => new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() - (7 - i) * 7)),
+    month: Array.from({ length: 12 }, (_, i) => new Date(y, m - (11 - i), 1)),
+    year: Array.from({ length: 5 }, (_, i) => new Date(y - (4 - i), 0, 1)),
+  };
+  const out = {} as Record<Period, Bucket[]>;
+  (Object.keys(starts) as Period[]).forEach((k) => {
+    const list = starts[k];
+    const buckets = list.map((dt) => ({ start: key(dt), count: 0 }));
+    dates.forEach((iso) => {
+      const t = new Date(iso).getTime();
+      if (isNaN(t) || t < list[0].getTime()) return;
+      let idx = list.length - 1;
+      while (idx > 0 && list[idx].getTime() > t) idx--;
+      buckets[idx].count += 1;
+    });
+    out[k] = buckets;
+  });
+  return out;
+}
 
 const PERIODS: { key: Period; label: string; span: string }[] = [
   { key: 'day', label: 'Day', span: 'Last 14 days' },
@@ -32,7 +63,7 @@ const fmtBucket = (start: string, period: Period, long = false) => {
 };
 
 // Orders created per day/week/month/year. Plain SVG: one series, so no legend; hover shows the exact value.
-function OrdersChart({ series, period }: { series: Dashboard['series']; period: Period }) {
+function OrdersChart({ series, period }: { series: Record<Period, Bucket[]>; period: Period }) {
   const [hover, setHover] = useState<number | null>(null);
   const items = series[period];
   const W = 560, H = 220, L = 32, R = 8, T = 16, B = 28;
@@ -107,6 +138,7 @@ export default function AdminDashboard() {
     })();
   }, []);
 
+  const series = useMemo(() => buildSeries(data?.orderDates || []), [data]);
   const by = data?.byStage || {};
   const activeOrders = ORDER_STAGES.filter((s) => s !== 'Delivered' && s !== 'Cancelled').reduce((n, s) => n + (by[s] || 0), 0);
   const maxStage = Math.max(1, ...ORDER_STAGES.map((s) => by[s] || 0));
@@ -167,7 +199,7 @@ export default function AdminDashboard() {
             ))}
           </div>
         </div>
-        {data ? <OrdersChart series={data.series} period={period} /> : <p className="text-sm text-slate-400 italic">Loading…</p>}
+        {data ? <OrdersChart series={series} period={period} /> : <p className="text-sm text-slate-400 italic">Loading…</p>}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
