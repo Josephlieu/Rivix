@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { FileText, Download, Eye, Trash2, Loader2, CheckCircle2, AlertCircle, X } from 'lucide-react';
 import { DocumentRow, formatBytes } from '@/lib/documents';
 import PdfPages from '@/components/PdfPages';
+import { formatDate } from '@/lib/format';
 
 interface DocumentListProps {
   documents: DocumentRow[];
@@ -137,7 +138,7 @@ export default function DocumentList({ documents, onDelete, showOrder, empty = '
             <p className="text-[11px] text-slate-400 truncate">
               {d.doc_type}
               {showOrder && d.order_id && showOrder[d.order_id] ? ` · ${showOrder[d.order_id]}` : ''}
-              {' · '}{new Date(d.created_at).toLocaleDateString()}
+              {' · '}{formatDate(d.created_at)}
               {d.file_size ? ` · ${formatBytes(d.file_size)}` : ''}
             </p>
           </div>

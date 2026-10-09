@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/require-admin';
 import { GoogleGenAI } from '@google/genai';
 
-const mammoth = require('mammoth');
+import mammoth from 'mammoth';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 export const runtime = 'nodejs'; // force Node runtime for heavy parsers
@@ -53,7 +53,7 @@ export async function POST(req: Request) {
 
     const buffer = Buffer.from(await file.arrayBuffer());
     const fileName = file.name.toLowerCase();
-    let parts: any[] = [];
+    const parts: any[] = [];
     let extractedText = '';
     
     if (fileName.endsWith('.pdf')) {

@@ -5,6 +5,7 @@ import { Search, ShieldCheck } from 'lucide-react';
 import DocumentList from '@/components/DocumentList';
 import { supabaseBrowser } from '@/lib/supabase-browser';
 import type { DocumentRow } from '@/lib/documents';
+import { formatMonthYear } from '@/lib/format';
 
 // Every document RIVIX has uploaded for this customer, newest month first.
 // Row security means the query below only ever returns the signed-in customer's own files.
@@ -38,7 +39,7 @@ export default function CertificatesPage() {
   const groups = useMemo(() => {
     const m = new Map<string, DocumentRow[]>();
     filtered.forEach((d) => {
-      const key = new Date(d.created_at).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+      const key = formatMonthYear(d.created_at);
       m.set(key, [...(m.get(key) || []), d]);
     });
     return Array.from(m.entries());
@@ -48,7 +49,7 @@ export default function CertificatesPage() {
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Compliance Documents</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Documents</h1>
           <p className="text-slate-500">Certificates and files RIVIX has uploaded for your orders.</p>
         </div>
         {docs.length > 0 && (

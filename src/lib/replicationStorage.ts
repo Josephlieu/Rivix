@@ -140,7 +140,7 @@ export const saveReplication = async (replication: ReplicationRequest): Promise<
   // 2. Local Storage Sync with QuotaExceeded fallback
   try {
     const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
-    let reps: ReplicationRequest[] = stored ? JSON.parse(stored) : DEFAULT_REPLICATIONS;
+    const reps: ReplicationRequest[] = stored ? JSON.parse(stored) : DEFAULT_REPLICATIONS;
     
     const index = reps.findIndex(r => r.id === replication.id);
     if (index >= 0) {
@@ -158,7 +158,7 @@ export const saveReplication = async (replication: ReplicationRequest): Promise<
         images: [] // Strip heavy image payloads so the ticket metadata saves successfully
       };
       const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
-      let reps: ReplicationRequest[] = stored ? JSON.parse(stored) : DEFAULT_REPLICATIONS;
+      const reps: ReplicationRequest[] = stored ? JSON.parse(stored) : DEFAULT_REPLICATIONS;
       
       const index = reps.findIndex(r => r.id === cleanReplication.id);
       if (index >= 0) {

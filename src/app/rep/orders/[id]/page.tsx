@@ -7,6 +7,7 @@ import OrderHeading from '@/components/OrderHeading';
 import SizeBreakdown from '@/components/SizeBreakdown';
 import DocumentList from '@/components/DocumentList';
 import RequestDocument from './RequestDocument';
+import { formatDateTime } from '@/lib/format';
 
 const Row = ({ label, value }: { label: string; value?: string | null }) => (
   <div className="flex justify-between gap-6 text-sm border-b border-slate-50 pb-3">
@@ -89,7 +90,7 @@ export default async function RepOrderPage({ params }: { params: Promise<{ id: s
           <div key={e.id} className="text-sm border-l-2 border-slate-100 pl-4">
             <p className="font-semibold text-slate-900">{e.status || 'Note'}{!e.customer_visible && <span className="ml-2 text-[10px] font-black uppercase text-slate-400">internal</span>}</p>
             {e.note && <p className="text-slate-500">{e.note}</p>}
-            <p className="text-xs text-slate-400">{new Date(e.created_at).toLocaleString()}</p>
+            <p className="text-xs text-slate-400">{formatDateTime(e.created_at)}</p>
           </div>
         ))}
       </div>

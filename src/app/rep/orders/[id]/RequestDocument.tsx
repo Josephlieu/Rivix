@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, Send, AlertCircle, Check } from 'lucide-react';
 import { DOC_TYPES } from '@/lib/documents';
+import { formatDate } from '@/lib/format';
 
 interface Req { id: string; doc_type: string; note: string | null; status: string; created_at: string; requested_by?: string }
 
@@ -51,7 +52,7 @@ export default function RequestDocument({ orderId, requests }: { orderId: string
               <div className="min-w-0">
                 <p className="font-bold text-slate-800">{r.doc_type}{r.requested_by === 'customer' && <span className="ml-2 text-[10px] font-black uppercase tracking-widest text-violet-500">from customer</span>}</p>
                 {r.note && <p className="text-xs text-slate-500 truncate">{r.note}</p>}
-                <p className="text-[11px] text-slate-400">{new Date(r.created_at).toLocaleDateString()}</p>
+                <p className="text-[11px] text-slate-400">{formatDate(r.created_at)}</p>
               </div>
               {r.status === 'pending_rep' ? (
                 <div className="flex gap-2 shrink-0">

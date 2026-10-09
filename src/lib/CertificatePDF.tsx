@@ -1,7 +1,10 @@
+// UNUSED (2026-10-03): the app used to generate placeholder certificates from this; real uploaded documents
+// replaced that. Kept for reference only — nothing imports it.
 'use client';
 
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Image, Font } from '@react-pdf/renderer';
+import { formatDate } from '@/lib/format';
 
 // Register fonts if needed
 // Font.register({
@@ -197,7 +200,7 @@ export const CertificatePDF = ({ data }: { data: CertificateData }) => (
           <Text style={styles.label}>Certificate ID</Text>
           <Text style={styles.value}>{data.cert_id}</Text>
           <Text style={[styles.label, { marginTop: 4 }]}>Issued Date</Text>
-          <Text style={styles.value}>{new Date().toLocaleDateString()}</Text>
+          <Text style={styles.value}>{formatDate(new Date())}</Text>
         </View>
       </View>
 

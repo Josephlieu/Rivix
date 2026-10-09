@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { ArrowLeft, Loader2, AlertCircle, Check, KeyRound, Trash2, Ban, RotateCcw } from 'lucide-react';
 import ConfirmModal from '@/components/ConfirmModal';
 import CredentialsCard, { NewCredentials } from '@/components/CredentialsCard';
+import { formatDate } from '@/lib/format';
 
 interface Rep { id: string; name: string; active: boolean }
 interface Customer {
@@ -169,7 +170,7 @@ export default function ClientDetail({ params }: { params: Promise<{ id: string 
             </span>
           </div>
           <p className="text-slate-500 text-sm mt-1">
-            {customer.customer_code} · {customer.contact_email} · Created {new Date(customer.created_at).toLocaleDateString()}
+            {customer.customer_code} · {customer.contact_email} · Created {formatDate(customer.created_at)}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -257,8 +258,8 @@ export default function ClientDetail({ params }: { params: Promise<{ id: string 
                     <td className="px-4 sm:px-8 py-4 text-sm font-bold text-slate-900"><Link href={`/admin/orders/${o.id}`} className="hover:text-rivix">{o.batch_number}</Link></td>
                     <td className="px-4 sm:px-8 py-4 text-sm text-slate-600">{o.product_name}</td>
                     <td className="px-4 sm:px-8 py-4 text-sm text-slate-600">{o.quantity}</td>
-                    <td className="px-4 sm:px-8 py-4 text-sm text-slate-600">{o.order_date || '—'}</td>
-                    <td className="px-4 sm:px-8 py-4 text-sm text-slate-600">{o.ship_date || '—'}</td>
+                    <td className="px-4 sm:px-8 py-4 text-sm text-slate-600">{formatDate(o.order_date)}</td>
+                    <td className="px-4 sm:px-8 py-4 text-sm text-slate-600">{formatDate(o.ship_date)}</td>
                     <td className="px-4 sm:px-8 py-4 text-sm font-semibold text-slate-700">{o.status}</td>
                   </tr>
                 ))}
