@@ -1,41 +1,46 @@
+import { GEMINI_MODEL } from '@/lib/gemini-model';
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/require-admin';
 import { GoogleGenAI } from '@google/genai';
 
 import mammoth from 'mammoth';
+import { DEFAULT_CRITERIA, DEFAULT_HIRING_FOR, type Criterion } from '@/lib/hiring-criteria';
+import { getHiringSettingsServer } from '@/lib/hiring-settings-server';
+import { backgroundBlock, DEFAULT_COMPANY_CONTEXT, DEFAULT_SCORING_GUIDE } from '@/lib/hiring-prompts';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 export const runtime = 'nodejs'; // force Node runtime for heavy parsers
+export const maxDuration = 60; // reading a resume with the AI can take a while; don't let the host cut it off early
 
-const SYSTEM_PROMPT = `
-You are an expert HR AI for RIVIX (a premium workwear and compliance company based in Calgary, Alberta).
-Your task is to analyze the provided resume text or document and extract the candidate's details, then rigorously score them across 5 dimensions on a scale of 0.0 to 10.0.
+// The instruction is built from the scoring categories the admin has set (see the Hiring page),
+// so the AI scores what RIVIX is actually looking for in this hire.
+const buildPrompt = (criteria: Criterion[], hiringFor: string, background: string) => `
+You are an expert HR AI for RIVIX (a Canadian apparel manufacturer, head office in Vancouver, BC, that supplies uniform, workwear and PPE programs to industrial, construction, oil, mining and energy teams).
+RIVIX is hiring ${hiringFor}.
 
-The 5 dimensions are:
-1. existingRolodex (Value: 0-10): Does the candidate have an existing network in B2B workwear, oil & gas, safety, or related industries?
-2. albertaProximity (Value: 0-10): Are they based in or have strong ties to Alberta, Canada?
-3. industryKnowledge (Value: 0-10): Do they understand FR clothing, PPE, or safety compliance?
-4. competitiveIntel (Value: 0-10): Have they worked for competitors or similar companies?
-5. salesMethodology (Value: 0-10): Do they show a structured, proven B2B sales approach?
+${background}
+
+Your task is to analyze the provided resume text or document and extract the candidate's details, then rigorously score them across ${criteria.length} categories on a scale of 0.0 to 10.0.
+
+The ${criteria.length} categories are:
+${criteria.map((c, n) => `${n + 1}. ${c.id} (Value: 0-10): ${c.label}${c.description ? ' - ' + c.description : ''}`).join('\n')}
 
 OUTPUT IN STRICT JSON FORMAT MATCHING THIS SCHEMA EXACTLY:
 {
   "name": "Candidate Full Name",
   "email": "candidate@email.com",
   "phone": "555-555-5555",
+  "location": "City, Province or State where the candidate lives (empty string if not stated)",
   "bio": "A 2-3 sentence professional summary based on the resume.",
   "role": "Candidate's Most Recent Job Title (e.g. Sales Representative or B2B Account Executive)",
   "experience": "Estimated total years of professional experience (e.g. '12 years' or '8 years')",
   "currentCompany": "Name of the candidate's current or most recent employer",
   "competitor": false, // true if they worked at a competitor like UniFirst, Cintas, Aramark, Mark's Work Wearhouse, etc. Otherwise false.
   "scorecard": {
-    "existingRolodex": 7.5,
-    "albertaProximity": 8.0,
-    "industryKnowledge": 6.5,
-    "competitiveIntel": 5.0,
-    "salesMethodology": 8.5
+${criteria.map((c) => `    "${c.id}": 7.5`).join(',\n')}
   }
 }
+Use exactly the category keys listed above inside "scorecard", each with a number from 0 to 10.
 If a piece of contact info or data is missing, leave it as an empty string (or false for competitor).
 `;
 
@@ -44,6 +49,8 @@ export async function POST(req: Request) {
   if (denied) return denied;
 
   try {
+    // If the settings can't be read, fall back to the built-in sales defaults so reading a resume still works.
+    const settings = await getHiringSettingsServer().catch(() => ({ criteria: DEFAULT_CRITERIA, hiringFor: DEFAULT_HIRING_FOR, companyContext: DEFAULT_COMPANY_CONTEXT, scoringGuide: DEFAULT_SCORING_GUIDE }));
     const formData = await req.formData();
     const file = formData.get('resume') as File | null;
 
@@ -77,12 +84,12 @@ export async function POST(req: Request) {
     }
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: GEMINI_MODEL,
       contents: [
         { role: 'user', parts }
       ],
       config: {
-        systemInstruction: SYSTEM_PROMPT,
+        systemInstruction: buildPrompt(settings.criteria, settings.hiringFor, backgroundBlock(settings)),
         responseMimeType: 'application/json',
       }
     });

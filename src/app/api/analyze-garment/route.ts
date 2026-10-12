@@ -1,3 +1,4 @@
+import { GEMINI_MODEL } from '@/lib/gemini-model';
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/require-admin';
 import { GoogleGenAI } from '@google/genai';
@@ -203,7 +204,7 @@ REQUIRED JSON STRUCTURE (return ONLY valid JSON, no markdown):
 }`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: GEMINI_MODEL,
       contents: [
         {
           role: 'user',
