@@ -10,7 +10,7 @@
     "test:e2e": "node scripts/e2e/run-all.mjs"
   },
   "dependencies": {
-    "@google/genai": "latest",
+    "@google/genai": "^2.28.0",
     "@react-pdf/renderer": "^4.5.1",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.43.2",
