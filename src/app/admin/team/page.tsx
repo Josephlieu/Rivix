@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import ConfirmModal from '@/components/ConfirmModal';
 import Modal from '@/components/Modal';
-import { UserPlus, Mail, Phone, Loader2, AlertCircle, Pencil, Trash2, KeyRound, X, Check } from 'lucide-react';
+import { UserPlus, Mail, Phone, Loader2, AlertCircle, Pencil, Trash2, KeyRound, X, Check, Search } from 'lucide-react';
 import CredentialsCard, { NewCredentials } from '@/components/CredentialsCard';
 
 interface Rep {
@@ -16,6 +16,7 @@ interface Rep {
   active: boolean;
   customer_count: number;
   has_login: boolean;
+  created_at?: string;
 }
 
 const emptyForm = { name: '', title: '', email: '', phone: '', active: true, create_login: true };
@@ -33,6 +34,11 @@ export default function TeamManagement() {
   const [keyBusyId, setKeyBusyId] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<{ kind: 'delete' | 'deactivate' | 'reset'; rep: Rep } | null>(null);
   const [confirming, setConfirming] = useState(false);
+
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'disabled'>('all');
+  const [loginFilter, setLoginFilter] = useState<'all' | 'yes' | 'no'>('all');
+  const [customerFilter, setCustomerFilter] = useState<'all' | 'with' | 'none'>('all');
 
   const load = async () => {
     const res = await fetch('/api/admin/reps');
@@ -164,6 +170,29 @@ export default function TeamManagement() {
 
   const editingHasLogin = !!editingId && !!reps.find((r) => r.id === editingId)?.has_login;
 
+  // Newest first (the API returns oldest first because the client pages use that order for their rep pickers).
+  const visibleReps = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return reps
+      .filter((r) => {
+        if (statusFilter === 'active' && !r.active) return false;
+        if (statusFilter === 'disabled' && r.active) return false;
+        if (loginFilter === 'yes' && !r.has_login) return false;
+        if (loginFilter === 'no' && r.has_login) return false;
+        if (customerFilter === 'with' && r.customer_count === 0) return false;
+        if (customerFilter === 'none' && r.customer_count > 0) return false;
+        if (!q) return true;
+        return [r.name, r.title, r.email, r.phone, r.rep_code].some((v) => (v || '').toLowerCase().includes(q));
+      })
+      .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+  }, [reps, search, statusFilter, loginFilter, customerFilter]);
+
+  const filtersActive = search.trim() !== '' || statusFilter !== 'all' || loginFilter !== 'all' || customerFilter !== 'all';
+  const clearFilters = () => { setSearch(''); setStatusFilter('all'); setLoginFilter('all'); setCustomerFilter('all'); };
+
+  const selectClass =
+    'px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 outline-none focus:ring-2 focus:ring-rivix/20';
+
   const inputClass =
     'w-full px-4 py-3 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-rivix/20 outline-none font-medium placeholder:text-slate-300';
 
@@ -284,6 +313,43 @@ export default function TeamManagement() {
         </Modal>
       )}
 
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[200px] sm:flex-none">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+          <input
+            type="text"
+            placeholder="Search name, email, phone or code..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-rivix/20 focus:border-rivix outline-none transition-all w-full sm:w-80"
+            aria-label="Search reps"
+          />
+        </div>
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)} className={selectClass} aria-label="Filter by status">
+          <option value="all">All statuses</option>
+          <option value="active">Active</option>
+          <option value="disabled">Disabled</option>
+        </select>
+        <select value={loginFilter} onChange={(e) => setLoginFilter(e.target.value as typeof loginFilter)} className={selectClass} aria-label="Filter by login">
+          <option value="all">Any login</option>
+          <option value="yes">Has login</option>
+          <option value="no">No login yet</option>
+        </select>
+        <select value={customerFilter} onChange={(e) => setCustomerFilter(e.target.value as typeof customerFilter)} className={selectClass} aria-label="Filter by customers">
+          <option value="all">Any customers</option>
+          <option value="with">Has customers</option>
+          <option value="none">No customers</option>
+        </select>
+        {filtersActive && (
+          <button onClick={clearFilters} className="text-xs font-bold text-rivix hover:underline">Clear filters</button>
+        )}
+        {!loading && (
+          <span className="text-xs text-slate-400 sm:ml-auto">
+            {filtersActive ? `Showing ${visibleReps.length} of ${reps.length}` : `${reps.length} rep${reps.length === 1 ? '' : 's'}`}
+          </span>
+        )}
+      </div>
+
       <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-x-auto">
         <table className="w-full text-left min-w-[640px]">
           <thead className="bg-slate-50/50 border-b border-slate-100">
@@ -302,7 +368,10 @@ export default function TeamManagement() {
             {!loading && reps.length === 0 && (
               <tr><td colSpan={5} className="px-8 py-10 text-center text-sm text-slate-400">No reps yet. Add your first one above.</td></tr>
             )}
-            {reps.map((rep) => (
+            {!loading && reps.length > 0 && visibleReps.length === 0 && (
+              <tr><td colSpan={5} className="px-8 py-10 text-center text-sm text-slate-400">No reps match your search or filters.</td></tr>
+            )}
+            {visibleReps.map((rep) => (
               <tr key={rep.id} className={rep.active ? '' : 'opacity-60'}>
                 <td className="px-4 sm:px-8 py-5">
                   <p className="font-bold text-slate-900">{rep.name}</p>

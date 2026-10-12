@@ -30,12 +30,14 @@ export default function RepOrdersList({ orders }: { orders: Row[] }) {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
+      {/* Side by side only when there is room for the title AND the three controls on one line;
+          below that the controls sit under the title instead of squeezing and wrapping. */}
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-slate-900">Orders</h1>
           <p className="text-slate-500">Every order you've created. Admin handles production; you can follow along here.</p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3 xl:flex-nowrap xl:shrink-0">
           <div className="relative flex-1 sm:flex-none">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input
