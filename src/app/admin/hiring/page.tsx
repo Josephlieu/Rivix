@@ -1,16 +1,31 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   getCandidates,
   saveCandidate,
   deleteCandidate,
+  getHiringSettings,
+  generateInterviewQuestions,
+  uploadResume,
+  resumeUrl,
   Candidate,
-  TranscriptLine,
-  SARAH_TRANSCRIPT,
-  SCORECARD_WEIGHTS,
-  computeWeightedScore
 } from '@/lib/hiringStorage';
+import {
+  Criterion,
+  DEFAULT_CRITERIA,
+  DEFAULT_HIRING_FOR,
+  computeScore,
+  scoredCount,
+  TIER_1_MIN,
+  TIER_2_MIN,
+} from '@/lib/hiring-criteria';
+import CriteriaEditor from './CriteriaEditor';
+import { DEFAULT_COMPANY_CONTEXT, DEFAULT_SCORING_GUIDE } from '@/lib/hiring-prompts';
+import CandidateEditor from './CandidateEditor';
+import ConfirmModal from '@/components/ConfirmModal';
+import { formatDateTime } from '@/lib/format';
+import Modal from '@/components/Modal';
 import {
   loadCandidateChats,
   appendCandidateMessage,
@@ -23,8 +38,6 @@ import {
   Award, 
   Volume2,
   Trash2, 
-  Play,
-  Pause,
   Sliders,
   ShieldCheck, 
   Briefcase, 
@@ -41,7 +54,13 @@ import {
   ExternalLink,
   Calendar,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  Pencil,
+  Copy,
+  ArrowRight,
+  ArrowLeft,
+  Archive,
+  Sparkles
 } from 'lucide-react';
 
 const DEFAULT_CALCOM_BOOKING_URL = 'https://cal.com/solomon-riby-williams-kdcvhj/15min';
@@ -60,33 +79,25 @@ const buildCalComBookingUrl = (candidate: Candidate | null) => {
   }
 };
 
-const getCandLocation = (id: string) => {
-  if (id === 'cand-test-sol') return 'Calgary, AB (Test)';
-  if (id === 'cand-indeed-1') return 'Cochrane, AB';
-  if (id === 'cand-indeed-2') return 'Red Deer, AB';
-  if (id === 'cand-indeed-3') return 'Leduc, AB';
-  if (id === 'cand-indeed-4') return 'Nisku, AB (Remote)';
-  if (id === 'cand-indeed-5') return 'Calgary, AB';
-  if (id === 'cand-indeed-6') return 'Windsor, ON';
-  if (id === 'cand-indeed-7') return 'Windsor, ON';
-  return 'Calgary, AB (HQ)';
-};
-
-// Dynamic ranking based on weighted composite score
-const getCandidateRank = (cand: Candidate, allCandidates: Candidate[]) => {
-  const score = computeWeightedScore(cand.scorecard);
+// Dynamic ranking based on the weighted score over the current scoring criteria
+const getCandidateRank = (cand: Candidate, allCandidates: Candidate[], criteria: Criterion[]) => {
+  const raw = computeScore(cand.scorecard, criteria);
+  const score = raw ?? 0;
   // Sort all candidates by weighted score descending to determine rank
-  const sorted = [...allCandidates].sort((a, b) => computeWeightedScore(b.scorecard) - computeWeightedScore(a.scorecard));
+  const sorted = [...allCandidates].sort((a, b) => (computeScore(b.scorecard, criteria) ?? 0) - (computeScore(a.scorecard, criteria) ?? 0));
   const rank = sorted.findIndex(c => c.id === cand.id) + 1;
 
   let tier: string;
   let style: string;
-  if (score >= 7.0) {
+  if (raw === null) {
+    tier = 'Not scored';
+    style = 'bg-slate-50 text-slate-400 font-bold border border-slate-200';
+  } else if (score >= TIER_1_MIN) {
     tier = 'Tier 1';
     if (rank === 1) style = 'bg-emerald-100 text-emerald-700 font-bold border border-emerald-300 shadow-sm';
     else if (rank === 2) style = 'bg-indigo-100 text-indigo-700 font-bold border border-indigo-300 shadow-sm';
     else style = 'bg-blue-100 text-blue-700 font-bold border border-blue-300 shadow-sm';
-  } else if (score >= 5.5) {
+  } else if (score >= TIER_2_MIN) {
     tier = 'Tier 2';
     style = 'bg-slate-100 text-slate-600 font-bold border border-slate-200';
   } else {
@@ -94,14 +105,13 @@ const getCandidateRank = (cand: Candidate, allCandidates: Candidate[]) => {
     style = 'bg-red-50 text-red-600 font-bold border border-red-200';
   }
 
-  const competitorTag = cand.competitor ? ' — Competitor' : '';
-  return { label: `#${rank} ${tier} (${score})${competitorTag}`, style, score, rank, tier };
+  return { label: raw === null ? 'Not scored' : `#${rank} ${tier} (${score})`, style, score, rank, tier };
 };
 
 export default function AdminHiringPage() {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [selectedCand, setSelectedCand] = useState<Candidate | null>(null);
-  const [activeSubTab, setActiveSubTab] = useState<'profile' | 'script' | 'transcript' | 'correspondence'>('profile');
+  const [activeSubTab, setActiveSubTab] = useState<'profile' | 'script' | 'correspondence'>('profile');
   const [candidateMessageText, setCandidateMessageText] = useState('');
   const [candidateChats, setCandidateChats] = useState<Record<string, CorrespondenceMessage[]>>(() => loadCandidateChats());
   const [sendMessageLoading, setSendMessageLoading] = useState(false);
@@ -111,36 +121,64 @@ export default function AdminHiringPage() {
   const [sortBy, setSortBy] = useState<'score' | 'newest'>('score');
   const [statusFilter, setStatusFilter] = useState<'all' | 'screening' | 'interviewing' | 'offer' | 'archived'>('all');
   const [visibleCount, setVisibleCount] = useState(8);
-  
-  // Audio Player states
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [playProgress, setPlayProgress] = useState(0);
-  const [transcriptTimer, setTranscriptTimer] = useState<NodeJS.Timeout | null>(null);
-  const [highlightedLineIndex, setHighlightedLineIndex] = useState(-1);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [loadingCandidates, setLoadingCandidates] = useState(true);
   const [copiedCalLink, setCopiedCalLink] = useState(false);
 
   // Notes state
   const [newNoteContent, setNewNoteContent] = useState('');
+  const [stageSaving, setStageSaving] = useState(false);
+  const [generatingFor, setGeneratingFor] = useState<string | null>(null); // candidate id the AI is writing questions for
+  const [questionsError, setQuestionsError] = useState<string | null>(null);
+  const [pendingNote, setPendingNote] = useState<string | null>(null); // a note being saved: shown straight away, with a spinner
   
-  // Scorecard values in form (mapped to new weighted dimensions)
-  const [scRolodex, setScRolodex] = useState(5);
-  const [scAlberta, setScAlberta] = useState(5);
-  const [scIndustry, setScIndustry] = useState(5);
-  const [scCompIntel, setScCompIntel] = useState(5);
-  const [scSalesMethod, setScSalesMethod] = useState(5);
+  // What candidates are scored on (editable) and the sliders' current values, by category id
+  const [criteria, setCriteria] = useState<Criterion[]>(DEFAULT_CRITERIA);
+  const [hiringFor, setHiringFor] = useState(DEFAULT_HIRING_FOR);
+  const [companyContext, setCompanyContext] = useState(DEFAULT_COMPANY_CONTEXT);
+  const [scoringGuide, setScoringGuide] = useState(DEFAULT_SCORING_GUIDE);
+  const [showCriteriaEditor, setShowCriteriaEditor] = useState(false);
+  const [showCandidateEditor, setShowCandidateEditor] = useState(false);
+  // In-page messages and dialogs (instead of the browser's own alert / confirm popups)
+  const [notice, setNotice] = useState<string | null>(null);
+  const threadEndRef = useRef<HTMLDivElement | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Candidate | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [copyFallbackLink, setCopyFallbackLink] = useState<string | null>(null);
+  const [scores, setScores] = useState<Record<string, number | undefined>>({});
 
   useEffect(() => {
     const loadData = async () => {
-      const stored = await getCandidates();
-      setCandidates(stored);
-      if (stored.length > 0 && !selectedCand) {
-        const testCand = stored.find((c) => c.id === 'cand-test-sol');
-        setSelectedCand(testCand || stored[0]);
-        syncScorecardForm(testCand || stored[0]);
+      try {
+        const [stored, settings] = await Promise.all([getCandidates(), getHiringSettings()]);
+        setCandidates(stored);
+        setCriteria(settings.criteria);
+        setHiringFor(settings.hiringFor);
+        setCompanyContext(settings.companyContext);
+        setScoringGuide(settings.scoringGuide);
+        if (stored.length > 0) {
+          setSelectedCand(stored[0]);
+          setScores({ ...stored[0].scorecard });
+        }
+      } catch (err) {
+        setLoadError(err instanceof Error ? err.message : 'Could not load candidates.');
+      } finally {
+        setLoadingCandidates(false);
       }
     };
     loadData();
   }, []);
+
+  useEffect(() => {
+    if (activeSubTab === 'correspondence') threadEndRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [activeSubTab, selectedCand?.id, candidateChats, sendMessageLoading]);
+
+  useEffect(() => {
+    if (!notice) return;
+    const t = setTimeout(() => setNotice(null), 3500);
+    return () => clearTimeout(t);
+  }, [notice]);
 
   useEffect(() => {
     fetch('/api/hiring/send')
@@ -150,103 +188,72 @@ export default function AdminHiringPage() {
   }, []);
 
   const syncScorecardForm = (cand: Candidate) => {
-    setScRolodex(cand.scorecard.existingRolodex);
-    setScAlberta(cand.scorecard.albertaProximity);
-    setScIndustry(cand.scorecard.industryKnowledge);
-    setScCompIntel(cand.scorecard.competitiveIntel);
-    setScSalesMethod(cand.scorecard.salesMethodology);
+    setScores({ ...cand.scorecard });
   };
 
   const handleSelectCandidate = (cand: Candidate) => {
     setSelectedCand(cand);
     syncScorecardForm(cand);
-    // Reset player
-    setIsPlaying(false);
-    setPlayProgress(0);
-    setHighlightedLineIndex(-1);
-    if (transcriptTimer) clearInterval(transcriptTimer);
   };
 
-  const handleUpdateStatus = async (candId: string, newStatus: 'screening' | 'interviewing' | 'offer' | 'archived') => {
-    if (!selectedCand) return;
-    
-    const updated: Candidate = {
-      ...selectedCand,
-      status: newStatus
-    };
-
-    await saveCandidate(updated);
-    setSelectedCand(updated);
-    
-    // Reload list
-    const stored = await getCandidates();
-    setCandidates(stored);
+  // Every change is saved to the database first; the screen only changes once that worked,
+  // and a failure is shown instead of being swallowed.
+  const persist = async (updated: Candidate): Promise<boolean> => {
+    setActionError(null);
+    try {
+      const saved = await saveCandidate(updated);
+      setSelectedCand(saved);
+      setCandidates((prev) => prev.map((c) => (c.id === saved.id ? saved : c)));
+      return true;
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Could not save. Nothing was changed.');
+      return false;
+    }
   };
 
   const handleSaveScorecard = async () => {
     if (!selectedCand) return;
-
-    const updated: Candidate = {
+    const ok = await persist({
       ...selectedCand,
-      scorecard: {
-        existingRolodex: scRolodex,
-        albertaProximity: scAlberta,
-        industryKnowledge: scIndustry,
-        competitiveIntel: scCompIntel,
-        salesMethodology: scSalesMethod
-      }
-    };
-
-    await saveCandidate(updated);
-    setSelectedCand(updated);
-
-    // Reload list
-    const stored = await getCandidates();
-    setCandidates(stored);
-    
-    alert('Evaluation scorecard saved successfully!');
+      scorecard: Object.fromEntries(
+        criteria.filter((c) => typeof scores[c.id] === 'number').map((c) => [c.id, scores[c.id] as number])
+      ),
+    });
+    if (ok) setNotice('Evaluation scorecard saved.');
   };
 
   const handleRemoveCandidate = async (candId: string) => {
-    if (!confirm('Are you sure you want to permanently remove this candidate profile?')) return;
-    
-    await deleteCandidate(candId);
-    
-    // Reload candidate list
-    const stored = await getCandidates();
-    setCandidates(stored);
-    
-    // Reset selection to Sol or first candidate
-    if (stored.length > 0) {
-      const testCand = stored.find((c) => c.id === 'cand-test-sol');
-      setSelectedCand(testCand || stored[0]);
-      syncScorecardForm(testCand || stored[0]);
-    } else {
-      setSelectedCand(null);
+    setActionError(null);
+    try {
+      await deleteCandidate(candId);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Could not remove the candidate.');
+      return;
     }
-    
-    alert('Candidate profile removed successfully.');
+    const remaining = candidates.filter((c) => c.id !== candId);
+    setCandidates(remaining);
+    setSelectedCand(remaining[0] || null);
+    if (remaining[0]) syncScorecardForm(remaining[0]);
   };
 
   const handleAddNote = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedCand || !newNoteContent.trim()) return;
+    const content = newNoteContent.trim();
+    if (!selectedCand || !content || pendingNote !== null) return;
 
     const newNote = {
       id: `note-${Date.now()}`,
-      author: 'Sol (Advisor)',
-      content: newNoteContent,
+      author: 'RIVIX Admin',
+      content,
       timestamp: new Date().toISOString()
     };
 
-    const updated: Candidate = {
-      ...selectedCand,
-      notes: [...selectedCand.notes, newNote]
-    };
-
-    await saveCandidate(updated);
-    setSelectedCand(updated);
+    // Show the note at once as "Saving…" and clear the box; if the save fails, the text comes back.
     setNewNoteContent('');
+    setPendingNote(content);
+    const ok = await persist({ ...selectedCand, notes: [...selectedCand.notes, newNote] });
+    setPendingNote(null);
+    if (!ok) setNewNoteContent(content);
   };
 
   const handleSendCandidateMessage = async () => {
@@ -277,7 +284,7 @@ export default function AdminHiringPage() {
       const newMessage: CorrespondenceMessage = {
         id: `msg-${Date.now()}`,
         sender: 'admin',
-        senderName: 'Sol (RIVIX CEO)',
+        senderName: 'RIVIX Admin',
         text: textToSend,
         timestamp: new Date().toISOString(),
         channel: 'email',
@@ -293,7 +300,7 @@ export default function AdminHiringPage() {
       const failedMessage: CorrespondenceMessage = {
         id: `msg-failed-${Date.now()}`,
         sender: 'admin',
-        senderName: 'Sol (RIVIX CEO)',
+        senderName: 'RIVIX Admin',
         text: textToSend,
         timestamp: new Date().toISOString(),
         channel: 'email',
@@ -309,127 +316,127 @@ export default function AdminHiringPage() {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
-    
+
     setUploadingResumes(true);
+    setActionError(null);
+    const problems: string[] = [];
     try {
-      const newCands: Candidate[] = [];
+      let list = [...candidates];
 
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        const formData = new FormData();
-        formData.append('resume', file);
-
         try {
-          let pdfDataUrl: string | undefined = undefined;
-          if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
-            pdfDataUrl = await new Promise<string>((resolve, reject) => {
-              const reader = new FileReader();
-              reader.onload = () => resolve(reader.result as string);
-              reader.onerror = (e) => reject(e);
-              reader.readAsDataURL(file);
-            });
-          }
-
-          const res = await fetch('/api/analyze-resume', {
-            method: 'POST',
-            body: formData
-          });
-          
+          const formData = new FormData();
+          formData.append('resume', file);
+          const res = await fetch('/api/analyze-resume', { method: 'POST', body: formData });
           if (!res.ok) {
-            console.error(`Failed to analyze ${file.name}`);
-            continue;
+            const err = await res.json().catch(() => ({}));
+            throw new Error(typeof err.error === 'string' ? err.error : 'could not be read');
           }
-
           const data = await res.json();
-          
-          const candidateName = data.name || file.name.replace(/\.[^/.]+$/, "");
+
+          const candidateName = data.name || file.name.replace(/\.[^/.]+$/, '');
           const candidateEmail = data.email || '';
-          
-          const existing = candidates.find(c => 
-            c.name.toLowerCase() === candidateName.toLowerCase() || 
+          const existing = list.find(c =>
+            c.name.toLowerCase() === candidateName.toLowerCase() ||
             (candidateEmail && c.email && c.email.toLowerCase() === candidateEmail.toLowerCase())
           );
+          // The sliders run 1 to 10, so a very low AI score (even 0) is shown as 1, not replaced by the default.
+          const score = (v: unknown): number | undefined =>
+            typeof v === 'number' && Number.isFinite(v) ? Math.min(10, Math.max(0, Math.round(v * 10) / 10)) : undefined;
+          const base: Candidate = existing ?? {
+            id: crypto.randomUUID(),
+            name: candidateName,
+            email: '',
+            phone: '',
+            background: '',
+            role: 'Sales Representative Applicant',
+            experience: 'Not specified',
+            currentCompany: 'Not specified',
+            competitor: false,
+            status: 'screening',
+            avatar: candidateName ? candidateName.substring(0, 2).toUpperCase() : 'UP',
+            scorecard: {},
+            notes: [],
+            resumeText: '',
+          };
+          const candidate: Candidate = {
+            ...base,
+            email: candidateEmail || base.email,
+            phone: data.phone || base.phone,
+            location: data.location || base.location || '',
+            background: data.bio || base.background || 'Parsed from uploaded resume.',
+            role: data.role || base.role,
+            experience: data.experience || base.experience,
+            currentCompany: data.currentCompany || base.currentCompany,
+            competitor: data.competitor !== undefined ? !!data.competitor : base.competitor,
+            // Keep earlier scores; fill every current category the reader gave a number for.
+            scorecard: Object.fromEntries(
+              criteria
+                .map((c) => [c.id, score(data.scorecard?.[c.id]) ?? base.scorecard[c.id]] as const)
+                .filter(([, v]) => typeof v === 'number')
+            ) as Record<string, number>,
+            resumeText: data.rawText || data.bio || base.resumeText,
+          };
 
-          if (existing) {
-            const updatedCandidate: Candidate = {
-              ...existing,
-              email: candidateEmail || existing.email,
-              phone: data.phone || existing.phone,
-              background: data.bio || existing.background,
-              role: data.role || existing.role,
-              experience: data.experience || existing.experience,
-              currentCompany: data.currentCompany || existing.currentCompany,
-              competitor: data.competitor !== undefined ? !!data.competitor : existing.competitor,
-              scorecard: {
-                existingRolodex: data.scorecard?.existingRolodex || existing.scorecard.existingRolodex,
-                albertaProximity: data.scorecard?.albertaProximity || existing.scorecard.albertaProximity,
-                industryKnowledge: data.scorecard?.industryKnowledge || existing.scorecard.industryKnowledge,
-                competitiveIntel: data.scorecard?.competitiveIntel || existing.scorecard.competitiveIntel,
-                salesMethodology: data.scorecard?.salesMethodology || existing.scorecard.salesMethodology
-              },
-              resumeText: data.rawText || data.bio || existing.resumeText,
-              resumePdfUrl: pdfDataUrl || existing.resumePdfUrl,
-            };
-            newCands.push(updatedCandidate);
-          } else {
-            const newCandidate: Candidate = {
-              id: `cand-uploaded-${Date.now()}-${i}`,
-              name: candidateName,
-              email: candidateEmail,
-              phone: data.phone || '',
-              background: data.bio || 'Parsed from uploaded resume.',
-              role: data.role || 'Sales Representative Applicant',
-              experience: data.experience || 'Not specified',
-              currentCompany: data.currentCompany || 'Not specified',
-              competitor: !!data.competitor,
-              status: 'screening',
-              avatar: candidateName ? candidateName.substring(0, 2).toUpperCase() : 'UP',
-              scorecard: {
-                existingRolodex: data.scorecard?.existingRolodex || 5,
-                albertaProximity: data.scorecard?.albertaProximity || 5,
-                industryKnowledge: data.scorecard?.industryKnowledge || 5,
-                competitiveIntel: data.scorecard?.competitiveIntel || 5,
-                salesMethodology: data.scorecard?.salesMethodology || 5
-              },
-              notes: [],
-              resumeText: data.rawText || data.bio || 'Uploaded resume details parsed.',
-              resumePdfUrl: pdfDataUrl,
-              createdAt: new Date().toISOString(),
-            };
-            newCands.push(newCandidate);
+          // Details first (this creates the row), then the PDF file.
+          let saved = await saveCandidate(candidate);
+          if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+            try {
+              await uploadResume(saved.id, file);
+              saved = { ...saved, hasResume: true };
+            } catch (err) {
+              problems.push(`${file.name}: candidate saved, but the PDF was not attached (${err instanceof Error ? err.message : 'error'})`);
+            }
           }
+          list = existing ? list.map((c) => (c.id === saved.id ? saved : c)) : [saved, ...list];
         } catch (err) {
-          console.error(`Error uploading ${file.name}:`, err);
+          problems.push(`${file.name}: ${err instanceof Error ? err.message : 'failed'}`);
         }
       }
-      
-      if (newCands.length > 0) {
-        // Save all to persistent storage
-        for (const c of newCands) {
-          await saveCandidate(c);
-        }
-        // Reload candidates
-        const stored = await getCandidates();
-        setCandidates(stored);
 
-        // If the currently selected candidate was updated, refresh the detail panel view!
-        if (selectedCand) {
-          const refreshedSelected = stored.find(c => c.id === selectedCand.id) || 
-                                    stored.find(c => c.name.toLowerCase() === selectedCand.name.toLowerCase());
-          if (refreshedSelected) {
-            setSelectedCand(refreshedSelected);
-            syncScorecardForm(refreshedSelected);
-          }
-        }
+      setCandidates(list);
+      if (selectedCand) {
+        const refreshed = list.find((c) => c.id === selectedCand.id);
+        if (refreshed) { setSelectedCand(refreshed); syncScorecardForm(refreshed); }
+      } else if (list[0]) {
+        setSelectedCand(list[0]);
+        syncScorecardForm(list[0]);
       }
-    } catch (generalErr) {
-      console.error('File upload general handler error:', generalErr);
+      if (problems.length) setActionError(problems.join(' · '));
     } finally {
       setUploadingResumes(false);
       e.target.value = '';
     }
   };
 
+
+  const handleGenerateQuestions = async () => {
+    if (!selectedCand || generatingFor) return;
+    const id = selectedCand.id;
+    const first = selectedCand.name.split(' ')[0];
+    setGeneratingFor(id);
+    setQuestionsError(null);
+    try {
+      const r = await generateInterviewQuestions(id);
+      const apply = (c: Candidate): Candidate => (c.id === id ? { ...c, interviewQuestions: r.questions, questionsGeneratedAt: r.generatedAt } : c);
+      setCandidates((prev) => prev.map(apply));
+      setSelectedCand((prev) => (prev ? apply(prev) : prev));
+      if (r.notSaved) setQuestionsError(r.notSaved);
+      else setNotice(`Interview questions written for ${first}.`);
+    } catch (err) {
+      setQuestionsError(err instanceof Error ? err.message : 'Could not write the questions.');
+    } finally {
+      setGeneratingFor(null);
+    }
+  };
+
+  const copyQuestions = async () => {
+    const qs = selectedCand?.interviewQuestions || [];
+    if (!qs.length) return;
+    const text = qs.map((q, n) => `${n + 1}. ${q.question}\n   Look for: ${q.lookFor}`).join('\n\n');
+    try { await navigator.clipboard.writeText(text); setNotice('Questions copied.'); } catch { setQuestionsError('Copy failed. Select the text and copy it by hand.'); }
+  };
 
   const copyCalComLink = async () => {
     const link = buildCalComBookingUrl(selectedCand);
@@ -438,110 +445,18 @@ export default function AdminHiringPage() {
       setCopiedCalLink(true);
       setTimeout(() => setCopiedCalLink(false), 1800);
     } catch {
-      alert(`Copy failed. Use this link:\n${link}`);
+      setCopyFallbackLink(link);
     }
   };
 
-  // Toggle Audio Playback (Screening call simulation)
-  const togglePlayTranscript = () => {
-    if (isPlaying) {
-      setIsPlaying(false);
-      if (transcriptTimer) clearInterval(transcriptTimer);
-    } else {
-      setIsPlaying(true);
-      
-      const interval = setInterval(() => {
-        setPlayProgress(prev => {
-          if (prev >= 100) {
-            clearInterval(interval);
-            setIsPlaying(false);
-            setHighlightedLineIndex(-1);
-            return 100;
-          }
-          
-          // Map progress to lines in Sarah's transcript
-          const nextLineIndex = Math.floor((prev / 100) * SARAH_TRANSCRIPT.length);
-          setHighlightedLineIndex(nextLineIndex);
-          
-          return prev + 2;
-        });
-      }, 300);
-      
-      setTranscriptTimer(interval);
-    }
-  };
-
-  // Dynamic tailoring of AI-powered questions based on candidate profile
-  const renderAiQuestions = (cand: Candidate) => {
-    if (cand.id === 'cand-indeed-3') {
-      // Dwight Kerr (30 years, Nisku, Journeyman Partsman)
-      return [
-        {
-          q: `"Dwight, with 30 years in Leduc/Nisku industrial parts, you have deep relationships with safety superintendents. Name three specific accounts you could walk into on day one with RIVIX sample overalls, and who is the decision-maker at each."`,
-          focus: "Verifies the depth and actionability of his rolodex. He should name actual companies (e.g., Flint, Kiewit, PCL) and specific safety contacts — not generic titles."
-        },
-        {
-          q: `"RIVIX garments are compliance assets, not generic workwear. When a safety superintendent asks you about our FR thread specifications or CSA Z96 Class 3 high-vis layout, how do you respond? Walk us through the technical details."`,
-          focus: "Evaluates whether his industrial parts experience translates to garment compliance literacy. Look for mention of NFPA 2112, arc flash ratings, Nomex threads. If gaps exist, assess his willingness to learn."
-        },
-        {
-          q: `"This is 100% commission — RIVIX pays zero cash: no salary, draw, or expenses. Given your 30-year career, what makes you confident you can close enough contracts in your first 90 days?"`,
-          focus: "Tests his hunger and conviction. Seasoned reps will reference specific warm leads, pending renewals, or safety managers who have already expressed frustration with current suppliers."
-        }
-      ];
-    }
-
-    if (cand.id === 'cand-indeed-7') {
-      // Anthony Di Ponio (UniFirst, 20+ years — Competitor Raid)
-      return [
-        {
-          q: `"Anthony, you have 20+ years at UniFirst. Walk us through exactly how UniFirst structures their rental contracts — the lock-in terms, hidden fees, replacement charges, and size-change surcharges that clients don't notice until year two."`,
-          focus: "This is the strategic gold. He should detail minimum order quantities, damage surcharges ($8-15/garment), auto-renewal clauses, and the exact monthly per-garment rental math ($3.50-5.00/week)."
-        },
-        {
-          q: `"RIVIX's pitch is: buy outright, save 28%, get brand-new garments. How do you dismantle UniFirst's retention pitch when a client says 'But we already have a contract with you'?"`,
-          focus: "Evaluates whether he can flip the script. He should discuss contract exit windows, total cost comparison over 3 years, and the quality degradation of rental garments after 50+ industrial wash cycles."
-        },
-        {
-          q: `"You are based in Windsor, ON. RIVIX's primary market is Alberta oil sands and Western Canada. How do you plan to cover this territory effectively on straight commission?"`,
-          focus: "Geography is his biggest weakness. Look for concrete plans: relocation timeline, travel budget expectations, remote prospecting strategies, or existing Western Canada contacts from UniFirst's national accounts."
-        }
-      ];
-    }
-
-    if (cand.id === 'cand-indeed-2') {
-      // Eduardo Dela Cruz (Red Deer, 15 years industrial B2B)
-      return [
-        {
-          q: `"Eduardo, describe a specific contract you closed in the Red Deer/Edmonton industrial corridor. Who was the buyer, what was the deal size, and how did you win against competing suppliers?"`,
-          focus: "Validates his claimed territory experience. Look for specific company names, contract values, and procurement process details."
-        },
-        {
-          q: `"RIVIX replicates garments from photos using AI tech packs in 72 hours. How would you use this capability in a prospect meeting to differentiate against UniFirst or Mark's Commercial?"`,
-          focus: "Tests whether he can leverage the RIVIX Portal as a sales weapon. Strong answer: 'I would photograph their current worn-out rentals on-site and generate a tech pack in front of them.'"
-        }
-      ];
-    }
-
-    if (cand.id === 'cand-indeed-1') {
-      // Leanne Dumas (Startup consulting, Cochrane AB)
-      return [
-        {
-          q: `"Leanne, your background is launching startups across multiple industries. RIVIX sells to safety superintendents at oil sands sites. Describe a time you sold a technical or compliance-driven product — not a service — to an industrial procurement department."`,
-          focus: "Probes whether her startup consulting translates to garment sales. Startup launches and industrial B2B garment contracts are different. Look for any tangible product sales experience."
-        },
-        {
-          q: `"If a prospect asks you to explain the difference between CSA Z96 Class 2 and Class 3 high-vis requirements, what do you tell them?"`,
-          focus: "Tests baseline safety compliance knowledge. If she cannot answer this, she needs significant onboarding before being credible in front of oil sands safety managers. Expected answer: Class 3 requires 0.80m² background + 0.20m² retroreflective, covers torso + sleeves + legs."
-        }
-      ];
-    }
-
+  // The same interview prompts for every candidate.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const renderAiQuestions = (_cand: Candidate) => {
     // Default template questions (for any candidate)
     return [
       {
-        q: `"Safety garments are compliance assets, not simple apparel. How do you educate procurement managers who only look at unit cost on the return-on-investment of premium FR materials and reinforced seam construction?"`,
-        focus: "Evaluate standard sales strategy. Look for details on lifespan extension (triple stitching lasting 3x longer), reduced injury rates, and compliance liability defense."
+        q: `"Uniform and workwear programs are about more than the price per garment. How do you show a procurement manager who only compares unit prices that quality, consistent reorders and a single point of contact are worth it?"`,
+        focus: "Look for concrete value arguments: durability and fewer reorders, consistent quality from one run to the next, faster samples and delivery, one contact instead of many suppliers, and compliance where the customer needs it (for example high-visibility or flame-resistant garments)."
       },
       {
         q: `"RIVIX pays no cash at all — commission only when deals close and collect. What gives you confidence you can earn from day one? Name your first three target accounts."`,
@@ -554,51 +469,63 @@ export default function AdminHiringPage() {
     <div className="space-y-8 font-sans">
       
       {/* 1. Header Overview addressing RIVIX staff's request */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-rivix rounded-3xl p-6 lg:p-10 text-white shadow-xl relative overflow-hidden">
+      <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 rounded-3xl p-6 lg:p-10 text-white shadow-xl relative overflow-hidden">
         <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="space-y-3 max-w-2xl">
             <span className="bg-white/15 px-3.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest backdrop-blur-sm border border-white/10">Recruiting OS</span>
             <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">Sales Hiring & Credibility Board</h1>
             <p className="text-white/70 text-xs lg:text-sm leading-relaxed">
-              Sol's advising dashboard designed to help the young RIVIX founders screen 120 applications, evaluate competitor sales reps from **UniFirst & Mark's Commercial**, speak with absolute technical credibility, and structure high-performance B2B commission SOPs.
+              Screen sales-rep applicants, score them against the weighted scorecard, keep interview notes, and schedule and email candidates from one place. Candidates and resumes are stored privately and are only visible to signed-in admins.
             </p>
           </div>
           
-          <div className="flex gap-4 shrink-0 bg-white/5 border border-white/10 p-5 rounded-2xl backdrop-blur-md">
-            <div className="text-center space-y-1">
-              <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">Total Pool</span>
-              <p className="text-2xl font-black">{candidates.length}</p>
-            </div>
-            <div className="w-px bg-white/10" />
-            <div className="text-center space-y-1">
-              <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">Tier 1 (7.0+)</span>
-              <p className="text-2xl font-black text-emerald-400">{candidates.filter(c => computeWeightedScore(c.scorecard) >= 7.0).length}</p>
-            </div>
-            <div className="w-px bg-white/10" />
-            <div className="text-center space-y-1">
-              <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">Tier 2 (5.5-6.9)</span>
-              <p className="text-2xl font-black text-blue-400">{candidates.filter(c => { const s = computeWeightedScore(c.scorecard); return s >= 5.5 && s < 7.0; }).length}</p>
-            </div>
-            <div className="w-px bg-white/10" />
-            <div className="text-center space-y-1">
-              <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">Tier 3 (&lt;5.5)</span>
-              <p className="text-2xl font-black text-rose-400">{candidates.filter(c => computeWeightedScore(c.scorecard) < 5.5).length}</p>
-            </div>
-          </div>
+          {/* Counts: dark tiles with light text and coloured numbers, readable on any background */}
+          {(() => {
+            const scored = candidates.map((c) => computeScore(c.scorecard, criteria));
+            const tiles = [
+              { label: 'Total', hint: 'candidates', n: candidates.length, num: 'text-white', dot: 'bg-slate-300' },
+              { label: 'Tier 1', hint: '7.0 and above', n: scored.filter((v) => v !== null && v >= TIER_1_MIN).length, num: 'text-emerald-400', dot: 'bg-emerald-400' },
+              { label: 'Tier 2', hint: '5.5 to 6.9', n: scored.filter((v) => v !== null && v >= TIER_2_MIN && v < TIER_1_MIN).length, num: 'text-sky-300', dot: 'bg-sky-300' },
+              { label: 'Tier 3', hint: 'below 5.5', n: scored.filter((v) => v !== null && v < TIER_2_MIN).length, num: 'text-rose-300', dot: 'bg-rose-300' },
+            ];
+            return (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 shrink-0">
+                {tiles.map((t) => (
+                  <div key={t.label} className="rounded-2xl bg-slate-950/50 border border-white/10 px-5 py-3.5 text-center min-w-[108px]">
+                    <span className="flex items-center justify-center gap-1.5 text-[11px] font-bold text-slate-200 uppercase tracking-wider">
+                      <span className={`w-1.5 h-1.5 rounded-full ${t.dot}`} aria-hidden="true" />{t.label}
+                    </span>
+                    <p className={`text-3xl font-black mt-1 leading-none ${t.num}`}>{t.n}</p>
+                    <span className="block text-[10px] text-slate-400 mt-1.5">{t.hint}</span>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
         </div>
         
-        <div className="absolute -right-20 -bottom-20 w-80 h-80 bg-rivix/20 rounded-full blur-3xl" />
+        <div className="absolute -left-24 -bottom-28 w-80 h-80 bg-rivix/15 rounded-full blur-3xl pointer-events-none" />
       </div>
 
+      {(loadError || actionError) && (
+        <div className="flex items-start gap-3 p-4 rounded-2xl bg-red-50 border border-red-200 text-red-800 text-xs font-semibold" role="alert">
+          <AlertCircle size={16} className="shrink-0 mt-0.5" />
+          <span className="flex-1">{loadError || actionError}</span>
+          {actionError && !loadError && (
+            <button type="button" onClick={() => setActionError(null)} className="text-red-500 hover:text-red-700 font-black" aria-label="Dismiss">×</button>
+          )}
+        </div>
+      )}
+
       {/* 2. Main Workspace Layout */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
+      <div className="grid grid-cols-1 xl:grid-cols-[360px_minmax(0,1fr)] gap-8">
         
         {/* SIDEBAR: shortlisted Candidates List (4 cols) */}
-        <div className="xl:col-span-4 space-y-6">
+        <div className="space-y-6">
           <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 space-y-4">
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
-                <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">Competitor & Veteran Pool</h3>
+                <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">Candidates</h3>
                 
                 <div className="relative">
                   <input 
@@ -668,16 +595,13 @@ export default function AdminHiringPage() {
                 const filteredAndSorted = [...candidates]
                   .filter(cand => statusFilter === 'all' || cand.status === statusFilter)
                   .sort((a, b) => {
-                    if (a.id === 'cand-test-sol') return -1;
-                    if (b.id === 'cand-test-sol') return 1;
-                    
                     if (sortBy === 'newest') {
                       const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
                       const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
                       if (timeA !== timeB) return timeB - timeA;
                     }
                     
-                    return computeWeightedScore(b.scorecard) - computeWeightedScore(a.scorecard);
+                    return (computeScore(b.scorecard, criteria) ?? 0) - (computeScore(a.scorecard, criteria) ?? 0);
                   });
 
                 const displayedCandidates = filteredAndSorted.slice(0, visibleCount);
@@ -688,42 +612,38 @@ export default function AdminHiringPage() {
                       const isActive = selectedCand?.id === cand.id;
                       
                       return (
-                        <div 
+                        <div
                           key={cand.id}
                           onClick={() => handleSelectCandidate(cand)}
-                          className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between group ${
-                            isActive 
-                              ? 'border-rivix bg-rivix/5 shadow-sm' 
-                              : 'border-slate-100 hover:border-slate-200 bg-white'
+                          className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center gap-3 group ${
+                            isActive
+                              ? 'border-rivix bg-rivix/5 shadow-sm'
+                              : 'border-slate-100 hover:border-slate-200 hover:shadow-sm bg-white'
                           }`}
                         >
-                          <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
-                              isActive ? 'bg-rivix text-white' : 'bg-slate-100 text-slate-600'
-                            }`}>
-                              {cand.avatar}
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
+                            isActive ? 'bg-rivix text-white' : 'bg-slate-100 text-slate-600'
+                          }`}>
+                            {cand.avatar}
+                          </div>
+
+                          <div className="min-w-0 flex-1 space-y-1">
+                            <div className="flex items-baseline justify-between gap-2">
+                              <h4 className="text-sm font-bold text-slate-800 truncate">{cand.name}</h4>
+                              <span className="text-[10px] font-bold text-slate-400 whitespace-nowrap shrink-0">{cand.experience}</span>
                             </div>
-                            
-                            <div className="space-y-0.5">
-                              <h4 className="text-sm font-bold text-slate-800 flex items-center gap-1.5 flex-wrap">
-                                {cand.name}
-                                {cand.competitor && (
-                                  <span className="text-[8px] font-black text-rivix uppercase bg-rivix/10 px-1.5 py-0.5 rounded tracking-widest">Competitor</span>
-                                )}
-                                <span className={`text-[7px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded ${
-                                  getCandidateRank(cand, candidates).style
-                                }`}>
-                                  {getCandidateRank(cand, candidates).label}
-                                </span>
-                              </h4>
-                              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wide truncate max-w-[180px]">{cand.currentCompany}</p>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wide truncate">{cand.currentCompany}</p>
+                            <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                              <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md whitespace-nowrap ${getCandidateRank(cand, candidates, criteria).style}`}>
+                                {getCandidateRank(cand, candidates, criteria).label}
+                              </span>
+                              {cand.competitor && (
+                                <span className="text-[9px] font-black text-rivix uppercase bg-rivix/10 px-2 py-0.5 rounded-md tracking-wider whitespace-nowrap">Competitor</span>
+                              )}
                             </div>
                           </div>
-                          
-                          <div className="text-right">
-                            <span className="text-[10px] font-black text-slate-600 bg-slate-100 px-2 py-1 rounded">{cand.experience}</span>
-                            <ChevronRight size={14} className="text-slate-400 group-hover:text-rivix transition-colors ml-auto mt-1.5" />
-                          </div>
+
+                          <ChevronRight size={14} className="text-slate-300 group-hover:text-rivix transition-colors shrink-0" />
                         </div>
                       );
                     })}
@@ -758,7 +678,13 @@ export default function AdminHiringPage() {
 
                     {filteredAndSorted.length === 0 && (
                       <div className="text-center py-8 text-slate-400 text-xs">
-                        No candidates found in this status.
+                        {loadingCandidates
+                          ? 'Loading candidates…'
+                          : loadError
+                            ? 'Candidates could not be loaded.'
+                            : candidates.length === 0
+                              ? 'No candidates yet. Use “Upload Resumes” to add the first one.'
+                              : 'No candidates found in this status.'}
                       </div>
                     )}
                   </>
@@ -790,102 +716,71 @@ export default function AdminHiringPage() {
         </div>
 
         {/* DETAILS FRAME: Selected Candidate workspace (8 cols) */}
-        <div className="xl:col-span-8 space-y-6">
+        <div className="space-y-6 min-w-0">
           {selectedCand ? (
             <div className="bg-white rounded-3xl p-6 lg:p-8 shadow-sm border border-slate-100 space-y-6">
               
-              {/* Header profile info */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
-                <div className="flex items-center gap-4">
+              {/* Header: who they are, quick actions, and the stage */}
+              <div className="space-y-5 pb-6 border-b border-slate-100">
+                <div className="flex items-start gap-4">
                   <div className="w-14 h-14 rounded-full bg-rivix/10 border border-rivix/20 flex items-center justify-center font-bold text-lg text-rivix shadow-inner shrink-0">
                     {selectedCand.avatar}
                   </div>
-                  <div>
-                    <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2 flex-wrap">
-                      {selectedCand.name}
-                      <span className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full ${
-                        getCandidateRank(selectedCand, candidates).style
-                      }`}>
-                        {getCandidateRank(selectedCand, candidates).label}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                      <h2 className="text-2xl font-bold text-slate-900 leading-tight">{selectedCand.name}</h2>
+                      <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full whitespace-nowrap ${getCandidateRank(selectedCand, candidates, criteria).style}`}>
+                        {getCandidateRank(selectedCand, candidates, criteria).label}
                       </span>
-                    </h2>
-                    <p className="text-xs font-semibold text-slate-500 mt-0.5">{selectedCand.role} ({selectedCand.experience} exp)</p>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Current: {selectedCand.currentCompany}</p>
+                      {selectedCand.competitor && (
+                        <span className="text-[10px] font-black text-rivix uppercase bg-rivix/10 px-2.5 py-1 rounded-full tracking-wider whitespace-nowrap">Competitor</span>
+                      )}
+                    </div>
+                    <p className="text-sm font-semibold text-slate-500 mt-1.5">
+                      {[selectedCand.role, selectedCand.experience, selectedCand.currentCompany].filter(Boolean).join(' · ')}
+                    </p>
                   </div>
-                </div>
-
-                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    {selectedCand.id !== 'cand-test-sol' && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveCandidate(selectedCand.id)}
-                        className="inline-flex items-center justify-center p-2.5 rounded-xl border border-rose-200 text-rose-500 bg-rose-50 hover:bg-rose-100 hover:text-rose-600 transition-all hover:border-rose-300"
-                        title="Remove Candidate Profile"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    )}
-                    <a
-                      href={buildCalComBookingUrl(selectedCand)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-2 bg-rivix text-white px-4 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider hover:bg-rivix-dark transition-all active:scale-95 shadow-lg shadow-rivix/20"
-                    >
-                      <Calendar size={14} />
-                      Schedule Call
-                    </a>
+                  <div className="flex items-center gap-2 shrink-0">
                     <button
                       type="button"
-                      onClick={copyCalComLink}
-                      className="inline-flex items-center gap-1.5 bg-white border border-slate-200 hover:border-rivix/35 text-slate-700 px-3.5 py-2.5 rounded-xl text-[10px] font-bold hover:bg-slate-50 transition-all"
+                      onClick={() => setShowCandidateEditor(true)}
+                      className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-slate-200 text-slate-600 bg-white hover:border-rivix/40 hover:text-rivix text-xs font-bold transition-all whitespace-nowrap"
+                      title="Edit this candidate's details"
                     >
-                      {copiedCalLink ? '✅ Link Copied' : '📋 Copy Booking Link'}
+                      <Pencil size={14} /> Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDeleteTarget(selectedCand)}
+                      className="inline-flex items-center justify-center p-2.5 rounded-xl border border-slate-200 text-slate-400 bg-white hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 transition-all"
+                      title="Remove candidate"
+                      aria-label="Remove candidate"
+                    >
+                      <Trash2 size={16} />
                     </button>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Status:</span>
-                    <div className="flex rounded-xl border border-slate-200 overflow-hidden text-[9px] font-black uppercase tracking-widest bg-white">
-                      {[
-                        { label: 'Screen', val: 'screening' },
-                        { label: 'Interview', val: 'interviewing' },
-                        { label: 'Offer', val: 'offer' }
-                      ].map(btn => (
-                        <button
-                          key={btn.val}
-                          onClick={() => handleUpdateStatus(selectedCand.id, btn.val as any)}
-                          className={`px-3 py-2 border-r border-slate-200 last:border-0 hover:bg-slate-50 transition-colors ${
-                            selectedCand.status === btn.val ? 'bg-rivix/10 text-rivix font-bold' : 'text-slate-500'
-                          }`}
-                        >
-                          {btn.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
                 </div>
-              </div>
 
-              {/* Quick scheduling — prefills Cal.com with selected candidate */}
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-2xl border border-rivix/15 bg-rivix/5">
-                <div className="min-w-0">
-                  <p className="text-xs font-bold text-slate-900 flex items-center gap-2">
-                    <Calendar size={14} className="text-rivix shrink-0" />
-                    Schedule screening with {selectedCand.name}
-                  </p>
-                  <p className="text-[11px] text-slate-500 mt-1">
-                    Opens Cal.com with name, email, and candidate ID prefilled. Use <strong>Schedule Call</strong> above or send the link from Correspondence.
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2 shrink-0">
+                {/* Booking: one link (opens a new page) and two buttons (do something here), kept visibly different */}
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2.5">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest w-14 shrink-0">Booking</span>
                   <a
                     href={buildCalComBookingUrl(selectedCand)}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 bg-rivix text-white px-3.5 py-2 rounded-xl text-[10px] font-bold hover:bg-rivix-dark transition-all"
+                    className="inline-flex items-center gap-1.5 text-sm font-bold text-rivix hover:underline underline-offset-4 whitespace-nowrap"
+                    title="Opens the booking page in a new tab"
                   >
-                    <ExternalLink size={12} /> Open Cal.com
+                    <Calendar size={15} /> Open booking page <ExternalLink size={13} className="opacity-70" />
                   </a>
+                  <span className="hidden sm:block h-5 w-px bg-slate-200" aria-hidden="true" />
+                  <button
+                    type="button"
+                    onClick={copyCalComLink}
+                    className="inline-flex items-center gap-1.5 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 px-3 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap"
+                  >
+                    {copiedCalLink ? <><Check size={14} className="text-emerald-500" /> Copied</> : <><Copy size={14} /> Copy link</>}
+                  </button>
                   <button
                     type="button"
                     onClick={() => {
@@ -894,93 +789,145 @@ export default function AdminHiringPage() {
                         `Hi ${selectedCand.name}, let's lock in our 15-minute introductory Zoom screening call. You can select a convenient slot directly using this link: ${buildCalComBookingUrl(selectedCand)}`
                       );
                     }}
-                    className="inline-flex items-center gap-1.5 bg-white border border-slate-200 text-slate-700 px-3.5 py-2 rounded-xl text-[10px] font-bold hover:bg-slate-50 transition-all"
+                    className="inline-flex items-center gap-1.5 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 px-3 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap"
+                    title="Writes the invitation in the Correspondence tab (nothing is sent until you press send)"
                   >
-                    <Mail size={12} /> Draft Email with Link
+                    <Mail size={14} /> Draft invite email
                   </button>
                 </div>
+
+                {/* Stage: the line only SHOWS where they are; the buttons next to it change it */}
+                {(() => {
+                  const order = [
+                    { label: 'Screen', val: 'screening' },
+                    { label: 'Interview', val: 'interviewing' },
+                    { label: 'Offer', val: 'offer' },
+                  ] as const;
+                  const idx = order.findIndex((st) => st.val === selectedCand.status);
+                  const archived = selectedCand.status === 'archived';
+                  const next = idx >= 0 && idx < order.length - 1 ? order[idx + 1] : null;
+                  const prev = idx > 0 ? order[idx - 1] : null;
+                  const first = selectedCand.name.split(' ')[0];
+                  const move = async (to: 'screening' | 'interviewing' | 'offer' | 'archived', message: string) => {
+                    setStageSaving(true);
+                    const ok = await persist({ ...selectedCand, status: to });
+                    setStageSaving(false);
+                    if (ok) setNotice(message);
+                  };
+                  return (
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest w-14 shrink-0">Stage</span>
+
+                      {/* Where they are (display only) */}
+                      <ol className="flex items-center gap-1.5" aria-label="Current stage">
+                        {order.map((st, n) => {
+                          const done = idx > n;
+                          const active = idx === n;
+                          return (
+                            <li key={st.val} className="flex items-center gap-1.5" aria-current={active ? 'step' : undefined}>
+                              {n > 0 && <span className={`h-px w-6 ${idx >= n ? 'bg-rivix/40' : 'bg-slate-200'}`} aria-hidden="true" />}
+                              <span className="inline-flex items-center gap-2 py-0.5 pr-2 cursor-default select-none">
+                                <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black border ${
+                                  active ? 'bg-rivix border-rivix text-white'
+                                  : done ? 'bg-rivix/10 border-rivix/30 text-rivix'
+                                  : 'bg-white border-slate-200 text-slate-400'
+                                }`}>
+                                  {done ? <Check size={12} /> : n + 1}
+                                </span>
+                                <span className={`text-xs font-bold ${active ? 'text-rivix' : done ? 'text-slate-600' : 'text-slate-400'}`}>{st.label}</span>
+                              </span>
+                            </li>
+                          );
+                        })}
+                      </ol>
+
+                      <span className="hidden sm:block h-5 w-px bg-slate-200" aria-hidden="true" />
+
+                      {/* What you can do about it (buttons) */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        {archived ? (
+                          <>
+                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider bg-slate-100 px-2.5 py-1 rounded-full">Archived</span>
+                            <button type="button" disabled={stageSaving} onClick={() => move('screening', `${first} restored to Screen.`)}
+                              className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-60">
+                              Restore to Screen
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            {next ? (
+                              <button type="button" disabled={stageSaving} onClick={() => move(next.val, `${first} moved to ${next.label}.`)}
+                                className="inline-flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 rounded-lg border border-rivix/40 bg-rivix/5 text-rivix hover:bg-rivix/10 disabled:opacity-60 transition-colors whitespace-nowrap"
+                                title={`Move ${first} on to the ${next.label} stage`}>
+                                {stageSaving ? <Loader2 size={14} className="animate-spin" /> : null}
+                                Move to {next.label} <ArrowRight size={14} />
+                              </button>
+                            ) : (
+                              <span className="text-xs font-semibold text-slate-400">Final stage</span>
+                            )}
+                            {prev && (
+                              <button type="button" disabled={stageSaving} onClick={() => move(prev.val, `${first} moved back to ${prev.label}.`)}
+                                className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300 disabled:opacity-60 transition-colors whitespace-nowrap">
+                                <ArrowLeft size={14} /> Back to {prev.label}
+                              </button>
+                            )}
+                            <button type="button" disabled={stageSaving} onClick={() => move('archived', `${first} archived.`)}
+                              className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 disabled:opacity-60 transition-colors whitespace-nowrap"
+                              title="Remove from the active list (you can restore later)">
+                              <Archive size={14} /> Archive
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
-              {/* Candidate Metadata Contact Card Dashboard Widget */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 bg-slate-50 border border-slate-100 p-4 rounded-2xl">
-                <div className="space-y-0.5">
-                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block">Indeed Partner Email</span>
-                  <a 
-                    href={`mailto:${selectedCand.email}`}
-                    className="text-xs font-bold text-sky-600 hover:text-sky-800 hover:underline truncate block"
-                    title={selectedCand.email}
-                  >
-                    {selectedCand.email}
-                  </a>
+              {/* Contact details */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-4 bg-slate-50 border border-slate-100 p-4 rounded-2xl">
+                <div className="min-w-0 space-y-1">
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Email</span>
+                  {selectedCand.email ? (
+                    <a href={`mailto:${selectedCand.email}`} className="text-sm font-bold text-sky-600 hover:text-sky-800 hover:underline truncate block" title={selectedCand.email}>
+                      {selectedCand.email}
+                    </a>
+                  ) : (<span className="text-sm font-bold text-slate-300">—</span>)}
                 </div>
-                <div className="space-y-0.5">
-                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block">Direct Phone</span>
-                  <a 
-                    href={`tel:${selectedCand.phone}`}
-                    className="text-xs font-bold text-slate-800 hover:text-rivix transition-colors block"
-                  >
-                    {selectedCand.phone}
-                  </a>
+                <div className="min-w-0 space-y-1">
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Phone</span>
+                  {selectedCand.phone ? (
+                    <a href={`tel:${selectedCand.phone}`} className="text-sm font-bold text-slate-800 hover:text-rivix transition-colors block">{selectedCand.phone}</a>
+                  ) : (<span className="text-sm font-bold text-slate-300">—</span>)}
                 </div>
-                <div className="space-y-0.5">
-                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block">Candidate Location</span>
-                  <span className="text-xs font-bold text-slate-800 flex items-center gap-1">
-                    <MapPin size={10} className="text-rivix" /> {getCandLocation(selectedCand.id)}
-                  </span>
-                </div>
-                <div className="space-y-0.5">
-                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block">Indeed ID / Sync Status</span>
-                  <span className="text-xs font-bold text-emerald-600 flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    IND-2026-{selectedCand.id.split('-').pop()?.toUpperCase()}
+                <div className="min-w-0 space-y-1">
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Location</span>
+                  <span className="text-sm font-bold text-slate-800 flex items-center gap-1.5 min-w-0">
+                    <MapPin size={13} className="text-rivix shrink-0" />
+                    <span className={`truncate ${selectedCand.location ? '' : 'text-slate-300'}`}>{selectedCand.location || '—'}</span>
                   </span>
                 </div>
               </div>
 
-              {/* TABS Selector: Profile/Notes, Script Generator, Transcript */}
-              <div className="flex border-b border-slate-100">
-                <button 
-                  onClick={() => setActiveSubTab('profile')}
-                  className={`pb-4 px-4 text-xs font-bold uppercase tracking-widest border-b-2 transition-all ${
-                    activeSubTab === 'profile' 
-                      ? 'border-rivix text-rivix' 
-                      : 'border-transparent text-slate-400 hover:text-slate-600'
-                  }`}
-                >
-                  Candidate Profile & Scorecard
-                </button>
-                <button 
-                  onClick={() => setActiveSubTab('script')}
-                  className={`pb-4 px-4 text-xs font-bold uppercase tracking-widest border-b-2 transition-all ${
-                    activeSubTab === 'script' 
-                      ? 'border-rivix text-rivix' 
-                      : 'border-transparent text-slate-400 hover:text-slate-600'
-                  }`}
-                >
-                  AI Credibility Interview Script
-                </button>
-                <button 
-                  onClick={() => setActiveSubTab('correspondence')}
-                  className={`pb-4 px-4 text-xs font-bold uppercase tracking-widest border-b-2 transition-all ${
-                    activeSubTab === 'correspondence' 
-                      ? 'border-rivix text-rivix' 
-                      : 'border-transparent text-slate-400 hover:text-slate-600'
-                  }`}
-                >
-                  Candidate Correspondence
-                </button>
-                {selectedCand.id === 'cand-1' && (
-                  <button 
-                    onClick={() => setActiveSubTab('transcript')}
-                    className={`pb-4 px-4 text-xs font-bold uppercase tracking-widest border-b-2 transition-all ${
-                      activeSubTab === 'transcript' 
-                        ? 'border-rivix text-rivix' 
+              {/* Tabs */}
+              <div className="flex gap-1 border-b border-slate-100 overflow-x-auto">
+                {([
+                  ['profile', 'Profile & Scorecard'],
+                  ['script', 'Interview Script'],
+                  ['correspondence', 'Correspondence'],
+                ] as const).map(([key, label]) => (
+                  <button
+                    key={key}
+                    onClick={() => setActiveSubTab(key)}
+                    className={`pb-3.5 px-4 text-xs font-bold uppercase tracking-wider border-b-2 transition-all whitespace-nowrap ${
+                      activeSubTab === key
+                        ? 'border-rivix text-rivix'
                         : 'border-transparent text-slate-400 hover:text-slate-600'
                     }`}
                   >
-                    Screening Call Transcript
+                    {label}
                   </button>
-                )}
+                ))}
               </div>
 
               {/* TAB CONTENT: PROFILE & SCORECARD */}
@@ -1001,10 +948,10 @@ export default function AdminHiringPage() {
                     {/* Resume viewer block */}
                     <div className="space-y-2">
                       <h3 className="text-xs font-bold text-slate-800 uppercase tracking-widest flex items-center justify-between">
-                        <span>Indeed Candidate Resume (Original PDF)</span>
-                        {selectedCand.resumePdfUrl && (
+                        <span>Resume (PDF)</span>
+                        {selectedCand.hasResume && (
                           <a 
-                            href={selectedCand.resumePdfUrl} 
+                            href={resumeUrl(selectedCand.id)} 
                             target="_blank" 
                             rel="noopener noreferrer" 
                             className="text-[10px] font-black text-rivix hover:underline uppercase tracking-widest flex items-center gap-1"
@@ -1013,10 +960,10 @@ export default function AdminHiringPage() {
                           </a>
                         )}
                       </h3>
-                      {selectedCand.resumePdfUrl ? (
+                      {selectedCand.hasResume ? (
                         <div className="border border-slate-200 rounded-2xl overflow-hidden bg-slate-100 h-[500px] shadow-sm relative group">
                           <iframe 
-                            src={`${selectedCand.resumePdfUrl}#toolbar=0`} 
+                            src={resumeUrl(selectedCand.id)} 
                             className="w-full h-full border-none"
                             title={`${selectedCand.name} Resume`}
                           />
@@ -1024,8 +971,8 @@ export default function AdminHiringPage() {
                       ) : (
                         <div className="border border-slate-200 rounded-2xl bg-slate-50 text-slate-500 text-xs p-8 text-center flex flex-col items-center justify-center gap-2">
                           <FileText size={24} className="text-slate-300 animate-pulse" />
-                          <p className="font-semibold">No PDF Resume Seeded</p>
-                          <p className="text-[10px] text-slate-400">Direct plain text extraction will be displayed.</p>
+                          <p className="font-semibold">No PDF on file</p>
+                          <p className="text-[10px] text-slate-400">The text read from the resume is shown instead.</p>
                           <div className="border border-slate-200 rounded-2xl bg-slate-900 text-slate-300 font-mono text-[10px] p-5 w-full h-44 overflow-y-auto whitespace-pre-line text-left leading-normal">
                             {selectedCand.resumeText}
                           </div>
@@ -1042,11 +989,20 @@ export default function AdminHiringPage() {
                           <div key={note.id} className="bg-slate-50 border border-slate-100 p-4 rounded-2xl space-y-1 text-xs">
                             <div className="flex items-center justify-between font-bold text-[10px] text-slate-400 uppercase tracking-wide">
                               <span className="text-slate-600 flex items-center gap-1"><Check size={10} className="text-rivix" /> {note.author}</span>
-                              <span>{new Date(note.timestamp).toLocaleDateString()}</span>
+                              <span>{formatDateTime(note.timestamp)}</span>
                             </div>
                             <p className="text-slate-600 leading-relaxed font-medium">{note.content}</p>
                           </div>
                         ))}
+                        {pendingNote !== null && (
+                          <div className="bg-slate-50/60 border border-dashed border-slate-200 p-4 rounded-2xl space-y-1 text-xs opacity-80" aria-live="polite">
+                            <div className="flex items-center justify-between font-bold text-[10px] text-slate-400 uppercase tracking-wide">
+                              <span className="text-slate-500 flex items-center gap-1.5"><Loader2 size={11} className="animate-spin text-rivix" /> RIVIX Admin</span>
+                              <span>Saving…</span>
+                            </div>
+                            <p className="text-slate-600 leading-relaxed font-medium">{pendingNote}</p>
+                          </div>
+                        )}
                       </div>
 
                       <form onSubmit={handleAddNote} className="flex gap-2">
@@ -1055,10 +1011,15 @@ export default function AdminHiringPage() {
                           placeholder="Type notes on client screening, candidate fit..."
                           value={newNoteContent}
                           onChange={(e) => setNewNoteContent(e.target.value)}
+                          maxLength={4000}
                           className="flex-1 text-xs border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:border-rivix/50 font-medium"
                         />
-                        <button type="submit" className="bg-slate-900 text-white rounded-xl px-4 py-3 hover:bg-slate-800 text-xs font-bold transition-all">
-                          Add
+                        <button
+                          type="submit"
+                          disabled={pendingNote !== null || !newNoteContent.trim()}
+                          className="bg-slate-900 text-white rounded-xl px-4 py-3 hover:bg-slate-800 text-xs font-bold transition-all flex items-center justify-center gap-1.5 min-w-[64px] disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {pendingNote !== null ? <Loader2 size={14} className="animate-spin" /> : 'Add'}
                         </button>
                       </form>
                     </div>
@@ -1070,52 +1031,63 @@ export default function AdminHiringPage() {
                     <div className="bg-slate-50 border border-slate-100 rounded-3xl p-5 space-y-5">
                       <div className="flex items-center justify-between border-b border-slate-200/50 pb-3">
                         <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-1.5"><Sliders size={12}/> Weighted Scorecard</h3>
-                        <span className="text-[10px] font-black text-rivix uppercase bg-rivix/10 px-2.5 py-0.5 rounded-full">Adjustable</span>
+                        <button type="button" onClick={() => setShowCriteriaEditor(true)} className="text-[10px] font-black text-rivix uppercase bg-rivix/10 hover:bg-rivix/20 px-2.5 py-1 rounded-full transition-colors">Edit criteria</button>
                       </div>
 
                       {/* Composite Score Display */}
-                      <div className="bg-white border border-slate-200 rounded-2xl p-4 flex items-center justify-between">
-                        <div>
-                          <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block">Weighted Composite</span>
-                          <span className="text-2xl font-black text-slate-900">
-                            {computeWeightedScore({ existingRolodex: scRolodex, albertaProximity: scAlberta, industryKnowledge: scIndustry, competitiveIntel: scCompIntel, salesMethodology: scSalesMethod })}
-                          </span>
-                          <span className="text-xs text-slate-400 font-bold"> / 10</span>
-                        </div>
-                        {(() => {
-                          const ws = computeWeightedScore({ existingRolodex: scRolodex, albertaProximity: scAlberta, industryKnowledge: scIndustry, competitiveIntel: scCompIntel, salesMethodology: scSalesMethod });
-                          const tier = ws >= 7.0 ? 'TIER 1' : ws >= 5.5 ? 'TIER 2' : 'TIER 3';
-                          const tierStyle = ws >= 7.0 ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : ws >= 5.5 ? 'bg-amber-100 text-amber-700 border-amber-300' : 'bg-red-100 text-red-700 border-red-300';
-                          return <span className={`text-[9px] font-black px-3 py-1.5 rounded-full border ${tierStyle}`}>{tier}</span>;
-                        })()}
-                      </div>
+                      {(() => {
+                        const ws = computeScore(scores as Record<string, number>, criteria);
+                        const tier = ws === null ? 'NOT SCORED' : ws >= TIER_1_MIN ? 'TIER 1' : ws >= TIER_2_MIN ? 'TIER 2' : 'TIER 3';
+                        const tierStyle = ws === null ? 'bg-slate-50 text-slate-400 border-slate-200' : ws >= TIER_1_MIN ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : ws >= TIER_2_MIN ? 'bg-amber-100 text-amber-700 border-amber-300' : 'bg-red-100 text-red-700 border-red-300';
+                        return (
+                          <div className="bg-white border border-slate-200 rounded-2xl p-4 flex items-center justify-between">
+                            <div>
+                              <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block">Weighted Composite</span>
+                              <span className="text-2xl font-black text-slate-900">{ws ?? '—'}</span>
+                              <span className="text-xs text-slate-400 font-bold"> / 10</span>
+                            </div>
+                            <span className={`text-[9px] font-black px-3 py-1.5 rounded-full border ${tierStyle}`}>{tier}</span>
+                          </div>
+                        );
+                      })()}
+
+                      {scoredCount(scores as Record<string, number>, criteria) < criteria.length && (
+                        <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
+                          Scored on {scoredCount(scores as Record<string, number>, criteria)} of {criteria.length} categories. Unscored ones are left out of the total until you set them.
+                        </p>
+                      )}
 
                       <div className="space-y-4">
-                        {[
-                          { label: 'Existing Rolodex (Procurement Contacts)', weight: '30%', val: scRolodex, set: setScRolodex },
-                          { label: 'Alberta / Western Canada Proximity', weight: '20%', val: scAlberta, set: setScAlberta },
-                          { label: 'Industry Knowledge (FR / CSA / NFPA)', weight: '20%', val: scIndustry, set: setScIndustry },
-                          { label: 'Competitive Intel (UniFirst / Cintas)', weight: '15%', val: scCompIntel, set: setScCompIntel },
-                          { label: 'Sales Methodology (Hunting / Closing)', weight: '15%', val: scSalesMethod, set: setScSalesMethod }
-                        ].map(slider => (
-                          <div key={slider.label} className="space-y-1.5">
-                            <div className="flex justify-between text-[10px] font-bold text-slate-500 uppercase tracking-wide">
-                              <span className="flex items-center gap-1.5">
-                                {slider.label}
-                                <span className="text-[8px] font-black text-slate-300 bg-slate-100 px-1.5 py-0.5 rounded">{slider.weight}</span>
-                              </span>
-                              <span className="font-black text-rivix">{slider.val}/10</span>
+                        {criteria.map((c) => {
+                          const val = scores[c.id];
+                          return (
+                            <div key={c.id} className="space-y-1.5">
+                              <div className="flex justify-between text-[10px] font-bold text-slate-500 uppercase tracking-wide gap-2">
+                                <span className="flex items-center gap-1.5" title={c.description}>
+                                  {c.label}
+                                  <span className="text-[8px] font-black text-slate-300 bg-slate-100 px-1.5 py-0.5 rounded">{c.weight}%</span>
+                                </span>
+                                {typeof val === 'number' ? (
+                                  <span className="font-black text-rivix whitespace-nowrap">{val}/10</span>
+                                ) : (
+                                  <span className="font-semibold text-slate-400 whitespace-nowrap normal-case tracking-normal">Not scored yet · drag to score</span>
+                                )}
+                              </div>
+                              <input
+                                type="range"
+                                min="1"
+                                max="10"
+                                step="0.5"
+                                value={typeof val === 'number' ? Math.max(1, val) : 5}
+                                onChange={(e) => setScores((prev) => ({ ...prev, [c.id]: parseFloat(e.target.value) }))}
+                                // Touching an unscored slider scores it (starting at 5), even if you click exactly on 5.
+                                onPointerDown={() => { if (typeof val !== 'number') setScores((prev) => ({ ...prev, [c.id]: 5 })); }}
+                                className={`w-full accent-rivix cursor-pointer ${typeof val === 'number' ? '' : 'opacity-40 hover:opacity-70'}`}
+                                aria-label={`${c.label} score`}
+                              />
                             </div>
-                            <input
-                              type="range"
-                              min="1"
-                              max="10"
-                              value={slider.val}
-                              onChange={(e) => slider.set(parseInt(e.target.value))}
-                              className="w-full accent-rivix cursor-pointer"
-                            />
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
 
                       <button
@@ -1130,295 +1102,231 @@ export default function AdminHiringPage() {
                 </div>
               )}
 
-              {/* TAB CONTENT: AI INTERVIEW QUESTIONS */}
-              {activeSubTab === 'script' && (
-                <div className="space-y-6">
-                  <div className="bg-slate-50 border border-slate-200 rounded-3xl p-6 text-slate-800 space-y-2 flex items-start gap-4 shadow-sm">
-                    <Volume2 size={24} className="text-rivix shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="text-xs font-black uppercase tracking-widest text-rivix">AI interview Script Assistant</h4>
-                      <p className="text-[11px] text-slate-600 leading-relaxed mt-1 font-medium">
-                        Use the script questions below to screen this candidate. These questions are tailored to their background to verify their competency network while establishing RIVIX as an elite technical compliance authority.
-                      </p>
+              {/* TAB CONTENT: INTERVIEW QUESTIONS (written by the AI for this candidate) */}
+              {activeSubTab === 'script' && (() => {
+                const first = selectedCand.name.split(' ')[0];
+                const qs = selectedCand.interviewQuestions || [];
+                const busy = generatingFor === selectedCand.id;
+                return (
+                  <div className="space-y-5">
+                    <div className="flex flex-wrap items-start justify-between gap-4 bg-slate-50 border border-slate-100 rounded-2xl p-5">
+                      <div className="min-w-0 space-y-1 max-w-xl">
+                        <h4 className="text-base font-bold text-slate-900">Interview questions for {first}</h4>
+                        <p className="text-xs text-slate-500 leading-relaxed">
+                          Written by AI from this candidate&apos;s resume and scores: it probes their strongest claim and their weakest area.
+                          Read them before the call. They are a starting point, not a script.
+                        </p>
+                        {selectedCand.questionsGeneratedAt && qs.length > 0 && (
+                          <p className="text-[11px] text-slate-400">Written {formatDateTime(selectedCand.questionsGeneratedAt)}</p>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {qs.length > 0 && (
+                          <button type="button" onClick={copyQuestions} className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors whitespace-nowrap">
+                            <Copy size={14} /> Copy all
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={handleGenerateQuestions}
+                          disabled={busy || !!generatingFor}
+                          className="inline-flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 rounded-lg border border-rivix/40 bg-rivix/5 text-rivix hover:bg-rivix/10 disabled:opacity-60 transition-colors whitespace-nowrap"
+                        >
+                          {busy ? <><Loader2 size={14} className="animate-spin" /> Writing…</> : <><Sparkles size={14} /> {qs.length ? 'Write new questions' : 'Write questions with AI'}</>}
+                        </button>
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="space-y-6">
-                    {renderAiQuestions(selectedCand).map((item, idx) => (
-                      <div key={idx} className="bg-slate-50 border border-slate-100 rounded-2xl p-5 space-y-3">
-                        <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-widest text-slate-400">
-                          <span>Interview Prompt #{idx + 1}</span>
-                          <span className="text-rivix bg-rivix/10 px-2 py-0.5 rounded-full">Credibility Tactic</span>
-                        </div>
-                        
-                        <p className="text-xs font-bold text-slate-800 leading-relaxed italic">
-                          {item.q}
-                        </p>
-                        
-                        <div className="border-t border-slate-200/50 pt-2.5 space-y-1">
-                          <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
-                            <Info size={8}/> WHAT TO LOOK FOR IN THEIR RESPONSE
-                          </span>
-                          <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
-                            {item.focus}
-                          </p>
-                        </div>
+                    {questionsError && (
+                      <div className="flex items-start gap-2 bg-red-50 border border-red-100 text-red-700 text-xs font-semibold rounded-2xl px-4 py-3" role="alert">
+                        <AlertCircle size={16} className="shrink-0 mt-0.5" /><span>{questionsError}</span>
                       </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+                    )}
 
-              {/* TAB CONTENT: CORRESPONDENCE MESSENGER */}
-              {activeSubTab === 'correspondence' && (
-                <div className="space-y-6">
-                  <div className="bg-slate-50 text-slate-800 rounded-3xl p-6 border border-slate-200 shadow-sm space-y-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-[9px] font-black text-rivix uppercase tracking-widest bg-rivix/10 px-3 py-1 rounded-full">Live Outbound</span>
-                          <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest bg-slate-200/60 px-3 py-1 rounded-full font-mono">{selectedCand.email}</span>
-                          <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest bg-slate-200/60 px-3 py-1 rounded-full font-mono">{selectedCand.phone}</span>
-                        </div>
-                        <h4 className="text-sm font-bold mt-2 text-slate-900">Candidate Messaging Console</h4>
-                        <p className="text-[11px] text-slate-500 font-medium">
-                          Sends real email via Resend to this candidate. Replies go to their inbox — not shown in this thread yet.
-                        </p>
+                    {busy && (
+                      <div className="space-y-3" aria-live="polite">
+                        {[0, 1, 2].map((n) => (
+                          <div key={n} className="bg-slate-50 border border-slate-100 rounded-2xl p-5 space-y-3 animate-pulse">
+                            <div className="h-3 w-24 bg-slate-200 rounded" />
+                            <div className="h-4 w-11/12 bg-slate-200 rounded" />
+                            <div className="h-4 w-8/12 bg-slate-200 rounded" />
+                          </div>
+                        ))}
+                        <p className="text-xs text-slate-400 text-center">Reading {first}&apos;s resume and writing questions. This takes a few seconds.</p>
                       </div>
-                      <span className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[9px] font-black uppercase tracking-widest border self-start sm:self-center ${
-                        messagingConfig?.email
-                          ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
-                          : 'bg-amber-50 text-amber-700 border-amber-200'
+                    )}
+
+                    {!busy && qs.length === 0 && (
+                      <div className="border border-dashed border-slate-200 rounded-2xl p-8 text-center">
+                        <Sparkles size={22} className="mx-auto text-slate-300 mb-2" />
+                        <p className="text-sm font-semibold text-slate-600">No questions written for {first} yet</p>
+                        <p className="text-xs text-slate-400 mt-1">Click <strong>Write questions with AI</strong> to get questions based on this resume.</p>
+                      </div>
+                    )}
+
+                    {!busy && qs.length > 0 && (
+                      <ol className="space-y-4">
+                        {qs.map((item, idx) => (
+                          <li key={idx} className="bg-white border border-slate-100 rounded-2xl p-5 space-y-3 shadow-sm">
+                            <div className="flex items-center justify-between gap-3 text-[10px] font-black uppercase tracking-widest">
+                              <span className="text-slate-400">Question {idx + 1}</span>
+                              {item.topic && <span className="text-rivix bg-rivix/10 px-2.5 py-0.5 rounded-full">{item.topic}</span>}
+                            </div>
+                            <p className="text-sm font-bold text-slate-900 leading-relaxed">{item.question}</p>
+                            <div className="border-t border-slate-100 pt-3 space-y-1">
+                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1"><Info size={10} /> What to look for</span>
+                              <p className="text-xs text-slate-500 leading-relaxed">{item.lookFor}</p>
+                            </div>
+                          </li>
+                        ))}
+                      </ol>
+                    )}
+
+                    <details className="group border border-slate-100 rounded-2xl bg-slate-50/50">
+                      <summary className="cursor-pointer select-none px-5 py-3.5 text-xs font-bold text-slate-500 hover:text-slate-700">
+                        Standard questions (the same for every candidate)
+                      </summary>
+                      <div className="px-5 pb-5 space-y-3">
+                        {renderAiQuestions(selectedCand).map((item, idx) => (
+                          <div key={idx} className="bg-white border border-slate-100 rounded-xl p-4 space-y-2">
+                            <p className="text-xs font-bold text-slate-800 leading-relaxed">{item.q}</p>
+                            <p className="text-[11px] text-slate-500 leading-relaxed"><span className="font-black text-slate-400 uppercase tracking-wider text-[9px]">Look for </span>{item.focus}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  </div>
+                );
+              })()}
+
+              {/* TAB CONTENT: CORRESPONDENCE (email to the candidate) */}
+              {activeSubTab === 'correspondence' && (() => {
+                const first = selectedCand.name.split(' ')[0];
+                const thread = candidateChats[selectedCand.id] || [];
+                const canSend = !!messagingConfig?.email && !!selectedCand.email;
+                const templates = [
+                  { label: 'Invite to a call', text: `Hi ${first}, let's lock in our 15-minute introductory Zoom screening call. You can select a convenient slot directly using this link: ${buildCalComBookingUrl(selectedCand)}` },
+                  { label: 'Ask for more info', text: `Hi ${first}, thanks for your interest in the sales role at RIVIX. Could you tell us a bit more about the accounts you currently manage and the territory you cover? Looking forward to hearing from you.` },
+                  { label: 'Not moving forward', text: `Hi ${first}, thank you for your time and for applying to RIVIX. After careful review we won't be moving forward at this time, but we appreciate your interest and wish you all the best.` },
+                ];
+                return (
+                  <div className="space-y-5">
+                    {/* Who this goes to, and whether sending is set up */}
+                    <div className="flex flex-wrap items-start justify-between gap-4 bg-slate-50 border border-slate-100 rounded-2xl p-5">
+                      <div className="min-w-0 space-y-1">
+                        <h4 className="text-base font-bold text-slate-900">Email {first}</h4>
+                        <p className="text-sm text-slate-600 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                          <span className="text-slate-400 font-semibold">To</span>
+                          {selectedCand.email ? <span className="font-bold text-slate-800 break-all">{selectedCand.email}</span> : <span className="font-bold text-amber-600">no email address yet</span>}
+                        </p>
+                        <p className="text-xs text-slate-400">Sent by email from RIVIX. Replies arrive in the RIVIX inbox, not on this page.</p>
+                      </div>
+                      <span className={`inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-bold whitespace-nowrap border ${
+                        messagingConfig?.email ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'
                       }`}>
                         <span className={`w-2 h-2 rounded-full ${messagingConfig?.email ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                        Email {messagingConfig?.email ? 'Ready' : 'Not configured'}
+                        {messagingConfig?.email ? 'Email is set up' : 'Email is not set up'}
                       </span>
                     </div>
+
                     {messagingConfig && !messagingConfig.email && (
                       <div className="flex items-start gap-3 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900">
                         <AlertCircle size={18} className="shrink-0 mt-0.5" />
-                        <div className="text-[11px] leading-relaxed">
-                          <p className="font-bold">Setup required in Vercel env vars:</p>
-                          <p className="mt-1"><code className="text-[10px]">RESEND_API_KEY</code>, <code className="text-[10px]">HIRING_FROM_EMAIL</code> (e.g. RIVIX Hiring &lt;hello@rivix.ca&gt;)</p>
-                        </div>
+                        <p className="text-xs leading-relaxed">Sending is switched off until the email service is configured (<code className="text-[11px]">RESEND_API_KEY</code> and <code className="text-[11px]">HIRING_FROM_EMAIL</code> in the hosting settings).</p>
                       </div>
                     )}
-                  </div>
+                    {!selectedCand.email && (
+                      <div className="flex items-start gap-3 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900">
+                        <AlertCircle size={18} className="shrink-0 mt-0.5" />
+                        <p className="text-xs leading-relaxed">This candidate has no email address. Use <strong>Edit</strong> at the top to add one.</p>
+                      </div>
+                    )}
 
-                  {/* Messaging History */}
-                  <div className="border border-slate-100 rounded-3xl bg-slate-50/50 p-6 h-[300px] overflow-y-auto space-y-4 flex flex-col justify-end">
-                    <div className="space-y-4 overflow-y-auto pr-2">
-                      {((selectedCand ? candidateChats[selectedCand.id] : []) || []).length > 0 ? (
-                        ((selectedCand ? candidateChats[selectedCand.id] : []) || []).map((msg) => {
-                          const isSol = msg.sender === 'admin';
-                          return (
-                            <div key={msg.id} className={`flex ${isSol ? 'justify-end' : 'justify-start'} gap-3 items-start`}>
-                              {!isSol && (
-                                <div className="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-black text-slate-600 shrink-0 mt-0.5 border border-slate-300">
-                                  {selectedCand.avatar}
-                                </div>
-                              )}
-                              <div className="space-y-1">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-[10px] font-bold text-slate-500">{msg.senderName}</span>
-                                  <span className="text-[8px] text-slate-400 font-semibold">
-                                    {new Date(msg.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })} at {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                  </span>
-                                  <span className="text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-250 shadow-sm">
-                                    📧 Email
-                                  </span>
-                                  {isSol && msg.deliveryStatus === 'sent' && (
-                                    <span className="text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">
-                                      ✓ Sent
-                                    </span>
-                                  )}
-                                  {isSol && msg.deliveryStatus === 'failed' && (
-                                    <span className="text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200" title={msg.deliveryError}>
-                                      ✗ Failed
-                                    </span>
-                                  )}
-                                  {isSol && msg.deliveryStatus === 'simulated' && (
-                                    <span className="text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">
-                                      Demo
-                                    </span>
-                                  )}
-                                </div>
-                                <div className={`p-4 rounded-2xl text-xs max-w-md leading-relaxed shadow-sm ${
-                                  isSol 
-                                    ? msg.deliveryStatus === 'failed'
-                                      ? 'bg-red-600 text-white rounded-tr-none'
-                                      : 'bg-rivix text-white rounded-tr-none'
-                                    : 'bg-white border border-slate-100 text-slate-700 rounded-tl-none'
-                                  }`}>
-                                  {msg.text}
-                                  {isSol && msg.deliveryStatus === 'failed' && msg.deliveryError && (
-                                    <p className="mt-2 pt-2 border-t border-red-400/40 text-[10px] opacity-90">{msg.deliveryError}</p>
-                                  )}
-                                </div>
-                              </div>
-                              {isSol && (
-                                <div className="w-7 h-7 rounded-full bg-rivix flex items-center justify-center text-[10px] font-black text-white shrink-0 mt-0.5">
-                                  CEO
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })
+                    {/* What has been sent */}
+                    <div className="border border-slate-100 rounded-2xl bg-slate-50/50 p-5 max-h-[340px] overflow-y-auto">
+                      {thread.length === 0 ? (
+                        <div className="text-center py-8 text-slate-400">
+                          <Mail size={22} className="mx-auto mb-2 text-slate-300" />
+                          <p className="text-sm font-semibold">No emails sent to {first} yet</p>
+                          <p className="text-xs mt-1">Write a message below, or pick a ready-made one.</p>
+                        </div>
                       ) : (
-                        <div className="text-center py-10 text-slate-400 text-xs">
-                          No correspondence logged for this candidate yet.
+                        <ul className="space-y-4">
+                          {thread.map((msg) => {
+                            const failed = msg.deliveryStatus === 'failed';
+                            return (
+                              <li key={msg.id} className="flex flex-col items-end gap-1">
+                                <div className="flex items-center gap-2 text-[11px] text-slate-400 font-semibold">
+                                  <span>{formatDateTime(msg.timestamp)}</span>
+                                  {failed ? (
+                                    <span className="text-red-600 bg-red-50 border border-red-100 px-2 py-0.5 rounded-full font-black">Not sent</span>
+                                  ) : (
+                                    <span className="text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full font-black inline-flex items-center gap-1"><Check size={10} /> Sent</span>
+                                  )}
+                                </div>
+                                <div className={`max-w-[85%] p-4 rounded-2xl rounded-tr-md text-sm leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere] ${failed ? 'bg-red-50 text-red-900 border border-red-100' : 'bg-rivix text-white'}`}>
+                                  {msg.text}
+                                  {failed && msg.deliveryError && (
+                                    <p className="mt-2 pt-2 border-t border-red-200 text-xs text-red-700">{msg.deliveryError}</p>
+                                  )}
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                      <div ref={threadEndRef} />
+                    </div>
+
+                    {/* Write */}
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-1">Ready-made</span>
+                        {templates.map((t) => (
+                          <button
+                            key={t.label}
+                            type="button"
+                            onClick={() => setCandidateMessageText(t.text)}
+                            disabled={sendMessageLoading}
+                            className="text-xs font-bold text-slate-600 bg-white border border-slate-200 hover:border-rivix/40 hover:text-rivix px-3 py-1.5 rounded-full transition-all disabled:opacity-50"
+                          >
+                            {t.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      {sendMessageError && (
+                        <div className="flex items-start gap-2 p-3 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs" role="alert">
+                          <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                          <span>{sendMessageError}</span>
                         </div>
                       )}
-                    </div>
-                  </div>
 
-                  {/* Input composition block */}
-                  <div className="space-y-4">
-                    {sendMessageError && (
-                      <div className="flex items-start gap-2 p-3 rounded-xl bg-red-50 border border-red-200 text-red-800 text-[11px]">
-                        <AlertCircle size={14} className="shrink-0 mt-0.5" />
-                        <span>{sendMessageError}</span>
-                      </div>
-                    )}
-
-                    <div className="flex gap-3">
-                      <input 
-                        type="text" 
-                        placeholder={`Email ${selectedCand?.name} at ${selectedCand?.email}...`}
+                      <textarea
+                        rows={5}
+                        placeholder={`Write your email to ${first}…`}
                         value={candidateMessageText}
                         onChange={(e) => setCandidateMessageText(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && !sendMessageLoading && handleSendCandidateMessage()}
+                        onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && canSend && !sendMessageLoading) handleSendCandidateMessage(); }}
                         disabled={sendMessageLoading}
-                        className="flex-1 text-xs border border-slate-200 rounded-xl px-4 py-3.5 focus:outline-none focus:border-rivix/50 font-medium disabled:opacity-60"
+                        maxLength={5000}
+                        className="w-full text-sm border border-slate-200 rounded-2xl px-4 py-3.5 focus:outline-none focus:border-rivix/50 focus:ring-2 focus:ring-rivix/10 font-medium disabled:opacity-60 resize-y leading-relaxed"
                       />
-                      <button 
-                        onClick={handleSendCandidateMessage}
-                        disabled={sendMessageLoading || !candidateMessageText.trim() || !messagingConfig?.email}
-                        className="bg-rivix text-white rounded-xl px-5 py-3 hover:bg-rivix-dark transition-all flex items-center justify-center active:scale-95 shadow-lg shadow-rivix/20 disabled:opacity-50 disabled:cursor-not-allowed min-w-[52px]"
-                      >
-                        {sendMessageLoading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-                      </button>
-                    </div>
-
-                    {/* Cal.com scheduler integration */}
-                    <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-slate-100">
-                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mr-2">Cal.com:</span>
-                      <a
-                        href={buildCalComBookingUrl(selectedCand)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="bg-rivix text-white px-3.5 py-2 rounded-xl text-[10px] font-bold flex items-center gap-1.5 hover:bg-rivix-dark transition-all active:scale-95 shadow-sm"
-                      >
-                        <ExternalLink size={12} /> Open Scheduler
-                      </a>
-                      <button
-                        onClick={copyCalComLink}
-                        className="bg-white border border-slate-200 hover:border-rivix/35 text-slate-700 px-3.5 py-2 rounded-xl text-[10px] font-bold flex items-center gap-1.5 hover:bg-slate-50 transition-all active:scale-95 shadow-sm"
-                      >
-                        {copiedCalLink ? '✅ Copied' : '📋 Copy Personalized Link'}
-                      </button>
-                      <button
-                        onClick={() => {
-                          setCandidateMessageText(
-                            `Hi ${selectedCand?.name}, let's lock in our 15-minute introductory Zoom screening call. You can select a convenient slot directly using this link: ${buildCalComBookingUrl(selectedCand)}`
-                          );
-                        }}
-                        className="bg-white border border-slate-200 hover:border-rivix/35 text-slate-700 px-3.5 py-2 rounded-xl text-[10px] font-bold flex items-center gap-1.5 hover:bg-slate-50 transition-all active:scale-95 shadow-sm"
-                      >
-                        📅 Draft Cal.com Email
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* TAB CONTENT: SCREENING TRANSCRIPT (SARAH ONLY) */}
-              {activeSubTab === 'transcript' && selectedCand.id === 'cand-1' && (
-                <div className="space-y-6">
-                  
-                  {/* Waveform Player */}
-                  <div className="bg-slate-900 rounded-3xl p-5 text-white flex flex-col md:flex-row md:items-center justify-between gap-6 border border-slate-800 shadow-md">
-                    <div className="flex items-center gap-3.5">
-                      <button 
-                        onClick={togglePlayTranscript}
-                        className="w-12 h-12 rounded-full bg-rivix flex items-center justify-center text-white hover:bg-rivix-dark hover:scale-105 active:scale-95 transition-all shrink-0 shadow-lg"
-                      >
-                        {isPlaying ? <Pause size={18} fill="white" /> : <Play size={18} fill="white" className="ml-1" />}
-                      </button>
-                      
-                      <div className="space-y-1">
-                        <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-                          <Volume2 size={12} className="text-rivix" />
-                          Screening Call Playback
-                        </h4>
-                        <p className="text-[10px] text-slate-400">Simulating recorded client interview call: Sarah Jenkins</p>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-xs text-slate-400">Cmd/Ctrl + Enter to send</span>
+                        <button
+                          type="button"
+                          onClick={handleSendCandidateMessage}
+                          disabled={sendMessageLoading || !candidateMessageText.trim() || !canSend}
+                          className="bg-rivix text-white rounded-xl px-5 py-2.5 hover:bg-rivix-dark transition-all flex items-center gap-2 text-sm font-bold shadow-lg shadow-rivix/20 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+                        >
+                          {sendMessageLoading ? <><Loader2 size={16} className="animate-spin" /> Sending…</> : <><Send size={16} /> Send email</>}
+                        </button>
                       </div>
                     </div>
-
-                    {/* Waveform graphic */}
-                    <div className="flex-1 flex items-end gap-0.5 h-10 px-4">
-                      {Array.from({ length: 45 }).map((_, idx) => {
-                        const h = 10 + Math.sin(idx * 0.4) * 20 + Math.cos(idx * 0.9) * 8;
-                        const isPast = (idx / 45) * 100 < playProgress;
-                        
-                        return (
-                          <div 
-                            key={idx}
-                            className={`flex-1 rounded-full transition-all duration-300 ${
-                              isPast ? 'bg-rivix h-full' : 'bg-slate-700'
-                            }`}
-                            style={{ height: `${Math.max(4, h)}px` }}
-                          />
-                        );
-                      })}
-                    </div>
-
-                    <div className="text-right font-mono text-[10px] text-slate-400 shrink-0">
-                      <span>{Math.floor(playProgress * 0.04)}:{(Math.floor(playProgress * 2.4) % 60).toString().padStart(2, '0')} / 04:30</span>
-                    </div>
                   </div>
-
-                  {/* Transcript Queue */}
-                  <div className="border border-slate-100 rounded-3xl bg-slate-50/50 p-6 h-[400px] overflow-y-auto space-y-4">
-                    {SARAH_TRANSCRIPT.map((line, idx) => {
-                      const isHighlighted = highlightedLineIndex === idx;
-                      const hasInsight = line.category && line.category !== 'general';
-                      
-                      return (
-                        <div 
-                          key={idx} 
-                          className={`p-4 rounded-2xl border transition-all flex flex-col gap-2 relative group ${
-                            isHighlighted 
-                              ? 'bg-rivix/5 border-rivix shadow-sm scale-[1.01]' 
-                              : 'bg-white border-slate-100 hover:border-slate-200'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-widest">
-                            <span className={line.speaker.includes('Interviewer') ? 'text-slate-500' : 'text-rivix'}>{line.speaker}</span>
-                            <span className="text-slate-400 font-mono">{line.timestamp}</span>
-                          </div>
-                          
-                          <p className="text-xs text-slate-700 leading-relaxed font-semibold">
-                            {line.text}
-                          </p>
-
-                          {hasInsight && (
-                            <div className="border-t border-slate-100 pt-2 flex items-start gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wide group-hover:block transition-all">
-                              <span className="text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded tracking-widest text-[8px]">
-                                {line.category}
-                              </span>
-                              <span className="text-slate-500 lowercase first-letter:uppercase font-medium italic mt-0.5">
-                                — {line.insight}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                </div>
-              )}
+                );
+              })()}
 
             </div>
           ) : (
@@ -1436,6 +1344,73 @@ export default function AdminHiringPage() {
 
       </div>
 
+
+      {notice && (
+        <div className="fixed bottom-6 right-6 z-[80] flex items-center gap-2.5 bg-slate-900 text-white text-sm font-semibold rounded-2xl px-5 py-3.5 shadow-2xl" role="status">
+          <Check size={16} className="text-emerald-400" />
+          {notice}
+          <button type="button" onClick={() => setNotice(null)} className="ml-2 text-white/50 hover:text-white" aria-label="Dismiss">×</button>
+        </div>
+      )}
+
+      <ConfirmModal
+        open={deleteTarget !== null}
+        danger
+        loading={deleting}
+        title={`Remove ${deleteTarget?.name ?? 'this candidate'}?`}
+        message="This permanently removes the candidate, their notes, scores and resume file. It can't be undone."
+        confirmLabel="Remove candidate"
+        onConfirm={async () => {
+          if (!deleteTarget) return;
+          setDeleting(true);
+          await handleRemoveCandidate(deleteTarget.id);
+          setDeleting(false);
+          setDeleteTarget(null);
+        }}
+        onCancel={() => setDeleteTarget(null)}
+      />
+
+      {copyFallbackLink && (
+        <Modal onClose={() => setCopyFallbackLink(null)} maxWidth="max-w-lg">
+          <div className="space-y-4">
+            <h3 className="font-bold text-slate-900 text-lg">Copy the booking link</h3>
+            <p className="text-xs text-slate-500">Your browser blocked automatic copying. Select the link below and copy it.</p>
+            <input readOnly autoFocus value={copyFallbackLink} onFocus={(e) => e.currentTarget.select()} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono" />
+            <button type="button" onClick={() => setCopyFallbackLink(null)} className="bg-slate-950 text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-rivix transition-all">Done</button>
+          </div>
+        </Modal>
+      )}
+
+      {showCandidateEditor && selectedCand && (
+        <CandidateEditor
+          candidate={selectedCand}
+          onClose={() => setShowCandidateEditor(false)}
+          onSaved={(saved) => {
+            setSelectedCand(saved);
+            setCandidates((prev) => prev.map((c) => (c.id === saved.id ? saved : c)));
+            setShowCandidateEditor(false);
+          }}
+        />
+      )}
+
+      {showCriteriaEditor && (
+        <CriteriaEditor
+          criteria={criteria}
+          hiringFor={hiringFor}
+          companyContext={companyContext}
+          scoringGuide={scoringGuide}
+          onClose={() => setShowCriteriaEditor(false)}
+          onSaved={(saved) => {
+            setCriteria(saved.criteria);
+            setHiringFor(saved.hiringFor);
+            setCompanyContext(saved.companyContext);
+            setScoringGuide(saved.scoringGuide);
+            setShowCriteriaEditor(false);
+            if (saved.contextNotSaved) setActionError(saved.contextNotSaved);
+            else setNotice('Scoring settings saved.');
+          }}
+        />
+      )}
     </div>
   );
 }

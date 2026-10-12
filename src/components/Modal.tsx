@@ -18,18 +18,22 @@ export default function Modal({ onClose, busy = false, maxWidth = 'max-w-xl', ch
     return () => document.removeEventListener('keydown', onKey);
   }, [busy, onClose]);
 
+  // The backdrop scrolls; the inner wrapper is at least as tall as the screen and centres the dialog.
+  // (Centring directly inside a scrolling flex box cuts the top and bottom off a dialog taller than the
+  // screen and leaves them unreachable.) A click on the empty area around the dialog closes it.
   return (
-    <div
-      className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm overflow-y-auto"
-      onClick={() => !busy && onClose()}
-    >
+    <div className="fixed inset-0 z-[70] overflow-y-auto bg-slate-950/60 backdrop-blur-sm">
       <div
-        role="dialog"
-        aria-modal="true"
-        className={`bg-white rounded-3xl shadow-2xl w-full ${maxWidth} p-5 sm:p-8 my-auto`}
-        onClick={(e) => e.stopPropagation()}
+        className="flex min-h-full items-center justify-center p-4"
+        onClick={(e) => { if (e.target === e.currentTarget && !busy) onClose(); }}
       >
-        {children}
+        <div
+          role="dialog"
+          aria-modal="true"
+          className={`bg-white rounded-3xl shadow-2xl w-full ${maxWidth} p-5 sm:p-8`}
+        >
+          {children}
+        </div>
       </div>
     </div>
   );

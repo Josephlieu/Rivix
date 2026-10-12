@@ -18,3 +18,6 @@ audit-docs/sessions/
 *.pem
 npm-debug.log*
 *.tsbuildinfo
+
+# Internal audit docs
+/audit-docs/

@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase-admin';
 import { generateTempPassword } from '@/lib/temp-password';
 import { loadBannedMap } from '@/lib/customer-status';
 import { notifyUsers } from '@/lib/notify';
+import { invalidateDashboard } from '@/lib/dashboard-data';
 
 export async function GET() {
   const denied = await requireAdmin();
@@ -91,6 +92,7 @@ export async function POST(req: NextRequest) {
     });
   }
 
+  invalidateDashboard(); // the client count changed
   await notifyUsers(admin, [created.user.id], {
     kind: 'welcome',
     title: 'Welcome to your RIVIX portal',

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/require-admin';
 import { createAdminClient } from '@/lib/supabase-admin';
+import { invalidateDashboard } from '@/lib/dashboard-data';
 
 // Delete a document: the record and the stored file.
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ docId: string }> }) {
@@ -15,5 +16,6 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   await admin.storage.from('documents').remove([doc.file_path]);
   const { error } = await admin.from('documents').delete().eq('id', docId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  invalidateDashboard(); // the document count changed
   return NextResponse.json({ ok: true });
 }
