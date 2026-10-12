@@ -3,6 +3,7 @@ import { getAdminIdentity, requireAdmin } from '@/lib/require-admin';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { isOrderStage } from '@/lib/order-stages';
 import { customerParties, notifyUsers } from '@/lib/notify';
+import { invalidateDashboard } from '@/lib/dashboard-data';
 
 const clean = (v: unknown, max: number) => String(v ?? '').trim().slice(0, max);
 
@@ -72,6 +73,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const { error } = await admin.from('orders').update(update).eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (newStatus) invalidateDashboard(); // a stage change moves the stage counts and recent activity
 
   const note = clean(body.note, 2000) || null;
 

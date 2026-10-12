@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase-admin';
 import { adminUserIds, customerParties, notifyUsers } from '@/lib/notify';
 import { cleanSizeLabel, sizesToText, totalQty as sumSizes, type SizeQty } from '@/lib/sizes';
 import { localDateKey } from '@/lib/format';
+import { invalidateDashboard } from '@/lib/dashboard-data';
 
 const MAX_ITEMS = 50;
 
@@ -97,6 +98,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { error: itemsErr } = await admin.from('order_items').insert(items.map((it) => ({ ...it, order_id: order.id })));
+  invalidateDashboard(); // a new order (or its clean-up below) changes the dashboard numbers
   if (itemsErr) {
     // Never leave an order with no products behind
     await admin.from('orders').delete().eq('id', order.id);

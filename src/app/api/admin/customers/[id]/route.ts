@@ -3,6 +3,7 @@ import { requireAdmin } from '@/lib/require-admin';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { BAN_FOREVER, isBanned } from '@/lib/customer-status';
 import { notifyUsers } from '@/lib/notify';
+import { invalidateDashboard } from '@/lib/dashboard-data';
 
 // One customer with their orders, for the Client Detail page.
 export async function GET(
@@ -170,5 +171,6 @@ export async function DELETE(
   const { error } = await admin.from('customers').delete().eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  invalidateDashboard(); // the client count changed
   return NextResponse.json({ ok: true });
 }

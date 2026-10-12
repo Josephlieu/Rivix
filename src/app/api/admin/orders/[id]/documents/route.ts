@@ -3,6 +3,7 @@ import { getAdminIdentity } from '@/lib/require-admin';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { DOC_TYPES, MAX_DOC_BYTES } from '@/lib/documents';
 import { customerParties, notifyUsers } from '@/lib/notify';
+import { invalidateDashboard } from '@/lib/dashboard-data';
 
 // Step 2 of an upload: the file is already in storage; record it against the order.
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -60,6 +61,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     await admin.storage.from('documents').remove([path]);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  invalidateDashboard(); // the document count changed
 
   // Open rep requests for this order and this kind of document are now answered.
   const { data: fulfilled } = await admin
