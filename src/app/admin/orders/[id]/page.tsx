@@ -163,7 +163,7 @@ export default function AdminOrderDetail({ params }: { params: Promise<{ id: str
         <div>
           <OrderHeading number={order.batch_number} status={order.status} />
           <p className="text-sm text-slate-500 mt-2">
-            <Link href={`/admin/clients/${customer.id}`} className="font-semibold hover:text-rivix">{customer.company_name}</Link> · {customer.customer_code} · Rep: {customer.rep?.name || 'Unassigned'} · Created {formatDate(order.created_at)}
+            <Link href={`/admin/clients/${customer.id}`} className="font-semibold hover:text-rivix">{customer.company_name}</Link> · {customer.customer_code} · Rep: {customer.rep?.name || 'Admin'} · Created {formatDate(order.created_at)}
           </p>
         </div>
       </div>

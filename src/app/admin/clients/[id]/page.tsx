@@ -223,7 +223,7 @@ export default function ClientDetail({ params }: { params: Promise<{ id: string 
           <div className="space-y-1.5">
             <label className={labelClass}>Sales rep</label>
             <select className={inputClass} value={form.rep_id} onChange={(e) => setForm({ ...form, rep_id: e.target.value })}>
-              <option value="">Unassigned</option>
+              <option value="">Admin (handled directly)</option>
               {reps
                 .filter((r) => r.active || r.id === customer.rep_id)
                 .map((r) => <option key={r.id} value={r.id}>{r.name}{r.active ? '' : ' (disabled)'}</option>)}

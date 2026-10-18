@@ -22,7 +22,7 @@ export default function RepWidget() {
           </div>
           <div>
             <h4 className="text-sm font-bold text-slate-900">Not yet assigned</h4>
-            <p className="text-[11px] text-slate-500 font-medium">No sales rep on this account</p>
+            <p className="text-[11px] text-slate-500 font-medium">Handled directly by RIVIX</p>
           </div>
         </div>
 

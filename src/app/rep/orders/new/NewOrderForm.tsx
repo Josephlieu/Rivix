@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { Plus, Trash2, Loader2, AlertCircle, Check } from 'lucide-react';
 import SizeGrid, { SizeGridValue, emptySizeGrid, gridToSizes, gridTotal } from '@/components/SizeGrid';
 
-interface CustomerOption { id: string; customer_code: string; company_name: string }
+interface CustomerOption { id: string; customer_code: string; company_name: string; rep_id?: string | null; rep_name?: string | null }
+interface RepOption { id: string; name: string }
 interface Item { product_name: string; sizes: SizeGridValue; branding: string }
 
 const newItem = (): Item => ({ product_name: '', sizes: emptySizeGrid(), branding: '' });
@@ -13,14 +14,25 @@ const newItem = (): Item => ({ product_name: '', sizes: emptySizeGrid(), brandin
 export default function NewOrderForm({
   customers,
   initialCustomerId,
+  endpoint = '/api/rep/orders',
+  orderBasePath = '/rep/orders',
+  cancelPath = '/rep',
+  reps,
+  emptyMessage = "You have no customers assigned yet, so there's nobody to create an order for.",
 }: {
   customers: CustomerOption[];
   initialCustomerId?: string;
+  endpoint?: string;                  // where the order is sent (the admin page uses /api/admin/orders)
+  orderBasePath?: string;             // after it is created, go to <orderBasePath>/<new order id> (text only: a server page cannot pass a function)
+  cancelPath?: string;
+  reps?: RepOption[];                 // admin only: when given, a "Sales rep" dropdown lets the admin pick the rep
+  emptyMessage?: string;
 }) {
   const router = useRouter();
   const [customerId, setCustomerId] = useState(
     customers.some((c) => c.id === initialCustomerId) ? (initialCustomerId as string) : ''
   );
+  const [repId, setRepId] = useState(''); // '' = keep the customer's current rep
   const [items, setItems] = useState<Item[]>([newItem()]);
   const [delivery, setDelivery] = useState('');
   const [po, setPo] = useState('');
@@ -41,11 +53,12 @@ export default function NewOrderForm({
       return;
     }
     setSaving(true);
-    const res = await fetch('/api/rep/orders', {
+    const res = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         customer_id: customerId,
+        ...(reps ? { rep_id: repId } : {}),
         items: items.map((it) => ({ product_name: it.product_name, sizes: gridToSizes(it.sizes), branding: it.branding })),
         delivery_location: delivery,
         po_number: po,
@@ -59,7 +72,7 @@ export default function NewOrderForm({
       setSaving(false);
       return;
     }
-    router.push(`/rep/orders/${data.order.id}`);
+    router.push(`${orderBasePath}/${data.order.id}`);
   };
 
   const input =
@@ -67,7 +80,7 @@ export default function NewOrderForm({
   const label = 'text-[10px] font-black text-slate-400 uppercase tracking-widest px-1';
 
   if (customers.length === 0) {
-    return <p className="text-sm text-slate-500">You have no customers assigned yet, so there's nobody to create an order for.</p>;
+    return <p className="text-sm text-slate-500">{emptyMessage}</p>;
   }
 
   return (
@@ -80,12 +93,42 @@ export default function NewOrderForm({
 
       <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 sm:p-8 space-y-2">
         <label className={label}>Customer *</label>
-        <select required className={input} value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
+        <select required className={input} value={customerId} onChange={(e) => { setCustomerId(e.target.value); setRepId(''); }}>
           <option value="">Choose a customer…</option>
           {customers.map((c) => (
             <option key={c.id} value={c.id}>{c.company_name} ({c.customer_code})</option>
           ))}
         </select>
+        {reps && customerId && (() => {
+          const cust = customers.find((c) => c.id === customerId);
+          const picked = reps.find((r) => r.id === repId);
+          const toAdmin = repId === 'none';
+          const changes = toAdmin ? !!cust?.rep_id : !!picked && picked.id !== (cust?.rep_id ?? null);
+          return (
+            <div className="pt-4 space-y-2">
+              <label className={label}>Sales rep</label>
+              <select className={input} value={repId} onChange={(e) => setRepId(e.target.value)}>
+                <option value="">{cust?.rep_name ? `Keep ${cust.rep_name} (the customer's rep)` : 'Admin (handled directly)'}</option>
+                {cust?.rep_id && <option value="none">Admin (handled directly)</option>}
+                {reps.filter((r) => r.id !== cust?.rep_id).map((r) => (
+                  <option key={r.id} value={r.id}>{r.name}</option>
+                ))}
+              </select>
+              {changes ? (
+                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 leading-relaxed">
+                  {toAdmin ? (
+                    <>This will take <strong>{cust?.company_name}</strong> away from {cust?.rep_name || 'their rep'} and handle them directly as admin, the same as choosing Admin on the Clients page. {cust?.rep_name || 'The rep'} will no longer see their orders.</>
+                  ) : (
+                    <>This will also make <strong>{picked?.name}</strong> the sales rep for <strong>{cust?.company_name}</strong>, the same as changing it on the Clients page.
+                    They will see all of this customer&apos;s orders{cust?.rep_name ? <>, and {cust.rep_name} will no longer see them</> : null}.</>
+                  )}
+                </p>
+              ) : (
+                <p className="text-xs text-slate-400 px-1">The chosen rep is notified about this order.</p>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 sm:p-8 space-y-5">
@@ -145,7 +188,7 @@ export default function NewOrderForm({
           {saving ? <Loader2 className="animate-spin" size={16} /> : <Check size={16} />}
           Submit order
         </button>
-        <button type="button" onClick={() => router.push('/rep')} className="px-6 py-3 rounded-xl font-bold text-sm text-slate-500 hover:bg-slate-50">
+        <button type="button" onClick={() => router.push(cancelPath)} className="px-6 py-3 rounded-xl font-bold text-sm text-slate-500 hover:bg-slate-50">
           Cancel
         </button>
       </div>

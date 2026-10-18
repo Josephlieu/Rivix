@@ -2,16 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentRep } from '@/lib/current-rep';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { adminUserIds, customerParties, notifyUsers } from '@/lib/notify';
-import { cleanSizeLabel, sizesToText, totalQty as sumSizes, type SizeQty } from '@/lib/sizes';
+import { clean, parseOrderBody } from '@/lib/order-input';
 import { localDateKey } from '@/lib/format';
 import { invalidateDashboard } from '@/lib/dashboard-data';
 
-const MAX_ITEMS = 50;
-
-const clean = (v: unknown, max: number) => String(v ?? '').trim().slice(0, max);
-
-// A sales rep creates an order for one of THEIR customers. Admin does not
-// create orders (decided 2026-09-25); the rep is worked out from the session.
+// A sales rep creates an order for one of THEIR customers; the rep is worked out from the session.
+// (Admins can create orders too, for any customer: see POST /api/admin/orders. Changed 2026-10-16 at the client's request.)
 export async function POST(req: NextRequest) {
   const rep = await getCurrentRep();
   if (!rep) return NextResponse.json({ error: 'Only sales reps can create orders.' }, { status: 403 });
@@ -19,47 +15,9 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: 'Bad request' }, { status: 400 });
 
-  const customerId = String(body.customer_id || '');
-  const rawItems = Array.isArray(body.items) ? body.items : [];
-  if (!customerId) return NextResponse.json({ error: 'Choose a customer.' }, { status: 400 });
-  if (rawItems.length === 0) return NextResponse.json({ error: 'Add at least one product.' }, { status: 400 });
-  if (rawItems.length > MAX_ITEMS) return NextResponse.json({ error: `An order can have at most ${MAX_ITEMS} products.` }, { status: 400 });
-
-  const items: { product_name: string; quantity: number; sizing: string; size_breakdown: SizeQty[]; branding: string | null; position: number }[] = [];
-  for (let i = 0; i < rawItems.length; i++) {
-    const it = rawItems[i];
-    const name = clean(it?.product_name, 200);
-    if (!name) return NextResponse.json({ error: `Product ${i + 1}: enter a product name.` }, { status: 400 });
-
-    const rawSizes = Array.isArray(it?.sizes) ? it.sizes : [];
-    if (rawSizes.length < 1 || rawSizes.length > 40) {
-      return NextResponse.json({ error: `Product ${i + 1}: enter a quantity for at least one size.` }, { status: 400 });
-    }
-    const sizes: SizeQty[] = [];
-    const seen = new Set<string>();
-    for (const rs of rawSizes) {
-      const size = cleanSizeLabel(rs?.size);
-      const qty = Number(rs?.qty);
-      if (!size) return NextResponse.json({ error: `Product ${i + 1}: a size is missing its name.` }, { status: 400 });
-      if (!Number.isInteger(qty) || qty < 1 || qty > 1_000_000) {
-        return NextResponse.json({ error: `Product ${i + 1}: size ${size} needs a whole number of at least 1.` }, { status: 400 });
-      }
-      if (seen.has(size.toLowerCase())) {
-        return NextResponse.json({ error: `Product ${i + 1}: size ${size} is listed twice.` }, { status: 400 });
-      }
-      seen.add(size.toLowerCase());
-      sizes.push({ size, qty });
-    }
-
-    items.push({
-      product_name: name,
-      quantity: sumSizes(sizes),
-      sizing: sizesToText(sizes).slice(0, 500),
-      size_breakdown: sizes,
-      branding: clean(it?.branding, 1000) || null,
-      position: i,
-    });
-  }
+  const parsed = parseOrderBody(body);
+  if ('error' in parsed) return parsed.error;
+  const { customerId, items } = parsed;
 
   const admin = createAdminClient();
 

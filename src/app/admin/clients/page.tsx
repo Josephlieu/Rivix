@@ -94,6 +94,7 @@ export default function ClientDirectory() {
     });
     setShowForm(false);
     setForm(emptyForm);
+    setError(data.emailWarning || null); // the client was created; this only says if the rep's email could not be sent
     load();
   };
 
@@ -105,10 +106,12 @@ export default function ClientDirectory() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ rep_id: repId || null }),
     });
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       setCustomers((list) => list.map((c) => (c.id === customer.id ? { ...c, rep_id: previous } : c)));
-      setError((await res.json()).error || 'Could not change the rep.');
+      setError(data.error || 'Could not change the rep.');
     } else {
+      setError(data.emailWarning || null); // the change worked; this only says if an email could not be sent
       load(); // refresh rep customer counts
     }
   };
@@ -180,6 +183,7 @@ export default function ClientDirectory() {
     setEditSaving(false);
     if (!res.ok) { setEditError(data.error || 'Could not save the changes.'); return; }
     setEditing(null);
+    setError(data.emailWarning || null);
     load();
   };
 
@@ -245,7 +249,7 @@ export default function ClientDirectory() {
             <div className="space-y-1.5">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Sales rep</label>
               <select className={inputClass} value={form.rep_id} onChange={(e) => setForm({ ...form, rep_id: e.target.value })}>
-                <option value="">Unassigned</option>
+                <option value="">Admin (handled directly)</option>
                 {activeReps.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
               </select>
             </div>
@@ -316,7 +320,7 @@ export default function ClientDirectory() {
                       onChange={(e) => changeRep(c, e.target.value)}
                       className="px-3 py-2 bg-slate-50 rounded-xl text-sm font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-rivix/20"
                     >
-                      <option value="">Unassigned</option>
+                      <option value="">Admin (handled directly)</option>
                       {reps
                         .filter((r) => r.active || r.id === c.rep_id)
                         .map((r) => <option key={r.id} value={r.id}>{r.name}{r.active ? '' : ' (disabled)'}</option>)}
@@ -404,7 +408,7 @@ export default function ClientDirectory() {
               <div className="space-y-1.5">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Sales rep</label>
                 <select className={inputClass} value={editForm.rep_id} onChange={(e) => setEditForm({ ...editForm, rep_id: e.target.value })}>
-                  <option value="">Unassigned</option>
+                  <option value="">Admin (handled directly)</option>
                   {reps.filter((r) => r.active || r.id === editing.rep_id).map((r) => (
                     <option key={r.id} value={r.id}>{r.name}{r.active ? '' : ' (disabled)'}</option>
                   ))}
