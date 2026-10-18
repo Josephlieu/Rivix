@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { Users, FileText, Inbox, FolderOpen, TrendingUp } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { Users, FileText, Inbox, FolderOpen, TrendingUp, UserCheck } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ORDER_STAGES } from '@/lib/order-stages';
 import { formatDateTime, localDateKey, activeTimeZone } from '@/lib/format';
 
@@ -13,7 +13,8 @@ type Dashboard = {
   clients: number;
   documents: number;
   byStage: Record<string, number>;
-  recent: { id: string; status: string; created_at: string; batch_number: string; customer: string }[];
+  recent: { id: string; status: string | null; note: string | null; internal: boolean; created_at: string; batch_number: string; customer: string }[];
+  hiring: { screening: number; interviewing: number; offer: number; archived: number; tier1: number; tier1Waiting: number } | null;
 };
 
 type Bucket = { start: string; count: number };
@@ -67,7 +68,19 @@ const fmtBucket = (start: string, period: Period, long = false) => {
 function OrdersChart({ series, period }: { series: Record<Period, Bucket[]>; period: Period }) {
   const [hover, setHover] = useState<number | null>(null);
   const items = series[period];
-  const W = 560, H = 220, L = 32, R = 8, T = 16, B = 28;
+  // The chart is drawn at the real width of its card with a fixed, compact height, so it stays easy to read on wide screens.
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const [W, setW] = useState(560);
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const update = () => setW(Math.max(280, Math.round(el.clientWidth)));
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const H = 210, L = 32, R = 8, T = 12, B = 26;
   const max = Math.max(4, ...items.map((w) => w.count));
   const top = Math.ceil(max / 4) * 4;
   const ticks = [0, top / 4, top / 2, (top * 3) / 4, top];
@@ -75,13 +88,14 @@ function OrdersChart({ series, period }: { series: Record<Period, Bucket[]>; per
   const barW = Math.min(28, slot * 0.6);
   const y = (n: number) => T + (H - T - B) * (1 - n / top);
   const total = items.reduce((n, w) => n + w.count, 0);
-  const every = items.length > 10 ? 2 : 1; // thin out x labels when there are many bars
+  // One label per bar when they fit (about 44px each); otherwise every 2nd, 3rd... so they never overlap.
+  const every = Math.max(1, Math.ceil(44 / slot));
   const unit = { day: 'on', week: 'week of', month: 'in', year: 'in' }[period];
   const cx = hover === null ? 0 : (L + slot * hover + slot / 2) / W;
 
   return (
-    <div className="relative">
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" role="img" aria-label={`Orders created per ${period}, ${total} in total`}>
+    <div className="relative" ref={wrapRef}>
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} className="block" role="img" aria-label={`Orders created per ${period}, ${total} in total`}>
         {ticks.map((t) => (
           <g key={t}>
             <line x1={L} x2={W - R} y1={y(t)} y2={y(t)} className="stroke-slate-100" strokeWidth={1} />
@@ -95,7 +109,10 @@ function OrdersChart({ series, period }: { series: Record<Period, Bucket[]>; per
             <g key={w.start} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}>
               <rect x={L + slot * i} y={T} width={slot} height={H - T - B} fill="transparent" />
               {w.count > 0 && (
-                <rect x={x} y={y(w.count)} width={barW} height={h} rx={4} className={hover === i ? 'fill-rivix' : 'fill-rivix/80'} />
+                <>
+                  <rect x={x} y={y(w.count)} width={barW} height={h} rx={4} className={hover === i ? 'fill-rivix' : 'fill-rivix/80'} />
+                  <text x={L + slot * i + slot / 2} y={y(w.count) - 4} textAnchor="middle" className="fill-slate-600" fontSize={10} fontWeight={700}>{w.count}</text>
+                </>
               )}
               {i % every === (items.length - 1) % every && (
                 <text x={L + slot * i + slot / 2} y={H - 8} textAnchor="middle" className="fill-slate-400" fontSize={10}>{fmtBucket(w.start, period)}</text>
@@ -104,6 +121,11 @@ function OrdersChart({ series, period }: { series: Record<Period, Bucket[]>; per
           );
         })}
       </svg>
+      {total === 0 && (
+        <div className="pointer-events-none absolute inset-x-0 top-1/3 text-center">
+          <span className="inline-block bg-white/90 text-slate-400 text-xs font-semibold px-4 py-2 rounded-full border border-slate-100">No orders in this period</span>
+        </div>
+      )}
       {hover !== null && (
         <div
           className="pointer-events-none absolute -translate-y-full bg-slate-900 text-white text-xs rounded-lg px-3 py-1.5 shadow-lg whitespace-nowrap"
@@ -150,6 +172,19 @@ export default function AdminDashboard() {
     { label: 'Active Orders', value: show(activeOrders), icon: FileText, color: 'text-amber-600', bg: 'bg-amber-50' },
     { label: 'New Orders', value: show(by['Order Received']), icon: Inbox, color: 'text-sky-600', bg: 'bg-sky-50' },
     { label: 'Documents Uploaded', value: show(data?.documents), icon: FolderOpen, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+    // Hiring: one small card. It turns red and says so when strong (Tier 1) candidates are still waiting in Screen.
+    ...(data?.hiring
+      ? [{
+          label: 'Sales Hiring',
+          value: `${data.hiring.screening + data.hiring.interviewing + data.hiring.offer} active`,
+          sub: data.hiring.tier1Waiting > 0
+            ? `${data.hiring.tier1Waiting} Tier 1 waiting in Screen`
+            : data.hiring.offer > 0 ? `${data.hiring.offer} at Offer` : 'Nobody waiting',
+          alert: data.hiring.tier1Waiting > 0,
+          href: '/admin/hiring',
+          icon: UserCheck, color: 'text-indigo-600', bg: 'bg-indigo-50',
+        }]
+      : []),
     { label: 'Revenue (MTD)', value: 'Coming soon', sub: 'Needs QuickBooks', icon: TrendingUp, color: 'text-purple-600', bg: 'bg-purple-50' },
   ];
 
@@ -162,25 +197,35 @@ export default function AdminDashboard() {
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 lg:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 min-[1700px]:grid-cols-6 gap-4 lg:gap-5">
         {stats.map((stat) => {
           const Icon = stat.icon;
-          return (
-            <div key={stat.label} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4 group hover:border-rivix/20 transition-all">
+          const href = 'href' in stat ? (stat.href as string) : null;
+          const alert = 'alert' in stat && stat.alert === true;
+          const box = `bg-white p-5 rounded-2xl shadow-sm border flex items-center gap-4 min-w-0 group transition-all ${alert ? 'border-rivix/40' : 'border-slate-100 hover:border-rivix/20'}`;
+          const inner = (
+            <>
               <div className={`${stat.bg} ${stat.color} p-3 rounded-xl transition-colors`}>
                 <Icon size={22} />
               </div>
-              <div>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{stat.label}</p>
-                <p className="text-lg font-black text-slate-900">{stat.value}</p>
-                {stat.sub && <p className="text-[10px] text-slate-400">{stat.sub}</p>}
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">{stat.label}</p>
+                <p className="text-lg font-black text-slate-900 whitespace-nowrap">{stat.value}</p>
+                {stat.sub && <p className={`text-[10px] truncate ${alert ? 'font-bold text-rivix' : 'text-slate-400'}`} title={stat.sub}>{stat.sub}</p>}
               </div>
-            </div>
+            </>
+          );
+          return href ? (
+            <Link key={stat.label} href={href} className={`${box} hover:shadow-md`} title="Open the Sales Hiring page">{inner}</Link>
+          ) : (
+            <div key={stat.label} className={box}>{inner}</div>
           );
         })}
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+      {/* Row 1: chart on the left, orders by stage on the right. Recent activity goes below. */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 lg:gap-8">
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 xl:col-span-2 min-w-0">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <div>
             <h3 className="font-bold text-slate-900">Orders created</h3>
@@ -203,8 +248,7 @@ export default function AdminDashboard() {
         {data ? <OrdersChart series={series} period={period} /> : <p className="text-sm text-slate-400 italic">Loading…</p>}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 min-w-0">
           <h3 className="font-bold text-slate-900 mb-6">Orders by stage</h3>
           <div className="space-y-4">
             {ORDER_STAGES.map((stage) => {
@@ -223,8 +267,9 @@ export default function AdminDashboard() {
             })}
           </div>
         </div>
+      </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 overflow-hidden">
           <div className="flex items-center justify-between mb-6">
             <h3 className="font-bold text-slate-900">Recent Activity</h3>
             <Link href="/admin/orders" className="text-xs font-bold text-rivix hover:underline">View All</Link>
@@ -236,8 +281,13 @@ export default function AdminDashboard() {
                   <div className="w-2 h-2 rounded-full bg-rivix mt-1.5 shadow-[0_0_8px_rgba(218,33,40,0.5)]" />
                   <div>
                     <p className="text-sm font-semibold text-slate-900">
-                      {e.batch_number} ({e.customer}) moved to {e.status}
+                      {e.status ? (
+                        <>{e.batch_number} ({e.customer}) moved to {e.status}</>
+                      ) : (
+                        <>{e.batch_number} ({e.customer}) <span className="font-medium text-slate-500">note added</span>{e.internal && <span className="ml-2 align-middle text-[9px] font-black uppercase tracking-wider text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">Internal</span>}</>
+                      )}
                     </p>
+                    {!e.status && e.note && <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{e.note}</p>}
                     <p className="text-xs text-slate-400">{formatDateTime(e.created_at)}</p>
                   </div>
                 </div>
@@ -247,7 +297,6 @@ export default function AdminDashboard() {
             )}
           </div>
         </div>
-      </div>
     </div>
   );
 }

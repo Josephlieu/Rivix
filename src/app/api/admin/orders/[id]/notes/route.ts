@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminIdentity } from '@/lib/require-admin';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { customerParties, notifyUsers } from '@/lib/notify';
+import { invalidateDashboard } from '@/lib/dashboard-data';
 
 // Add a note to the order's timeline. `customer_visible: false` keeps it
 // internal — the customer's read rule only returns visible events.
@@ -25,6 +26,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     created_by: who.email,
   });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  invalidateDashboard(); // a new note shows in Recent Activity
   if (body?.customer_visible !== false) {
     const parties = await customerParties(admin, order.customer_id);
     await notifyUsers(admin, [parties.customerUserId], {
