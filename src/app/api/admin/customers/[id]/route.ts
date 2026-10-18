@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/require-admin';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { BAN_FOREVER, isBanned } from '@/lib/customer-status';
-import { notifyUsers } from '@/lib/notify';
+import { announceRepChange } from '@/lib/rep-assignment';
 import { invalidateDashboard } from '@/lib/dashboard-data';
 
 // One customer with their orders, for the Client Detail page.
@@ -95,35 +95,15 @@ export async function PATCH(
   }
 
   // Tell the people involved when the assigned rep changes.
+  let emailWarning: string | undefined;
   if ('rep_id' in update && before && (update.rep_id ?? null) !== (before.rep_id ?? null)) {
-    const ids = [update.rep_id as string | null, before.rep_id as string | null].filter(Boolean) as string[];
-    const { data: reps } = ids.length ? await admin.from('reps').select('id, name, user_id').in('id', ids) : { data: [] as any[] };
-    const byId = new Map((reps || []).map((r: any) => [r.id, r]));
-    const company = data.company_name || 'A customer';
-    const newRep = update.rep_id ? byId.get(update.rep_id as string) : null;
-    const oldRep = before.rep_id ? byId.get(before.rep_id) : null;
-    if (newRep) {
-      await notifyUsers(admin, [newRep.user_id], {
-        kind: 'customer_assigned',
-        title: `New customer assigned: ${company}`,
-        body: 'You can now see their orders and create new ones.',
-        link: `/rep/customers/${id}`,
-      });
-    }
-    if (oldRep) {
-      await notifyUsers(admin, [oldRep.user_id], {
-        kind: 'customer_unassigned',
-        title: `${company} is no longer assigned to you`,
-        body: newRep ? `They were moved to ${newRep.name}.` : 'They have no sales rep at the moment.',
-        link: '/rep/customers',
-      });
-    }
-    await notifyUsers(admin, [data.user_id], {
-      kind: 'rep_changed',
-      title: newRep ? `Your sales rep is now ${newRep.name}` : 'Your sales rep has changed',
-      body: newRep ? 'Contact details are in the sidebar.' : null,
-      link: '/portal',
-    });
+    ({ emailWarning } = await announceRepChange(admin, {
+      customerId: id,
+      companyName: data.company_name,
+      customerUserId: data.user_id,
+      beforeRepId: before.rep_id ?? null,
+      afterRepId: (update.rep_id as string | null) ?? null,
+    }));
   }
 
   // Disabling bans the login so they genuinely can't sign in; enabling lifts it.
@@ -134,7 +114,7 @@ export async function PATCH(
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ customer: { ...data, user_id: undefined } });
+  return NextResponse.json({ customer: { ...data, user_id: undefined }, emailWarning });
 }
 
 // Delete a customer — only if they have no orders. Otherwise disable instead.
