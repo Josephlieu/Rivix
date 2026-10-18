@@ -7,7 +7,16 @@ const RED = '#c61213';
 
 export const esc = (v: unknown) =>
   String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-const nl = (v: string) => esc(v).replace(/\r?\n/g, '<br>');
+// Web addresses typed in the text become real links. Long ones are shown shortened (the full address is still the link).
+const linkify = (escaped: string) =>
+  escaped.replace(/https?:\/\/[^\s<]+/g, (m) => {
+    const trail = (m.match(/[.,;:!?)]+$/) || [''])[0]; // punctuation at the end belongs to the sentence, not the link
+    const url = trail ? m.slice(0, -trail.length) : m;
+    const shown = url.replace(/^https?:\/\//, '');
+    const label = shown.length > 48 ? `${shown.slice(0, 45)}...` : shown;
+    return `<a href="${url}" style="color:${RED};text-decoration:underline;word-break:break-all;">${label}</a>${trail}`;
+  });
+const nl = (v: string) => linkify(esc(v)).replace(/\r?\n/g, '<br>');
 
 export type EmailLayout = {
   preheader?: string;                         // the grey preview line next to the subject in the inbox

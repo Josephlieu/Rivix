@@ -37,6 +37,15 @@ ok('losing a customer to the admin: the previous rep is told admin handles them'
 m=withSite({company:'Sayem Co',customerEmail:'s@example.com',newRep:{name:'N',email:'n@example.com'}}); ok('no previous rep means no previous-rep email',m.previous===null);
 m=repChangeEmails({company:'X',customerEmail:'x@example.com',newRep:null}); ok('handing to the admin: HTML says RIVIX looks after them, with no contact box',/directly/.test(m.customer.html)&&!/Your new sales rep/.test(m.customer.html));
 
+// --- web addresses in a message become clickable links
+const { renderEmailHtml } = await import('../../src/lib/email-template.ts');
+const longUrl='https://cal.com/rivix/15min?name=Greg+Lavoie&email=greg%40example.com&notes=RIVIX+candidate%3A+Greg';
+let h=renderEmailHtml({title:'Hi',paragraphs:[`Pick a time here: ${longUrl}. Thanks!`]});
+ok('a web address in a message is a real link to the full address',h.includes('href="https://cal.com/rivix/15min?name=Greg+Lavoie&amp;email=greg%40example.com&amp;notes=RIVIX+candidate%3A+Greg"'));
+ok('the long address is shown shortened, and the sentence full stop stays outside the link',/\.\.\.<\/a>\. Thanks!/.test(h));
+h=renderEmailHtml({title:'Hi',paragraphs:['Visit https://example.com/a?b=1&c=2) now']}); ok('a closing bracket after an address is not part of the link',/href="https:\/\/example\.com\/a\?b=1&amp;c=2"/.test(h)&&/<\/a>\) now/.test(h));
+h=renderEmailHtml({title:'x',paragraphs:['<a href="javascript:alert(1)">x</a> https://ok.example.com']}); ok('typed HTML is still escaped when links are made',!/<a href="javascript/.test(h)&&/&lt;a href=/.test(h)&&/href="https:\/\/ok\.example\.com"/.test(h));
+
 // --- the change still works when email cannot be sent
 const env = Object.fromEntries(fs.readFileSync('.env.local','utf8').split('\n').filter(l=>l.includes('=')&&!l.startsWith('#')).map(l=>[l.slice(0,l.indexOf('=')),l.slice(l.indexOf('=')+1).trim().replace(/^["']|["']$/g,'')]));
 const U=env.NEXT_PUBLIC_SUPABASE_URL,A=env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
