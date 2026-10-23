@@ -56,6 +56,7 @@ const repLinks = [
   { href: '/rep/customers', label: 'My Customers', icon: Users },
   { href: '/rep/orders', label: 'Orders', icon: FileText },
   { href: '/rep/orders/new', label: 'New Order', icon: PlusCircle },
+  { href: '/rep/replication', label: 'Replication', icon: FileUp }, // internal tool between the rep and the admin; customers never see it
   { href: '/rep/account', label: 'Account', icon: UserCircle },
 ];
 

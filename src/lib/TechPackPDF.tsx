@@ -1,536 +1,356 @@
 'use client';
 
-import React from 'react';
-import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer';
-import { formatDate } from '@/lib/format';
+// The factory tech file for one replication request, laid out like the Ontario Parks tech packages:
+//  1 Cover   2 Colour & fabric   3 Product details   4 Call-outs   5 Construction   6 Bill of materials
+//  7 Artwork   8 Measurements   9 Testing   10 Labels   11 Packaging
+// Every section is always printed, with "Not specified" when nobody has entered it, so the structure never
+// changes between garments. A file that has not been approved is stamped DRAFT on every page.
 
-const styles = StyleSheet.create({
-  page: {
-    padding: 40,
-    fontFamily: 'Helvetica',
-    backgroundColor: '#FFFFFF',
-    fontSize: 9,
-    color: '#334155',
-  },
-  headerBar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 6,
-    backgroundColor: '#c61213',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-    marginTop: 8,
-  },
-  brandName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#0f172a',
-  },
-  portalText: {
-    fontSize: 6,
-    color: '#94a3b8',
-    marginTop: 2,
-    textTransform: 'uppercase',
-    letterSpacing: 1.2,
-  },
-  titleBlock: {
-    textAlign: 'center',
-    marginBottom: 16,
-    padding: 10,
-    backgroundColor: '#f8fafc',
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  title: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#c61213',
-    textTransform: 'uppercase',
-    letterSpacing: 1.5,
-  },
-  sectionTitle: {
-    fontSize: 8,
-    fontWeight: 'bold',
-    color: '#64748b',
-    marginBottom: 8,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-    paddingBottom: 3,
-  },
-  row: {
-    flexDirection: 'row',
-    marginBottom: 6,
-  },
-  label: {
-    fontSize: 6,
-    color: '#64748b',
-    textTransform: 'uppercase',
-    fontWeight: 'bold',
-    marginBottom: 2,
-  },
-  value: {
-    fontSize: 9,
-    color: '#0f172a',
-    fontWeight: 'bold',
-  },
-  infoCol: {
-    width: '25%',
-    paddingRight: 8,
-    marginBottom: 10,
-  },
-  card: {
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 4,
-    padding: 8,
-    marginBottom: 8,
-  },
-  cardTitle: {
-    fontSize: 7,
-    fontWeight: 'bold',
-    color: '#c61213',
-    marginBottom: 6,
-    textTransform: 'uppercase',
-  },
-  cardRow: {
-    flexDirection: 'row',
-    marginBottom: 3,
-  },
-  cardLabel: {
-    width: '35%',
-    fontSize: 7,
-    color: '#64748b',
-  },
-  cardValue: {
-    width: '65%',
-    fontSize: 7,
-    color: '#334155',
-  },
-  refImage: {
-    width: 140,
-    height: 140,
-    objectFit: 'cover',
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  flatSketchImage: {
-    width: '100%',
-    height: 420,
-    objectFit: 'contain',
-    marginTop: 8,
-    marginBottom: 8,
-  },
-  tableHeader: {
-    flexDirection: 'row',
-    backgroundColor: '#f1f5f9',
-    borderBottomWidth: 1,
-    borderBottomColor: '#cbd5e1',
-    paddingVertical: 5,
-    paddingHorizontal: 4,
-  },
-  tableRow: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
-    paddingVertical: 4,
-    paddingHorizontal: 4,
-  },
-  th: {
-    fontSize: 6,
-    fontWeight: 'bold',
-    color: '#475569',
-    textTransform: 'uppercase',
-  },
-  td: {
-    fontSize: 7,
-    color: '#334155',
-  },
-  footer: {
-    position: 'absolute',
-    bottom: 30,
-    left: 40,
-    right: 40,
-    borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
-    paddingTop: 8,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  footerText: {
-    fontSize: 6,
-    color: '#94a3b8',
-  },
-  bullet: {
-    fontSize: 7,
-    color: '#475569',
-    marginBottom: 2,
-    paddingLeft: 4,
-  },
+import React from 'react';
+import { Document, Page, Text, View, StyleSheet, Image, Font } from '@react-pdf/renderer';
+import { formatDate } from '@/lib/format';
+import type { ReplicationRequest } from '@/lib/replicationStorage';
+import type { PersistedGarmentAIAnalysis } from '@/lib/garmentAiAnalysis';
+
+// Never split words with hyphens at the end of a line (a factory reads "zip-per" as two things).
+Font.registerHyphenationCallback(word => [word]);
+
+const RED = '#c61213';
+const INK = '#0f172a';
+const MUTED = '#64748b';
+const LINE = '#e2e8f0';
+
+const s = StyleSheet.create({
+  page: { paddingTop: 92, paddingBottom: 64, paddingHorizontal: 40, fontFamily: 'Helvetica', fontSize: 9, color: '#334155', backgroundColor: '#FFFFFF' },
+  // Brand band at the top of every page: the RIVIX logo on brand red, with what the document is.
+  band: { position: 'absolute', top: 0, left: 0, right: 0, height: 62, backgroundColor: RED, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 40 },
+  bandLogo: { width: 96, height: 36, objectFit: 'contain' },
+  bandWord: { fontSize: 20, fontFamily: 'Helvetica-Bold', color: '#FFFFFF', letterSpacing: 1 },
+  bandRight: { textAlign: 'right' },
+  bandKicker: { fontSize: 7, fontFamily: 'Helvetica-Bold', color: '#fecaca', letterSpacing: 1.6, textTransform: 'uppercase' },
+  bandTitle: { fontSize: 10, fontFamily: 'Helvetica-Bold', color: '#FFFFFF', marginTop: 2 },
+  bandSub: { fontSize: 7.5, color: '#fee2e2', marginTop: 1 },
+  stripe: { position: 'absolute', top: 62, left: 0, right: 0, height: 3, backgroundColor: INK },
+  secNo: { fontSize: 7.5, fontFamily: 'Helvetica-Bold', color: RED, letterSpacing: 1.6, textTransform: 'uppercase', marginBottom: 3 },
+  h1: { fontSize: 17, fontFamily: 'Helvetica-Bold', color: INK, marginBottom: 4 },
+  h1Bar: { width: 34, height: 3, backgroundColor: RED, marginBottom: 12 },
+  h2: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: INK, textTransform: 'uppercase', letterSpacing: 1, marginTop: 14, marginBottom: 6, paddingLeft: 7, borderLeftWidth: 3, borderLeftColor: RED },
+  label: { fontSize: 6.5, fontFamily: 'Helvetica-Bold', color: MUTED, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 2 },
+  value: { fontSize: 9.5, fontFamily: 'Helvetica-Bold', color: INK },
+  grid: { flexDirection: 'row', flexWrap: 'wrap' },
+  cell: { width: '33.33%', paddingRight: 8, marginBottom: 10 },
+  cell2: { width: '50%', paddingRight: 8, marginBottom: 10 },
+  tHead: { flexDirection: 'row', backgroundColor: INK, paddingVertical: 5, paddingHorizontal: 5 },
+  tRow: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#eef2f7', paddingVertical: 5, paddingHorizontal: 5 },
+  tRowAlt: { backgroundColor: '#f8fafc' },
+  th: { fontSize: 6.5, fontFamily: 'Helvetica-Bold', color: '#FFFFFF', textTransform: 'uppercase', letterSpacing: 0.5 },
+  td: { fontSize: 8.5, color: '#334155' },
+  none: { fontSize: 8.5, color: '#94a3b8', fontStyle: 'italic' },
+  note: { fontSize: 7.5, color: MUTED, marginTop: 8 },
+  warn: { fontSize: 8, color: '#92400e', backgroundColor: '#fffbeb', borderWidth: 1, borderColor: '#fde68a', borderLeftWidth: 3, borderLeftColor: '#f59e0b', padding: 7, marginTop: 10 },
+  photo: { width: '100%', height: 300, objectFit: 'contain', borderWidth: 1, borderColor: LINE, backgroundColor: '#FFFFFF' },
+  thumb: { width: '31.5%', height: 120, objectFit: 'contain', borderWidth: 1, borderColor: LINE, marginRight: '1.5%', marginBottom: 6 },
+  // Cover page
+  heroBlock: { backgroundColor: INK, borderLeftWidth: 5, borderLeftColor: RED, paddingVertical: 16, paddingHorizontal: 18, marginBottom: 14 },
+  heroKicker: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#fca5a5', letterSpacing: 2, textTransform: 'uppercase' },
+  heroTitle: { fontSize: 24, fontFamily: 'Helvetica-Bold', color: '#FFFFFF', marginTop: 4 },
+  heroMeta: { fontSize: 9, color: '#cbd5e1', marginTop: 5 },
+  chipRow: { flexDirection: 'row', marginTop: 10 },
+  chip: { fontSize: 7.5, fontFamily: 'Helvetica-Bold', color: '#FFFFFF', backgroundColor: RED, paddingVertical: 3, paddingHorizontal: 8, marginRight: 6, textTransform: 'uppercase', letterSpacing: 0.8 },
+  chipGrey: { fontSize: 7.5, fontFamily: 'Helvetica-Bold', color: '#e2e8f0', backgroundColor: '#334155', paddingVertical: 3, paddingHorizontal: 8, marginRight: 6, textTransform: 'uppercase', letterSpacing: 0.8 },
+  detailCard: { borderWidth: 1, borderColor: LINE, borderTopWidth: 3, borderTopColor: RED, padding: 12, marginBottom: 12 },
+  footer: { position: 'absolute', bottom: 22, left: 40, right: 40, borderTopWidth: 1, borderTopColor: LINE, paddingTop: 6 },
+  footRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  footText: { fontSize: 6.5, color: '#94a3b8' },
+  footConf: { fontSize: 6.5, fontFamily: 'Helvetica-Bold', color: RED, letterSpacing: 0.4, marginBottom: 3 },
+  stamp: { position: 'absolute', top: 260, left: 60, right: 60, textAlign: 'center', fontSize: 84, fontFamily: 'Helvetica-Bold', color: '#fee2e2', transform: 'rotate(-30deg)' },
 });
 
-export interface TechPackData {
+type A = PersistedGarmentAIAnalysis;
+export interface TechFileData {
+  requestCode: string;
   clientName: string;
   productName: string;
-  garmentClass: string;
-  season: string;
-  confidence: number;
-  identificationMode?: string;
-  retailBrand?: string | null;
-  retailModel?: string | null;
-  referenceImage?: string;
-  /** PNG data URL of technical flat sketch (front/back) */
-  flatSketchImage?: string;
-  fabricAnalysis: {
-    material: string;
-    weight: string;
-    weaveType: string;
-    frRating: string;
-    finish: string;
-    shrinkage: string;
-  };
-  measurements: Array<{
-    pom: string;
-    description: string;
-    xs: string;
-    s: string;
-    m: string;
-    l: string;
-    xl: string;
-    tolerance: string;
-  }>;
-  bom: {
-    hardware: string[];
-    thread: string[];
-    labels: string[];
-    packaging: {
-      foldDescription: string;
-      polybagSize: string;
-      cartonSize: string;
-      hangtagSpec: string;
-    };
-  };
-  construction: Array<{
-    location: string;
-    seamType: string;
-    stitchType: string;
-    spiTop: number;
-    spiBottom: number;
-    seamAllowance: string;
-    notes: string;
-  }>;
-  stitchReference: Array<{
-    code: string;
-    name: string;
-    machineType: string;
-    defaultSpi: number;
-    usage: string;
-  }>;
-  labelPlacements: Array<{
-    type: string;
-    location: string;
-    attachment: string;
-    dimensions: string;
-    material: string;
-  }>;
-  colorway: {
-    bodyColor: string;
-    contrastColors: string[];
-    threadColor: string;
-    hardwareFinish: string;
-    reflectiveTape: string;
-  };
-  washCare: {
-    instructions: string[];
-    specialNotes: string;
+  garmentType: string;
+  createdOn: string;
+  specs: ReplicationRequest['specs'];
+  analysis: A;
+  approved: boolean;
+  approvedBy?: string;
+  approvedAt?: string;
+  revision: number;
+  /** Photo data URLs, main photo first. */
+  photos: string[];
+  /** The RIVIX logo (data URL). */
+  logo?: string;
+  /** The sales rep who owns the request (internal only). */
+  repName?: string | null;
+}
+
+export function buildTechFileData(rep: ReplicationRequest, photos: string[], logo?: string): TechFileData {
+  const analysis = (rep.aiAnalysis ?? {}) as A;
+  const review = analysis.review;
+  return {
+    requestCode: rep.requestCode || rep.id,
+    clientName: rep.clientName,
+    productName: rep.productName,
+    garmentType: rep.garmentType,
+    createdOn: rep.submissionDate,
+    specs: rep.specs,
+    analysis: {
+      ...analysis,
+      components: analysis.components || [],
+      measurements: analysis.measurements || [],
+      construction: analysis.construction || [],
+      stitchReference: analysis.stitchReference || [],
+      labelPlacements: analysis.labelPlacements || [],
+    },
+    approved: review?.status === 'approved',
+    approvedBy: review?.approvedBy,
+    approvedAt: review?.approvedAt,
+    revision: review?.revision || 0,
+    photos,
+    logo,
+    repName: rep.repName || null,
   };
 }
 
-const PageFooter = () => (
-  <View style={styles.footer}>
-    <Text style={styles.footerText}>RIVIX Manufacturing & Industrial Supply — portal.rivix.ca — Confidential</Text>
-    <Text style={styles.footerText}>{formatDate(new Date())}</Text>
-  </View>
+const has = (v?: string | null) => !!v && v.trim() !== '';
+const Val = ({ v }: { v?: string | null }) => (has(v) ? <Text style={s.value}>{v}</Text> : <Text style={s.none}>Not specified</Text>);
+const Field = ({ name, v, wide }: { name: string; v?: string | null; wide?: boolean }) => (
+  <View style={wide ? s.cell2 : s.cell}><Text style={s.label}>{name}</Text><Val v={v} /></View>
 );
 
-const Header = ({ pageTitle }: { pageTitle: string }) => (
-  <>
-    <View style={styles.headerBar} />
-    <View style={styles.header}>
-      <View>
-        <Text style={styles.brandName}>RIVIX</Text>
-        <Text style={styles.portalText}>Compliance Portal — Tech Pack</Text>
+function Table({ cols, rows, empty }: { cols: Array<{ h: string; w: string; center?: boolean }>; rows: string[][]; empty: string }) {
+  if (rows.length === 0) return <Text style={s.none}>{empty}</Text>;
+  return (
+    <View>
+      <View style={s.tHead} fixed>
+        {cols.map(c => <Text key={c.h} style={[s.th, { width: c.w, textAlign: c.center ? 'center' : 'left' }]}>{c.h}</Text>)}
       </View>
-      <View style={{ textAlign: 'right' }}>
-        <Text style={styles.label}>Document</Text>
-        <Text style={styles.value}>{pageTitle}</Text>
-      </View>
+      {rows.map((r, i) => (
+        <View key={i} style={i % 2 ? [s.tRow, s.tRowAlt] : s.tRow} wrap={false}>
+          {r.map((cell, j) => <Text key={j} style={[s.td, { width: cols[j].w, textAlign: cols[j].center ? 'center' : 'left' }]}>{has(cell) ? cell : '–'}</Text>)}
+        </View>
+      ))}
     </View>
-  </>
-);
+  );
+}
 
-export const TechPackPDF = ({ data }: { data: TechPackData }) => (
-  <Document>
-    {/* Page 1 — Overview */}
-    <Page size="A4" style={styles.page}>
-      <Header pageTitle="Page 1 — Style Overview" />
-      <View style={styles.titleBlock}>
-        <Text style={styles.title}>Factory Tech Pack — {data.garmentClass}</Text>
-      </View>
-
-      <View style={styles.row}>
-        <View style={styles.infoCol}>
-          <Text style={styles.label}>Client</Text>
-          <Text style={styles.value}>{data.clientName}</Text>
-        </View>
-        <View style={styles.infoCol}>
-          <Text style={styles.label}>Style / Product</Text>
-          <Text style={styles.value}>{data.productName}</Text>
-        </View>
-        <View style={styles.infoCol}>
-          <Text style={styles.label}>Classification</Text>
-          <Text style={styles.value}>{data.garmentClass}</Text>
-        </View>
-        <View style={styles.infoCol}>
-          <Text style={styles.label}>Season</Text>
-          <Text style={styles.value}>{data.season || 'Year-Round'}</Text>
+function Sheet({ d, no, title, children, landscape, cover }: { d: TechFileData; no?: number; title?: string; children: React.ReactNode; landscape?: boolean; cover?: boolean }) {
+  return (
+    <Page size="A4" orientation={landscape ? 'landscape' : 'portrait'} style={s.page}>
+      {!d.approved && <Text style={s.stamp} fixed>DRAFT</Text>}
+      {/* Brand band on every page */}
+      <View style={s.band} fixed>
+        {d.logo ? <Image style={s.bandLogo} src={d.logo} /> : <Text style={s.bandWord}>RIVIX</Text>}
+        <View style={s.bandRight}>
+          <Text style={s.bandKicker}>Factory tech file</Text>
+          <Text style={s.bandTitle}>{d.productName}</Text>
+          <Text style={s.bandSub}>{d.requestCode}  ·  {d.approved ? `Rev ${d.revision} approved` : 'DRAFT: not approved'}</Text>
         </View>
       </View>
+      <View style={s.stripe} fixed />
+      {!cover && no != null && (
+        <>
+          <Text style={s.secNo}>Section {no}</Text>
+          <Text style={s.h1}>{title}</Text>
+          <View style={s.h1Bar} />
+        </>
+      )}
+      {children}
+      <View style={s.footer} fixed>
+        <Text style={s.footConf}>CONFIDENTIAL: RIVIX INTERNAL. Not for customers or third parties without RIVIX approval.</Text>
+        <View style={s.footRow}>
+          <Text style={s.footText}>RIVIX Apparel Manufacturing  ·  rivix.ca  ·  info@rivix.ca</Text>
+          <Text style={s.footText} render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} />
+        </View>
+      </View>
+    </Page>
+  );
+}
 
-      <View style={styles.row}>
-        <View style={styles.infoCol}>
-          <Text style={styles.label}>AI Confidence</Text>
-          <Text style={styles.value}>{data.confidence}%</Text>
-        </View>
-        <View style={styles.infoCol}>
-          <Text style={styles.label}>Identification</Text>
-          <Text style={styles.value}>{data.identificationMode === 'retail' ? 'Retail Product' : 'Visual Analysis'}</Text>
-        </View>
-        {data.retailBrand && (
-          <View style={styles.infoCol}>
-            <Text style={styles.label}>Brand / Model</Text>
-            <Text style={styles.value}>{data.retailBrand}{data.retailModel ? ` — ${data.retailModel}` : ''}</Text>
+const CARE_HEAD = [{ h: 'English', w: '50%' }, { h: 'Français', w: '50%' }];
+
+export const TechPackPDF = ({ d }: { d: TechFileData }) => {
+  const a = d.analysis;
+  const fab = a.fabricAnalysis;
+  const col = a.colorway;
+  const bom = a.bom;
+  const care = a.washCare;
+  const sp = d.specs;
+  const careEn = care?.instructions || [];
+  const careFr = care?.instructionsFr || [];
+  const origin = (a.origin || '').trim();
+  const isCanada = /^canada$/i.test(origin);
+  const tests = a.testing || [];
+  const extra = d.photos.slice(1);
+
+  return (
+    <Document title={`${d.requestCode} ${d.productName} tech file`} author="RIVIX">
+      {/* 1 — Cover */}
+      <Sheet d={d} cover>
+        <View style={s.heroBlock}>
+          <Text style={s.heroKicker}>Factory tech file  ·  Section 1</Text>
+          <Text style={s.heroTitle}>{d.productName}</Text>
+          <Text style={s.heroMeta}>{d.clientName}  ·  {d.requestCode}</Text>
+          <View style={s.chipRow}>
+            <Text style={d.approved ? s.chip : s.chipGrey}>{d.approved ? `Rev ${d.revision} approved` : 'Draft: not approved'}</Text>
+            <Text style={s.chipGrey}>{d.garmentType}</Text>
+            <Text style={s.chipGrey}>Sizes XS – XL</Text>
           </View>
+        </View>
+        <View style={s.detailCard}>
+          <View style={s.grid}>
+            <Field name="Customer" v={d.clientName} />
+            <Field name="Request no." v={d.requestCode} />
+            <Field name="Garment class" v={a.garmentClass} />
+            <Field name="Season" v={a.season} />
+            <Field name="Date created" v={formatDate(d.createdOn)} />
+            <Field name="Sales rep" v={d.repName || 'Admin (handled directly)'} />
+            <Field name="Revision" v={d.approved ? `Rev ${d.revision}` : d.revision ? `Draft (last approved: Rev ${d.revision})` : 'Draft'} />
+            <Field name="Approved by" v={d.approved ? `${d.approvedBy || 'RIVIX'}${d.approvedAt ? `, ${formatDate(d.approvedAt)}` : ''}` : null} wide />
+          </View>
+        </View>
+        {d.photos[0] ? <Image style={s.photo} src={d.photos[0]} /> : <Text style={s.none}>No reference photo.</Text>}
+        {!d.approved && <Text style={s.warn}>DRAFT. This specification has not been approved. Values were drafted by AI from photos and must be checked against the physical garment before this file goes to a factory.</Text>}
+      </Sheet>
+
+      {/* 2 — Colour & fabric */}
+      <Sheet d={d} no={2} title="Colour & fabric information">
+        <Text style={s.h2}>Colourway</Text>
+        <View style={s.grid}>
+          <Field name="Body colour" v={col?.bodyColor} />
+          <Field name="Contrast colours" v={col?.contrastColors?.join(', ')} />
+          <Field name="Thread colour" v={col?.threadColor} />
+          <Field name="Hardware finish" v={col?.hardwareFinish} />
+          <Field name="Reflective tape" v={col?.reflectiveTape} />
+        </View>
+        <Text style={s.h2}>Fabric</Text>
+        <View style={s.grid}>
+          <Field name="Material" v={fab?.material || sp.coreMaterial} />
+          <Field name="Weight" v={fab?.weight || sp.fabricWeight} />
+          <Field name="Weave" v={fab?.weaveType} />
+          <Field name="Flame-resistance rating" v={fab?.frRating} />
+          <Field name="Finish" v={fab?.finish} />
+          <Field name="Shrinkage" v={fab?.shrinkage} />
+          <Field name="Lining" v={sp.liningMaterial} />
+          <Field name="Safety rating" v={sp.safetyRating} />
+        </View>
+      </Sheet>
+
+      {/* 3 + 4 — Product details and call-outs */}
+      <Sheet d={d} no={3} title="Product details & call-outs">
+        <Text style={s.h2}>Specification</Text>
+        <View style={s.grid}>
+          <Field name="Zippers" v={sp.zippers} />
+          <Field name="Buttons / snaps" v={sp.buttonsSnaps} />
+          <Field name="Reflective striping" v={sp.reflectiveStriping} />
+          <Field name="Pockets" v={sp.pocketsCount} />
+          <Field name="Seam construction" v={sp.seamConstruction} />
+          <Field name="Hood" v={a.hasHood == null ? null : a.hasHood ? 'Yes' : 'No'} />
+          <Field name="Special instructions" v={sp.specialInstructions} wide />
+        </View>
+        <Text style={s.h2}>4. Call-outs (features detected on the garment)</Text>
+        <Table
+          cols={[{ h: 'No.', w: '8%' }, { h: 'Feature', w: '34%' }, { h: 'Type', w: '18%' }, { h: 'Location', w: '40%' }]}
+          rows={(a.components || []).map((c, i) => [String(i + 1), c.label, c.type, c.location])}
+          empty="No features listed."
+        />
+        {extra.length > 0 && (
+          <>
+            <Text style={s.h2}>Reference photos</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+              {extra.slice(0, 6).map((p, i) => <Image key={i} style={s.thumb} src={p} />)}
+            </View>
+          </>
         )}
-        <View style={styles.infoCol}>
-          <Text style={styles.label}>Date</Text>
-          <Text style={styles.value}>{formatDate(new Date())}</Text>
+      </Sheet>
+
+      {/* 5 — Construction */}
+      <Sheet d={d} no={5} title="Construction details">
+        <Table
+          cols={[{ h: 'Location', w: '22%' }, { h: 'Seam', w: '20%' }, { h: 'Stitch', w: '14%' }, { h: 'SPI', w: '8%', center: true }, { h: 'Allowance', w: '12%' }, { h: 'Notes', w: '24%' }]}
+          rows={(a.construction || []).map(c => [c.location, c.seamType, c.stitchType, c.spiTop ? String(c.spiTop) : '', c.seamAllowance, c.notes])}
+          empty="No seams specified."
+        />
+        <Text style={s.h2}>Stitch reference</Text>
+        <Table
+          cols={[{ h: 'Code', w: '12%' }, { h: 'Name', w: '26%' }, { h: 'Machine', w: '24%' }, { h: 'SPI', w: '8%', center: true }, { h: 'Usage', w: '30%' }]}
+          rows={(a.stitchReference || []).map(r => [r.code, r.name, r.machineType, r.defaultSpi ? String(r.defaultSpi) : '', r.usage])}
+          empty="No stitch reference."
+        />
+      </Sheet>
+
+      {/* 6 — Bill of materials */}
+      <Sheet d={d} no={6} title="Bill of materials">
+        <Table
+          cols={[{ h: 'No.', w: '8%' }, { h: 'Category', w: '20%' }, { h: 'Item', w: '72%' }]}
+          rows={[
+            ...(bom?.hardware || []).map(x => ['', 'Hardware', x]),
+            ...(bom?.thread || []).map(x => ['', 'Thread', x]),
+            ...(bom?.labels || []).map(x => ['', 'Labels', x]),
+          ].map((r, i) => [String(i + 1), r[1], r[2]])}
+          empty="No materials listed."
+        />
+      </Sheet>
+
+      {/* 7 — Artwork */}
+      <Sheet d={d} no={7} title="Artwork detail">
+        <Table
+          cols={[{ h: 'Artwork', w: '28%' }, { h: 'Placement', w: '28%' }, { h: 'Size', w: '16%' }, { h: 'Method', w: '28%' }]}
+          rows={(a.artwork || []).map(x => [x.name, x.placement, x.size, x.method])}
+          empty="No logos or artwork specified."
+        />
+        <Text style={s.note}>Send the customer's artwork files (vector where possible) with this tech file.</Text>
+      </Sheet>
+
+      {/* 8 — Measurements (wide page) */}
+      <Sheet d={d} no={8} title="Measurement specification (inches, flat on the half)" landscape>
+        <Table
+          cols={[{ h: 'POM', w: '8%' }, { h: 'Description', w: '34%' }, { h: 'XS', w: '10%', center: true }, { h: 'S', w: '10%', center: true }, { h: 'M', w: '10%', center: true }, { h: 'L', w: '10%', center: true }, { h: 'XL', w: '10%', center: true }, { h: 'Tol. ±', w: '8%', center: true }]}
+          rows={(a.measurements || []).map(m => [m.pom, m.description, m.xs, m.s, m.m, m.l, m.xl, m.tolerance])}
+          empty="No measurements entered."
+        />
+        {!d.approved && <Text style={s.warn}>Measurements are estimates until approved. Measure the physical garment.</Text>}
+      </Sheet>
+
+      {/* 9 — Testing */}
+      <Sheet d={d} no={9} title="Testing details">
+        {tests.length === 0
+          ? <Text style={s.none}>No tests specified.</Text>
+          : tests.map((t, i) => <Text key={i} style={{ fontSize: 8.5, marginBottom: 4 }}>{i + 1}.  {t}</Text>)}
+        <Text style={s.warn}>Test list to be confirmed with the testing laboratory before production.</Text>
+      </Sheet>
+
+      {/* 10 + 11 — Labels and packaging */}
+      <Sheet d={d} no={10} title="Label specification & packaging">
+        <Text style={s.h2}>Label placement</Text>
+        <Table
+          cols={[{ h: 'Type', w: '20%' }, { h: 'Location', w: '24%' }, { h: 'Attachment', w: '20%' }, { h: 'Size', w: '16%' }, { h: 'Material', w: '20%' }]}
+          rows={(a.labelPlacements || []).map(l => [l.type, l.location, l.attachment, l.dimensions, l.material])}
+          empty="No labels specified."
+        />
+        <Text style={s.h2}>Care text (English / Français)</Text>
+        <Table
+          cols={CARE_HEAD}
+          rows={careEn.map((en, i) => [en, careFr[i] || ''])}
+          empty="No care instructions."
+        />
+        {has(care?.specialNotes) && <Text style={s.note}>Notes: {care?.specialNotes}</Text>}
+        <Text style={s.h2}>Origin</Text>
+        {!has(origin)
+          ? <Text style={s.none}>Country of origin not specified.</Text>
+          : <Text style={s.value}>{isCanada ? 'MADE IN CANADA / FABRIQUÉ AU CANADA' : `MADE IN ${origin.toUpperCase()}`}</Text>}
+        <Text style={[s.secNo, { marginTop: 14 }]}>Section 11</Text>
+        <Text style={s.h1}>Packaging</Text>
+        <View style={s.grid}>
+          <Field name="Fold" v={bom?.packaging?.foldDescription} />
+          <Field name="Polybag size" v={bom?.packaging?.polybagSize} />
+          <Field name="Carton size" v={bom?.packaging?.cartonSize} />
+          <Field name="Hangtag" v={bom?.packaging?.hangtagSpec} />
         </View>
-      </View>
-
-      <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
-        {data.referenceImage ? (
-          <Image src={data.referenceImage} style={styles.refImage} />
-        ) : null}
-        <View style={{ flex: 1 }}>
-          <Text style={styles.sectionTitle}>Fabric Analysis</Text>
-          <View style={styles.card}>
-            {[
-              ['Material', data.fabricAnalysis.material],
-              ['Weight', data.fabricAnalysis.weight],
-              ['Weave', data.fabricAnalysis.weaveType],
-              ['FR Rating', data.fabricAnalysis.frRating],
-              ['Finish', data.fabricAnalysis.finish],
-              ['Shrinkage', data.fabricAnalysis.shrinkage],
-            ].map(([l, v]) => (
-              <View key={l} style={styles.cardRow}>
-                <Text style={styles.cardLabel}>{l}</Text>
-                <Text style={styles.cardValue}>{v}</Text>
-              </View>
-            ))}
-          </View>
-
-          <Text style={styles.sectionTitle}>Colorway</Text>
-          <View style={styles.card}>
-            <View style={styles.cardRow}>
-              <Text style={styles.cardLabel}>Body</Text>
-              <Text style={styles.cardValue}>{data.colorway.bodyColor}</Text>
-            </View>
-            <View style={styles.cardRow}>
-              <Text style={styles.cardLabel}>Contrast</Text>
-              <Text style={styles.cardValue}>{data.colorway.contrastColors?.join(', ') || 'N/A'}</Text>
-            </View>
-            <View style={styles.cardRow}>
-              <Text style={styles.cardLabel}>Thread</Text>
-              <Text style={styles.cardValue}>{data.colorway.threadColor}</Text>
-            </View>
-            <View style={styles.cardRow}>
-              <Text style={styles.cardLabel}>Hardware</Text>
-              <Text style={styles.cardValue}>{data.colorway.hardwareFinish}</Text>
-            </View>
-            <View style={styles.cardRow}>
-              <Text style={styles.cardLabel}>Reflective</Text>
-              <Text style={styles.cardValue}>{data.colorway.reflectiveTape}</Text>
-            </View>
-          </View>
-        </View>
-      </View>
-      <PageFooter />
-    </Page>
-
-    {/* Page 2 — Technical flat sketch */}
-    {data.flatSketchImage ? (
-      <Page size="A4" orientation="landscape" style={styles.page}>
-        <Header pageTitle="Technical Flat Sketch" />
-        <Text style={styles.sectionTitle}>1. Technical Flat — Front / Back (AI Extrapolated)</Text>
-        <Text style={{ fontSize: 7, color: '#64748b', marginBottom: 6 }}>
-          Style: {data.garmentClass} — Sample size M — All measurements in inches, taken flat
-        </Text>
-        <Image src={data.flatSketchImage} style={styles.flatSketchImage} />
-        <PageFooter />
-      </Page>
-    ) : null}
-
-    {/* Page 3 — Measurements */}
-    <Page size="A4" orientation="landscape" style={styles.page}>
-      <Header pageTitle="POM Specification" />
-      <Text style={styles.sectionTitle}>Measurement Specification (Inches) — Graded XS–XL</Text>
-      <View style={{ borderWidth: 1, borderColor: '#e2e8f0', marginTop: 4 }}>
-        <View style={styles.tableHeader}>
-          <Text style={[styles.th, { width: '6%' }]}>POM</Text>
-          <Text style={[styles.th, { width: '28%' }]}>Description</Text>
-          <Text style={[styles.th, { width: '9%', textAlign: 'center' }]}>XS</Text>
-          <Text style={[styles.th, { width: '9%', textAlign: 'center' }]}>S</Text>
-          <Text style={[styles.th, { width: '9%', textAlign: 'center' }]}>M</Text>
-          <Text style={[styles.th, { width: '9%', textAlign: 'center' }]}>L</Text>
-          <Text style={[styles.th, { width: '9%', textAlign: 'center' }]}>XL</Text>
-          <Text style={[styles.th, { width: '10%', textAlign: 'center' }]}>Tol +/-</Text>
-        </View>
-        {data.measurements.map((m, i) => (
-          <View key={i} style={styles.tableRow}>
-            <Text style={[styles.td, { width: '6%', fontWeight: 'bold' }]}>{m.pom}</Text>
-            <Text style={[styles.td, { width: '28%' }]}>{m.description}</Text>
-            <Text style={[styles.td, { width: '9%', textAlign: 'center' }]}>{m.xs}</Text>
-            <Text style={[styles.td, { width: '9%', textAlign: 'center' }]}>{m.s}</Text>
-            <Text style={[styles.td, { width: '9%', textAlign: 'center' }]}>{m.m}</Text>
-            <Text style={[styles.td, { width: '9%', textAlign: 'center' }]}>{m.l}</Text>
-            <Text style={[styles.td, { width: '9%', textAlign: 'center' }]}>{m.xl}</Text>
-            <Text style={[styles.td, { width: '10%', textAlign: 'center' }]}>{m.tolerance}</Text>
-          </View>
-        ))}
-      </View>
-      <PageFooter />
-    </Page>
-
-    {/* BOM & Construction */}
-    <Page size="A4" style={styles.page}>
-      <Header pageTitle="BOM & Construction" />
-      <Text style={styles.sectionTitle}>Bill of Materials</Text>
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Hardware</Text>
-        {data.bom.hardware.map((h, i) => (
-          <Text key={i} style={styles.bullet}>• {h}</Text>
-        ))}
-      </View>
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Thread</Text>
-        {data.bom.thread.map((t, i) => (
-          <Text key={i} style={styles.bullet}>• {t}</Text>
-        ))}
-      </View>
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Labels</Text>
-        {data.bom.labels.map((l, i) => (
-          <Text key={i} style={styles.bullet}>• {l}</Text>
-        ))}
-      </View>
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Packaging</Text>
-        <Text style={styles.bullet}>Fold: {data.bom.packaging.foldDescription}</Text>
-        <Text style={styles.bullet}>Polybag: {data.bom.packaging.polybagSize}</Text>
-        <Text style={styles.bullet}>Carton: {data.bom.packaging.cartonSize}</Text>
-        <Text style={styles.bullet}>Hangtag: {data.bom.packaging.hangtagSpec}</Text>
-      </View>
-
-      <Text style={[styles.sectionTitle, { marginTop: 12 }]}>Construction & Seam Details</Text>
-      <View style={{ borderWidth: 1, borderColor: '#e2e8f0' }}>
-        <View style={styles.tableHeader}>
-          <Text style={[styles.th, { width: '18%' }]}>Location</Text>
-          <Text style={[styles.th, { width: '16%' }]}>Seam</Text>
-          <Text style={[styles.th, { width: '14%' }]}>Stitch</Text>
-          <Text style={[styles.th, { width: '8%' }]}>SPI T</Text>
-          <Text style={[styles.th, { width: '8%' }]}>SPI B</Text>
-          <Text style={[styles.th, { width: '12%' }]}>SA</Text>
-          <Text style={[styles.th, { width: '24%' }]}>Notes</Text>
-        </View>
-        {data.construction.map((c, i) => (
-          <View key={i} style={styles.tableRow}>
-            <Text style={[styles.td, { width: '18%' }]}>{c.location}</Text>
-            <Text style={[styles.td, { width: '16%' }]}>{c.seamType}</Text>
-            <Text style={[styles.td, { width: '14%' }]}>{c.stitchType}</Text>
-            <Text style={[styles.td, { width: '8%' }]}>{c.spiTop}</Text>
-            <Text style={[styles.td, { width: '8%' }]}>{c.spiBottom}</Text>
-            <Text style={[styles.td, { width: '12%' }]}>{c.seamAllowance}</Text>
-            <Text style={[styles.td, { width: '24%' }]}>{c.notes}</Text>
-          </View>
-        ))}
-      </View>
-      <PageFooter />
-    </Page>
-
-    {/* Stitch, Labels, Care */}
-    <Page size="A4" style={styles.page}>
-      <Header pageTitle="Reference & Labels" />
-      <Text style={styles.sectionTitle}>Stitch Type Reference</Text>
-      <View style={{ borderWidth: 1, borderColor: '#e2e8f0', marginBottom: 12 }}>
-        <View style={styles.tableHeader}>
-          <Text style={[styles.th, { width: '10%' }]}>Code</Text>
-          <Text style={[styles.th, { width: '22%' }]}>Name</Text>
-          <Text style={[styles.th, { width: '28%' }]}>Machine</Text>
-          <Text style={[styles.th, { width: '10%' }]}>SPI</Text>
-          <Text style={[styles.th, { width: '30%' }]}>Usage</Text>
-        </View>
-        {data.stitchReference.map((s, i) => (
-          <View key={i} style={styles.tableRow}>
-            <Text style={[styles.td, { width: '10%' }]}>{s.code}</Text>
-            <Text style={[styles.td, { width: '22%' }]}>{s.name}</Text>
-            <Text style={[styles.td, { width: '28%' }]}>{s.machineType}</Text>
-            <Text style={[styles.td, { width: '10%' }]}>{s.defaultSpi}</Text>
-            <Text style={[styles.td, { width: '30%' }]}>{s.usage}</Text>
-          </View>
-        ))}
-      </View>
-
-      <Text style={styles.sectionTitle}>Label Placement Schedule</Text>
-      <View style={{ borderWidth: 1, borderColor: '#e2e8f0', marginBottom: 12 }}>
-        <View style={styles.tableHeader}>
-          <Text style={[styles.th, { width: '18%' }]}>Type</Text>
-          <Text style={[styles.th, { width: '28%' }]}>Location</Text>
-          <Text style={[styles.th, { width: '22%' }]}>Attachment</Text>
-          <Text style={[styles.th, { width: '14%' }]}>Size</Text>
-          <Text style={[styles.th, { width: '18%' }]}>Material</Text>
-        </View>
-        {data.labelPlacements.map((l, i) => (
-          <View key={i} style={styles.tableRow}>
-            <Text style={[styles.td, { width: '18%' }]}>{l.type}</Text>
-            <Text style={[styles.td, { width: '28%' }]}>{l.location}</Text>
-            <Text style={[styles.td, { width: '22%' }]}>{l.attachment}</Text>
-            <Text style={[styles.td, { width: '14%' }]}>{l.dimensions}</Text>
-            <Text style={[styles.td, { width: '18%' }]}>{l.material}</Text>
-          </View>
-        ))}
-      </View>
-
-      <Text style={styles.sectionTitle}>Wash & Care</Text>
-      <View style={styles.card}>
-        {data.washCare.instructions.map((inst, i) => (
-          <Text key={i} style={styles.bullet}>• {inst}</Text>
-        ))}
-        {data.washCare.specialNotes ? (
-          <Text style={[styles.bullet, { marginTop: 6, fontStyle: 'italic' }]}>
-            Note: {data.washCare.specialNotes}
-          </Text>
-        ) : null}
-      </View>
-      <PageFooter />
-    </Page>
-  </Document>
-);
+      </Sheet>
+    </Document>
+  );
+};

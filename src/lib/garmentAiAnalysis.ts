@@ -1,7 +1,16 @@
 /** Serializable AI analysis saved on each replication request */
 
+/** Set by the server only: a person has checked the draft. Any later edit turns it back into a draft. */
+export interface AnalysisReview {
+  status: 'draft' | 'approved';
+  approvedAt?: string;
+  approvedBy?: string;
+  revision?: number; // goes up by one each time the spec is approved
+}
+
 export interface PersistedGarmentAIAnalysis {
   analyzedAt: string;
+  review?: AnalysisReview;
   garmentClass: string | null;
   hasHood: boolean | null;
   productIdentification: {
@@ -83,8 +92,13 @@ export interface PersistedGarmentAIAnalysis {
   } | null;
   washCare: {
     instructions: string[];
+    instructionsFr?: string[]; // French care lines, same order as the English ones
     specialNotes: string;
   } | null;
+  /** Entered by a person on the Review tab (the AI does not draft these). */
+  artwork?: Array<{ name: string; placement: string; size: string; method: string }>;
+  testing?: string[];
+  origin?: string; // country of origin printed on the label, e.g. Canada
 }
 
 export function buildPersistedAnalysis(

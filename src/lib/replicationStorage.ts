@@ -1,4 +1,3 @@
-import { supabase } from './supabase';
 import type { PersistedGarmentAIAnalysis } from './garmentAiAnalysis';
 
 export interface ReplicationSpec {
@@ -12,6 +11,10 @@ export interface ReplicationSpec {
   pocketsCount: string;
   seamConstruction: string;
   specialInstructions: string;
+  /** When the customer's parcel arrived at RIVIX (set from the inbound parcel card). */
+  inboundReceivedAt?: string;
+  /** True when the customer is posting the real garment to RIVIX (otherwise photos only). */
+  garmentPosted?: boolean;
   annotations: Array<{
     id: string;
     x: number; // percentage from left
@@ -19,18 +22,23 @@ export interface ReplicationSpec {
     title: string;
     description: string;
   }>;
-  /** Fallback storage when ai_analysis column is unavailable */
   aiAnalysis?: PersistedGarmentAIAnalysis;
 }
 
 export interface ReplicationRequest {
   id: string;
+  requestCode?: string; // readable number such as RQ-0001; show this instead of the id
+  repId?: string | null; // the sales rep who owns the request; empty = the admin handles it directly
+  repName?: string | null;
+  createdByRole?: string | null;
+  createdByName?: string | null;
   clientName: string;
   productName: string;
   garmentType: 'overalls' | 'parka' | 'jacket' | 'pants' | 'vest' | 'hoodie' | 'coat';
   status: 'received' | 'spec_mapped' | 'sample_production' | 'sample_shipped';
   submissionDate: string;
-  images: string[]; // Mock or uploaded image data URLs / placeholders
+  images: string[]; // short-lived private links to the photos, in display order
+  imagePaths?: string[]; // where the photos live in private storage (same order as images)
   specs: ReplicationSpec;
   clientTrackingCarrier?: string;
   clientTrackingNumber?: string;
@@ -47,130 +55,100 @@ export interface ReplicationRequest {
   aiAnalysis?: PersistedGarmentAIAnalysis | null;
 }
 
-const DEFAULT_REPLICATIONS: ReplicationRequest[] = [];
+// Requests live in the database and are reached only through the server routes, which check the signed-in role
+// (an admin sees all requests; a sales rep sees only their own; customers are never connected to the queue).
+// There is deliberately NO fallback to browser storage: if something fails the caller gets an
+// Error with a readable message, so a failed save is never mistaken for a successful one.
+const API = '/api/replications';
 
-const LOCAL_STORAGE_KEY = 'rivix_uniform_replications_v2';
-
-// Safely get all replication requests
-export const getReplications = async (): Promise<ReplicationRequest[]> => {
-  if (typeof window === 'undefined') return DEFAULT_REPLICATIONS;
-
-  try {
-    // Attempt Supabase fetch
-    const { data, error } = await supabase
-      .from('replications')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.warn('Supabase error fetching replications, falling back to local storage:', error);
-      throw error;
-    }
-
-    if (data && data.length > 0) {
-      // Map database format to local format
-      return data.map((d: any) => ({
-        id: d.id,
-        clientName: d.client_name,
-        productName: d.product_name,
-        garmentType: d.garment_type,
-        status: d.status,
-        submissionDate: d.submission_date || new Date(d.created_at).toISOString().split('T')[0],
-        images: d.images || [],
-        specs: d.specs || {},
-        clientTrackingCarrier: d.client_tracking_carrier,
-        clientTrackingNumber: d.client_tracking_number,
-        rivixTrackingCarrier: d.rivix_tracking_carrier,
-        rivixTrackingNumber: d.rivix_tracking_number,
-        messages: d.messages || [],
-        aiAnalysis: d.ai_analysis || d.specs?.aiAnalysis || null,
-      }));
-    }
-  } catch (err) {
-    // Silent catch, fall back to local storage
-  }
-
-  // Local Storage Fallback
-  const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
-  if (!stored) {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(DEFAULT_REPLICATIONS));
-    return DEFAULT_REPLICATIONS;
-  }
-  
-  return JSON.parse(stored);
+const fail = async (res: Response, fallback: string): Promise<never> => {
+  if (res.status === 401) throw new Error('Your sign-in has expired. Reload this page (or sign in again), then try again.');
+  const data = await res.json().catch(() => ({}));
+  throw new Error(typeof data?.error === 'string' ? data.error : fallback);
 };
 
-// Save a single/updated replication request
-export const saveReplication = async (replication: ReplicationRequest): Promise<void> => {
-  if (typeof window === 'undefined') return;
+export const getReplications = async (): Promise<ReplicationRequest[]> => {
+  const res = await fetch(API, { cache: 'no-store' });
+  if (!res.ok) await fail(res, 'Could not load the replication requests.');
+  return (await res.json()).replications as ReplicationRequest[];
+};
 
-  // 1. Try updating Supabase
+/** One request by id or readable number (RQ-0001). Returns null when it does not exist. */
+export const getReplication = async (idOrCode: string): Promise<ReplicationRequest | null> => {
+  const res = await fetch(`${API}/${encodeURIComponent(idOrCode)}`, { cache: 'no-store' });
+  if (res.status === 404) return null;
+  if (!res.ok) await fail(res, 'Could not load the request.');
+  return (await res.json()).replication as ReplicationRequest;
+};
+
+/** Create a request (no photos yet; add them with uploadReplicationPhoto). Returns the saved request. */
+export const createReplication = async (
+  r: Pick<ReplicationRequest, 'clientName' | 'productName' | 'garmentType'> & Partial<ReplicationRequest>
+): Promise<ReplicationRequest> => {
+  const res = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(r) });
+  if (!res.ok) await fail(res, 'Could not create the request.');
+  return (await res.json()).replication as ReplicationRequest;
+};
+
+/** Save changes to a request. Returns the saved request (fresh photo links included). */
+export const saveReplication = async (replication: ReplicationRequest, opts: { approve?: boolean } = {}): Promise<ReplicationRequest> => {
+  const res = await fetch(`${API}/${encodeURIComponent(replication.id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...replication, approve: opts.approve === true }),
+  });
+  if (!res.ok) await fail(res, 'Could not save the request.');
+  return (await res.json()).replication as ReplicationRequest;
+};
+
+export const uploadReplicationPhoto = async (id: string, file: File): Promise<ReplicationRequest> => {
+  const form = new FormData();
+  form.append('photo', file);
+  const res = await fetch(`${API}/${encodeURIComponent(id)}/photos`, { method: 'POST', body: form });
+  if (!res.ok) await fail(res, 'Could not add the photo.');
+  return (await res.json()).replication as ReplicationRequest;
+};
+
+export const deleteReplication = async (id: string): Promise<void> => {
+  const res = await fetch(`${API}/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  if (!res.ok) await fail(res, 'Could not delete the request.');
+};
+
+// ---- Chat between the sales rep and the admin on one request ----------------------------------------------
+export interface ChatMessage { id: string; senderRole: 'admin' | 'rep'; senderName: string; message: string; timestamp: string }
+
+export const getChatMessages = async (id: string): Promise<ChatMessage[]> => {
+  const res = await fetch(`${API}/${encodeURIComponent(id)}/messages`, { cache: 'no-store' });
+  if (!res.ok) await fail(res, 'Could not load the chat.');
+  return (await res.json()).messages as ChatMessage[];
+};
+
+export const sendChatMessage = async (id: string, message: string): Promise<ChatMessage> => {
+  const res = await fetch(`${API}/${encodeURIComponent(id)}/messages`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message }) });
+  if (!res.ok) await fail(res, 'Could not send the message.');
+  return (await res.json()).message as ChatMessage;
+};
+
+// ---- New-request form suggestions and the tech file download log -----------------------------------------
+export interface ReplicationLookups { role: 'admin' | 'rep'; repName: string | null; customers: string[]; reps: Array<{ id: string; name: string }> }
+
+export const getReplicationLookups = async (): Promise<ReplicationLookups> => {
+  const res = await fetch(`${API}/lookups`, { cache: 'no-store' });
+  if (!res.ok) await fail(res, 'Could not load the form options.');
+  return (await res.json()) as ReplicationLookups;
+};
+
+export interface DownloadEntry { id: string; by: string | null; role: string | null; revision: number | null; approved: boolean | null; at: string }
+
+export const getDownloadLog = async (id: string): Promise<DownloadEntry[]> => {
+  const res = await fetch(`${API}/${encodeURIComponent(id)}/downloads`, { cache: 'no-store' });
+  if (!res.ok) return [];
+  return (await res.json()).downloads as DownloadEntry[];
+};
+
+/** Best effort: a failed log must never stop the file from being made. */
+export const logDownload = async (id: string, revision: number, approved: boolean): Promise<void> => {
   try {
-    const dbObject = {
-      id: replication.id,
-      client_name: replication.clientName,
-      product_name: replication.productName,
-      garment_type: replication.garmentType,
-      status: replication.status,
-      images: replication.images,
-      specs: {
-        ...replication.specs,
-        aiAnalysis: replication.aiAnalysis ?? undefined,
-      },
-      client_tracking_carrier: replication.clientTrackingCarrier,
-      client_tracking_number: replication.clientTrackingNumber,
-      rivix_tracking_carrier: replication.rivixTrackingCarrier,
-      rivix_tracking_number: replication.rivixTrackingNumber,
-      messages: replication.messages,
-      ai_analysis: replication.aiAnalysis ?? null,
-    };
-
-    const { error } = await supabase
-      .from('replications')
-      .upsert(dbObject, { onConflict: 'id' });
-
-    if (error) {
-      console.warn('Supabase upsert failed, saving to localStorage:', error);
-      throw error;
-    }
-  } catch (err) {
-    // Silent catch, handle locally
-  }
-
-  // 2. Local Storage Sync with QuotaExceeded fallback
-  try {
-    const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
-    const reps: ReplicationRequest[] = stored ? JSON.parse(stored) : DEFAULT_REPLICATIONS;
-    
-    const index = reps.findIndex(r => r.id === replication.id);
-    if (index >= 0) {
-      reps[index] = replication;
-    } else {
-      reps.push(replication);
-    }
-    
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(reps));
-  } catch (localStorageError) {
-    console.warn('LocalStorage write failed (likely quota exceeded due to large base64 images). Saving metadata without images:', localStorageError);
-    try {
-      const cleanReplication = {
-        ...replication,
-        images: [] // Strip heavy image payloads so the ticket metadata saves successfully
-      };
-      const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
-      const reps: ReplicationRequest[] = stored ? JSON.parse(stored) : DEFAULT_REPLICATIONS;
-      
-      const index = reps.findIndex(r => r.id === cleanReplication.id);
-      if (index >= 0) {
-        reps[index] = cleanReplication;
-      } else {
-        reps.push(cleanReplication);
-      }
-      
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(reps));
-      console.log('Successfully saved replication request metadata (images omitted to fit browser storage quota).');
-    } catch (retryError) {
-      console.error('Failed to save replication request even without images:', retryError);
-    }
-  }
+    await fetch(`${API}/${encodeURIComponent(id)}/downloads`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ revision, approved }) });
+  } catch { /* ignore */ }
 };
