@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Search, Loader2, AlertCircle, Eye } from 'lucide-react';
+import { Search, Loader2, AlertCircle, Eye, Plus } from 'lucide-react';
 import OrderStatusBadge from '@/components/OrderStatusBadge';
 import { ORDER_STAGES } from '@/lib/order-stages';
 import { formatDate } from '@/lib/format';
@@ -62,7 +62,7 @@ export default function AdminOrders() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Order Management</h1>
-          <p className="text-slate-500">Orders your reps have entered. Open one to move it through production, add tracking and notes.</p>
+          <p className="text-slate-500">Orders entered by your reps and by admins. Open one to move it through production, add tracking and notes.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative flex-1 sm:flex-none">
@@ -79,6 +79,9 @@ export default function AdminOrders() {
             <option value="">All reps</option>
             {reps.map((r) => <option key={r} value={r}>{r}</option>)}
           </select>
+          <Link href="/admin/orders/new" className="bg-rivix text-white px-5 py-2 rounded-xl font-bold text-sm shadow-lg shadow-rivix/30 hover:bg-rivix-dark transition-all flex items-center gap-2 whitespace-nowrap">
+            <Plus size={16} />New order
+          </Link>
         </div>
       </div>
 
@@ -113,7 +116,7 @@ export default function AdminOrders() {
               <tr><td colSpan={7} className="px-8 py-10 text-center text-slate-400"><Loader2 className="animate-spin inline" size={18} /></td></tr>
             )}
             {!loading && filtered.length === 0 && (
-              <tr><td colSpan={7} className="px-8 py-10 text-center text-sm text-slate-400">{orders.length === 0 ? 'No orders yet. Orders appear here when a rep creates one.' : 'No orders match your filters.'}</td></tr>
+              <tr><td colSpan={7} className="px-8 py-10 text-center text-sm text-slate-400">{orders.length === 0 ? 'No orders yet. Use “New order” to enter one, or wait for a rep to create one.' : 'No orders match your filters.'}</td></tr>
             )}
             {filtered.map((o) => (
               <tr key={o.id} className="hover:bg-slate-50/50 transition-colors">
@@ -126,7 +129,7 @@ export default function AdminOrders() {
                   ) : o.customer}
                   <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">{o.customer_code}</p>
                 </td>
-                <td className="px-4 sm:px-6 py-5 text-sm text-slate-600">{o.rep || <span className="text-slate-300">Unassigned</span>}</td>
+                <td className="px-4 sm:px-6 py-5 text-sm text-slate-600">{o.rep || <span className="text-slate-400">Admin</span>}</td>
                 <td className="px-4 sm:px-6 py-5 text-sm text-slate-600">{o.product_name} <span className="text-slate-400">× {o.quantity}</span></td>
                 <td className="px-4 sm:px-6 py-5 text-sm text-slate-500 whitespace-nowrap">{formatDate(o.created_at)}</td>
                 <td className="px-4 sm:px-6 py-5"><OrderStatusBadge status={o.status} /></td>

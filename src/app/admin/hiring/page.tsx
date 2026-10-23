@@ -63,10 +63,12 @@ import {
   Sparkles
 } from 'lucide-react';
 
-const DEFAULT_CALCOM_BOOKING_URL = 'https://cal.com/solomon-riby-williams-kdcvhj/15min';
-const CALCOM_BOOKING_URL = process.env.NEXT_PUBLIC_CALCOM_BOOKING_URL || DEFAULT_CALCOM_BOOKING_URL;
+// RIVIX's booking page for the screening call, set in NEXT_PUBLIC_CALCOM_BOOKING_URL. There is deliberately NO built-in
+// fallback: an old personal calendar link used to sit here, and a missing setting must never send candidates to someone else's calendar.
+const CALCOM_BOOKING_URL = process.env.NEXT_PUBLIC_CALCOM_BOOKING_URL || '';
 
 const buildCalComBookingUrl = (candidate: Candidate | null) => {
+  if (!CALCOM_BOOKING_URL) return '';
   if (!candidate) return CALCOM_BOOKING_URL;
   try {
     const url = new URL(CALCOM_BOOKING_URL);
@@ -77,6 +79,12 @@ const buildCalComBookingUrl = (candidate: Candidate | null) => {
   } catch {
     return CALCOM_BOOKING_URL;
   }
+};
+
+// The sentence about how to pick a time: the booking link when one is set, otherwise ask the candidate to reply.
+const bookingLine = (candidate: Candidate | null) => {
+  const link = buildCalComBookingUrl(candidate);
+  return link ? `You can select a convenient slot directly using this link: ${link}` : 'Please reply with a day and time that suits you and we will confirm.';
 };
 
 // Dynamic ranking based on the weighted score over the current scoring criteria
@@ -440,6 +448,7 @@ export default function AdminHiringPage() {
 
   const copyCalComLink = async () => {
     const link = buildCalComBookingUrl(selectedCand);
+    if (!link) return;
     try {
       await navigator.clipboard.writeText(link);
       setCopiedCalLink(true);
@@ -762,6 +771,12 @@ export default function AdminHiringPage() {
                 </div>
 
                 {/* Booking: one link (opens a new page) and two buttons (do something here), kept visibly different */}
+                {!CALCOM_BOOKING_URL ? (
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2.5">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest w-14 shrink-0">Booking</span>
+                    <span className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">No booking link set yet. Add <code className="text-[11px]">NEXT_PUBLIC_CALCOM_BOOKING_URL</code> to the settings.</span>
+                  </div>
+                ) : (
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-2.5">
                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest w-14 shrink-0">Booking</span>
                   <a
@@ -786,7 +801,7 @@ export default function AdminHiringPage() {
                     onClick={() => {
                       setActiveSubTab('correspondence');
                       setCandidateMessageText(
-                        `Hi ${selectedCand.name}, let's lock in our 15-minute introductory Zoom screening call. You can select a convenient slot directly using this link: ${buildCalComBookingUrl(selectedCand)}`
+                        `Hi ${selectedCand.name}, let's lock in our 15-minute introductory Zoom screening call. ${bookingLine(selectedCand)}`
                       );
                     }}
                     className="inline-flex items-center gap-1.5 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 px-3 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap"
@@ -795,6 +810,7 @@ export default function AdminHiringPage() {
                     <Mail size={14} /> Draft invite email
                   </button>
                 </div>
+                )}
 
                 {/* Stage: the line only SHOWS where they are; the buttons next to it change it */}
                 {(() => {
@@ -1205,7 +1221,7 @@ export default function AdminHiringPage() {
                 const thread = candidateChats[selectedCand.id] || [];
                 const canSend = !!messagingConfig?.email && !!selectedCand.email;
                 const templates = [
-                  { label: 'Invite to a call', text: `Hi ${first}, let's lock in our 15-minute introductory Zoom screening call. You can select a convenient slot directly using this link: ${buildCalComBookingUrl(selectedCand)}` },
+                  { label: 'Invite to a call', text: `Hi ${first}, let's lock in our 15-minute introductory Zoom screening call. ${bookingLine(selectedCand)}` },
                   { label: 'Ask for more info', text: `Hi ${first}, thanks for your interest in the sales role at RIVIX. Could you tell us a bit more about the accounts you currently manage and the territory you cover? Looking forward to hearing from you.` },
                   { label: 'Not moving forward', text: `Hi ${first}, thank you for your time and for applying to RIVIX. After careful review we won't be moving forward at this time, but we appreciate your interest and wish you all the best.` },
                 ];

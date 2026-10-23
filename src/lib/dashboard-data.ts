@@ -1,6 +1,8 @@
 import { unstable_cache, revalidateTag } from 'next/cache';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { ORDER_STAGES } from '@/lib/order-stages';
+import { computeScore, TIER_1_MIN } from '@/lib/hiring-criteria';
+import { getHiringSettingsServer } from '@/lib/hiring-settings-server';
 
 // The admin dashboard's numbers, saved on the server so opening the dashboard does not hit
 // Supabase every time. Two things keep it correct:
@@ -27,7 +29,10 @@ export type DashboardData = {
   clients: number;
   documents: number;
   byStage: Record<string, number>;
-  recent: { id: string; status: string; created_at: string; batch_number: string; customer: string }[];
+  // Stage moves AND notes. status is null for a note; internal notes are marked so the admin can tell.
+  recent: { id: string; status: string | null; note: string | null; internal: boolean; created_at: string; batch_number: string; customer: string }[];
+  // Candidates by stage and how many are Tier 1; null when the hiring table does not exist yet.
+  hiring: { screening: number; interviewing: number; offer: number; archived: number; tier1: number; tier1Waiting: number } | null;
 };
 
 async function readDashboard(): Promise<DashboardData> {
@@ -56,17 +61,32 @@ async function readDashboard(): Promise<DashboardData> {
     }
   };
 
-  const [customers, documents, stages, orderDates, events] = await Promise.all([
+  // Hiring snapshot: never lets a missing hiring table break the dashboard.
+  const readHiring = async (): Promise<DashboardData['hiring']> => {
+    const { data, error } = await db.from('hiring_candidates').select('status, scorecard');
+    if (error) return null;
+    const settings = await getHiringSettingsServer().catch(() => null);
+    const out = { screening: 0, interviewing: 0, offer: 0, archived: 0, tier1: 0, tier1Waiting: 0 };
+    for (const c of data || []) {
+      if (c.status in out) out[c.status as 'screening' | 'interviewing' | 'offer' | 'archived'] += 1;
+      const s = settings ? computeScore(c.scorecard, settings.criteria) : null;
+      if (c.status !== 'archived' && s !== null && s >= TIER_1_MIN) out.tier1 += 1;
+      if (c.status === 'screening' && s !== null && s >= TIER_1_MIN) out.tier1Waiting += 1; // strong, but nobody has moved them on
+    }
+    return out;
+  };
+
+  const [customers, documents, stages, orderDates, events, hiring] = await Promise.all([
     db.from('customers').select('id', { count: 'exact', head: true }),
     db.from('documents').select('id', { count: 'exact', head: true }),
     stageCounts,
     readOrderDates(),
     db
       .from('order_events')
-      .select('id, status, created_at, orders(batch_number, customers(company_name))')
-      .not('status', 'is', null)
+      .select('id, status, note, customer_visible, created_at, orders(batch_number, customers(company_name))')
       .order('created_at', { ascending: false })
-      .limit(6),
+      .limit(8),
+    readHiring(),
   ]);
 
   // Throwing means nothing is saved: an error is never cached, the next visit simply tries again.
@@ -85,11 +105,14 @@ async function readDashboard(): Promise<DashboardData> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     recent: (events.data || []).map((e: any) => ({
       id: e.id,
-      status: e.status,
+      status: e.status ?? null,
+      note: e.note ?? null,
+      internal: e.customer_visible === false,
       created_at: e.created_at,
       batch_number: e.orders?.batch_number ?? '',
       customer: e.orders?.customers?.company_name ?? '',
     })),
+    hiring,
   };
 }
 

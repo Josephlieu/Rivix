@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/require-admin';
 import { createAdminClient } from '@/lib/supabase-admin';
+import { invalidateDashboard } from '@/lib/dashboard-data';
 import { candidateToRow, isValidCandidateId, rowToCandidate, RESUME_BUCKET } from '@/lib/hiring-server';
 
 // Create or update one candidate (the browser picks the id for a new one).
@@ -24,6 +25,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     .select('*')
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  invalidateDashboard(); // the hiring snapshot changed
   return NextResponse.json({ candidate: rowToCandidate(data) });
 }
 
@@ -42,5 +44,6 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (row.resume_path) await admin.storage.from(RESUME_BUCKET).remove([row.resume_path]);
   const { error } = await admin.from('hiring_candidates').delete().eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  invalidateDashboard(); // the hiring snapshot changed
   return NextResponse.json({ ok: true });
 }

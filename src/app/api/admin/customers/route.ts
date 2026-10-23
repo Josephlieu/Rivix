@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase-admin';
 import { generateTempPassword } from '@/lib/temp-password';
 import { loadBannedMap } from '@/lib/customer-status';
 import { notifyUsers } from '@/lib/notify';
+import { announceNewCustomerToRep } from '@/lib/rep-assignment';
 import { invalidateDashboard } from '@/lib/dashboard-data';
 
 export async function GET() {
@@ -82,14 +83,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: custErr.message }, { status: 500 });
   }
 
+  let emailWarning: string | undefined;
   if (repId) {
-    const { data: rep } = await admin.from('reps').select('user_id').eq('id', repId).maybeSingle();
-    await notifyUsers(admin, [rep?.user_id], {
-      kind: 'customer_assigned',
-      title: `New customer assigned: ${company}`,
-      body: 'You can now see their orders and create new ones.',
-      link: `/rep/customers/${customer.id}`,
-    });
+    ({ emailWarning } = await announceNewCustomerToRep(admin, {
+      customerId: customer.id,
+      companyName: company,
+      customerEmail: email,
+      customerPhone: phone,
+      repId,
+    }));
   }
 
   invalidateDashboard(); // the client count changed
@@ -101,7 +103,7 @@ export async function POST(req: NextRequest) {
   });
 
   return NextResponse.json(
-    { customer, credentials: { email, password } },
+    { customer, credentials: { email, password }, emailWarning },
     { status: 201 }
   );
 }

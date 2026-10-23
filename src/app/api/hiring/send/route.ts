@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { isAdminUser } from '@/lib/admin-auth';
+import { sendEmail as sendMail } from '@/lib/email';
+import { renderEmailHtml } from '@/lib/email-template';
 
 // Email-only for now. SMS (Twilio) can be re-added later if needed.
 
@@ -22,36 +24,26 @@ function emailConfigured(): boolean {
 }
 
 async function sendEmail(to: string, candidateName: string, message: string) {
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.HIRING_FROM_EMAIL;
-  if (!apiKey || !from) {
+  if (!process.env.RESEND_API_KEY || !process.env.HIRING_FROM_EMAIL) {
     throw new Error('Email is not configured. Set RESEND_API_KEY and HIRING_FROM_EMAIL in Vercel.');
   }
-
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from,
-      to: [to],
-      subject: `RIVIX — Message for ${candidateName}`,
-      text: message,
-    }),
+  // The admin's message, wrapped in the RIVIX branded layout (the plain text is still sent as the fallback version).
+  const r = await sendMail({
+    to,
+    from: process.env.HIRING_FROM_EMAIL,
+    subject: `RIVIX — Message for ${candidateName}`,
+    text: message,
+    html: renderEmailHtml({ preheader: message.slice(0, 90), title: `Hello ${candidateName.split(' ')[0] || ''}`.trim(), paragraphs: message.split(/\n{2,}/).filter(Boolean) }),
   });
-
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    const detail = typeof data?.message === 'string' ? data.message : `Resend error (${res.status})`;
-    throw new Error(detail);
-  }
-
-  return data;
+  if (!r.ok) throw new Error(r.error);
+  return r;
 }
 
 export async function GET() {
+  // Only a signed-in admin may ask (it reveals the sender address and whether email is set up).
+  if (!(await isAdminAuthorized())) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   return NextResponse.json({
     email: emailConfigured(),
     fromEmail: process.env.HIRING_FROM_EMAIL || null,

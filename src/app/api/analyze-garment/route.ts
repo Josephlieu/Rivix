@@ -1,7 +1,9 @@
 import { GEMINI_MODEL } from '@/lib/gemini-model';
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/require-admin';
+import { getReplicationActor, unauthorized, canAccess } from '@/lib/replication-access';
 import { GoogleGenAI } from '@google/genai';
+import { createAdminClient } from '@/lib/supabase-admin';
+import { isValidReplicationId, REPLICATION_BUCKET } from '@/lib/replication-server';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 
@@ -24,17 +26,41 @@ function parseJsonFromModel(text: string): unknown {
   }
 }
 
+const isQuotaError = (e: unknown) => /RESOURCE_EXHAUSTED|"code":\s*429|quota/i.test(e instanceof Error ? e.message : String(e));
+
 export async function POST(req: NextRequest) {
-  const denied = await requireAdmin();
-  if (denied) return denied;
+  const actor = await getReplicationActor();
+  if (!actor) return unauthorized();
 
   try {
     const body = await req.json();
-    const imageArray: string[] = body.images
+    let imageArray: string[] = body.images
       ? (body.images as string[])
       : body.image
         ? [body.image as string]
         : [];
+
+    // Photos of a saved request are read from private storage (the browser only sends the request id).
+    if (body.replicationId !== undefined) {
+      if (!isValidReplicationId(body.replicationId)) {
+        return NextResponse.json({ error: 'Invalid request id.' }, { status: 400 });
+      }
+      const admin = createAdminClient();
+      const { data: row } = await admin.from('replications').select('*').eq('id', body.replicationId).maybeSingle();
+      // A rep can only scan their own request (the same answer as "not found" for anyone else's).
+      if (!row || !canAccess(actor, row)) return NextResponse.json({ error: 'Request not found.' }, { status: 404 });
+      imageArray = [];
+      for (const path of (Array.isArray(row.images) ? row.images : []) as string[]) {
+        const { data: blob } = await admin.storage.from(REPLICATION_BUCKET).download(path);
+        if (!blob) continue;
+        const buf = Buffer.from(await blob.arrayBuffer());
+        imageArray.push(`data:${blob.type || 'image/jpeg'};base64,${buf.toString('base64')}`);
+      }
+    }
+
+    if (body.replicationId === undefined && actor.kind !== 'admin') {
+      return NextResponse.json({ error: 'Only an admin can scan loose images.' }, { status: 403 });
+    }
 
     if (imageArray.length === 0) {
       return NextResponse.json({ error: 'No images provided' }, { status: 400 });
@@ -203,19 +229,25 @@ REQUIRED JSON STRUCTURE (return ONLY valid JSON, no markdown):
   }
 }`;
 
-    const response = await ai.models.generateContent({
-      model: GEMINI_MODEL,
-      contents: [
-        {
-          role: 'user',
-          parts: [{ text: prompt }, ...imageParts],
-        },
-      ],
-      config: {
-        tools: [{ googleSearch: {} }],
+    const ask = (withSearch: boolean) =>
+      ai.models.generateContent({
+        model: GEMINI_MODEL,
+        contents: [{ role: 'user', parts: [{ text: prompt }, ...imageParts] }],
         // NOTE: responseMimeType cannot be used with googleSearch (API 400)
-      },
-    });
+        config: withSearch ? { tools: [{ googleSearch: {} }] } : {},
+      });
+
+    // Google Search (used to recognise known retail products) has its own quota. When that is used up, still
+    // analyse the photos without it rather than failing the whole scan.
+    let searchSkipped = false;
+    let response;
+    try {
+      response = await ask(true);
+    } catch (e) {
+      if (!isQuotaError(e)) throw e;
+      searchSkipped = true;
+      response = await ask(false);
+    }
 
     const responseText = response.text;
     if (!responseText) {
@@ -237,13 +269,19 @@ REQUIRED JSON STRUCTURE (return ONLY valid JSON, no markdown):
     return NextResponse.json({
       status: 'success',
       analysis: analysisData,
+      ...(searchSkipped ? { note: 'Google Search was out of quota, so this analysis uses the photos only (no retail product lookup).' } : {}),
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('Error analyzing garment:', error);
-    return NextResponse.json(
-      { error: 'Failed to process garment analysis', details: message },
-      { status: 500 }
-    );
+    // Say what actually went wrong in words the admin can act on (the raw Google message goes in `details`).
+    const friendly = isQuotaError(error)
+      ? 'The AI service has reached its usage limit (Google Gemini quota). Wait a while and try again, or check the plan and billing of the Gemini key.'
+      : /API key|PERMISSION_DENIED|"code":40[13]/i.test(message)
+        ? 'The Gemini API key was refused. Check GEMINI_API_KEY.'
+        : /NOT_FOUND|"code":404/i.test(message)
+          ? 'The AI model name was not found. Check GEMINI_MODEL.'
+          : 'Failed to process garment analysis';
+    return NextResponse.json({ error: friendly, details: message.slice(0, 500) }, { status: isQuotaError(error) ? 429 : 500 });
   }
 }
