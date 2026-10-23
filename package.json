@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint src",
-    "test:e2e": "node scripts/e2e/run-all.mjs"
+    "test:e2e": "node scripts/e2e/run-all.mjs",
+    "typecheck": "tsc --noEmit",
+    "guard": "node scripts/guard.mjs",
+    "prepare": "git config core.hooksPath .githooks || true"
   },
   "dependencies": {
     "@google/genai": "^2.28.0",
