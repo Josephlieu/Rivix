@@ -21,6 +21,16 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "22"
+      - name: Verify the guard file was not tampered with
+        env:
+          EXPECTED: ${{ vars.GUARD_SHA256 }}
+        run: |
+          actual=$(sha256sum scripts/guard.mjs | cut -d' ' -f1)
+          if [ -z "$EXPECTED" ]; then
+            echo "::warning::Repository variable GUARD_SHA256 is not set, so the guard file cannot be verified. Set it to $actual after reviewing scripts/guard.mjs (owner only)."
+          elif [ "$actual" != "$EXPECTED" ]; then
+            echo "::error::scripts/guard.mjs ($actual) does not match the approved version. Someone changed or replaced the guard."; exit 1
+          fi
       - run: node scripts/guard.mjs
 
   audit:
