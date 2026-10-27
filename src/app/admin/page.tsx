@@ -168,10 +168,10 @@ export default function AdminDashboard() {
   const show = (n: number | undefined) => (data ? String(n ?? 0) : '…');
 
   const stats = [
-    { label: 'Total Clients', value: show(data?.clients), icon: Users, color: 'text-rivix', bg: 'bg-rivix/10' },
-    { label: 'Active Orders', value: show(activeOrders), icon: FileText, color: 'text-amber-600', bg: 'bg-amber-50' },
-    { label: 'New Orders', value: show(by['Order Received']), icon: Inbox, color: 'text-sky-600', bg: 'bg-sky-50' },
-    { label: 'Documents Uploaded', value: show(data?.documents), icon: FolderOpen, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+    { label: 'Total Clients', value: show(data?.clients), href: '/admin/clients', hint: 'Open the Clients page', icon: Users, color: 'text-rivix', bg: 'bg-rivix/10' },
+    { label: 'Active Orders', value: show(activeOrders), href: '/admin/orders', hint: 'Open the Orders page', icon: FileText, color: 'text-amber-600', bg: 'bg-amber-50' },
+    { label: 'New Orders', value: show(by['Order Received']), href: '/admin/orders?stage=Order%20Received', hint: 'Open the orders that have just been received', icon: Inbox, color: 'text-sky-600', bg: 'bg-sky-50' },
+    { label: 'Documents Uploaded', value: show(data?.documents), href: '/admin/clients', hint: 'Documents are kept on each client: open the Clients page', icon: FolderOpen, color: 'text-emerald-600', bg: 'bg-emerald-50' },
     // Hiring: one small card. It turns red and says so when strong (Tier 1) candidates are still waiting in Screen.
     ...(data?.hiring
       ? [{
@@ -182,6 +182,7 @@ export default function AdminDashboard() {
             : data.hiring.offer > 0 ? `${data.hiring.offer} at Offer` : 'Nobody waiting',
           alert: data.hiring.tier1Waiting > 0,
           href: '/admin/hiring',
+          hint: 'Open the Sales Hiring page',
           icon: UserCheck, color: 'text-indigo-600', bg: 'bg-indigo-50',
         }]
       : []),
@@ -216,7 +217,7 @@ export default function AdminDashboard() {
             </>
           );
           return href ? (
-            <Link key={stat.label} href={href} className={`${box} hover:shadow-md`} title="Open the Sales Hiring page">{inner}</Link>
+            <Link key={stat.label} href={href} className={`${box} hover:shadow-md`} title={'hint' in stat ? (stat.hint as string) : undefined}>{inner}</Link>
           ) : (
             <div key={stat.label} className={box}>{inner}</div>
           );
@@ -254,7 +255,7 @@ export default function AdminDashboard() {
             {ORDER_STAGES.map((stage) => {
               const n = by[stage] || 0;
               return (
-                <div key={stage}>
+                <Link key={stage} href={`/admin/orders?stage=${encodeURIComponent(stage)}`} title={`Open the orders in ${stage}`} className="block rounded-lg -mx-2 px-2 py-1 hover:bg-slate-50">
                   <div className="flex justify-between text-xs mb-1">
                     <span className="font-semibold text-slate-700">{stage}</span>
                     <span className="font-bold text-slate-900">{data ? n : '…'}</span>
@@ -262,7 +263,7 @@ export default function AdminDashboard() {
                   <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
                     <div className="h-full rounded-full bg-rivix" style={{ width: `${(n / maxStage) * 100}%` }} />
                   </div>
-                </div>
+                </Link>
               );
             })}
           </div>

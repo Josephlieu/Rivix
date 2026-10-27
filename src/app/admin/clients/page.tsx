@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Plus, Search, Mail, Loader2, AlertCircle, X, Check, KeyRound, Trash2, Pencil } from 'lucide-react';
+import { Plus, Search, Mail, Loader2, AlertCircle, X, Check, KeyRound, Trash2, Pencil, Eye } from 'lucide-react';
 import ConfirmModal from '@/components/ConfirmModal';
 import Modal from '@/components/Modal';
 import CredentialsCard, { NewCredentials } from '@/components/CredentialsCard';
@@ -290,7 +290,7 @@ export default function ClientDirectory() {
                 <th className="px-4 sm:px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Sales rep</th>
                 <th className="px-4 sm:px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Orders</th>
                 <th className="px-4 sm:px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Status</th>
-                <th className="px-4 sm:px-8 py-5" />
+                <th className="px-4 sm:px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -338,7 +338,16 @@ export default function ClientDirectory() {
                       {c.disabled ? 'Disabled' : 'Active'}
                     </button>
                   </td>
-                  <td className="px-4 sm:px-8 py-5 text-right whitespace-nowrap">
+                  <td className="px-4 sm:px-8 py-5 whitespace-nowrap">
+                    <div className="flex items-center justify-end">
+                    <Link
+                      href={`/admin/clients/${c.id}`}
+                      title="View client details and orders"
+                      className="p-2 text-slate-400 hover:text-rivix transition-colors"
+                      aria-label={`View ${c.company_name}`}
+                    >
+                      <Eye size={16} />
+                    </Link>
                     <button
                       onClick={() => openEdit(c)}
                       title="Edit client details"
@@ -365,6 +374,7 @@ export default function ClientDirectory() {
                     >
                       <Trash2 size={16} />
                     </button>
+                    </div>
                   </td>
                 </tr>
               ))}

@@ -28,6 +28,12 @@ export default function AdminOrders() {
   const [stage, setStage] = useState('');
   const [rep, setRep] = useState('');
 
+  // The dashboard links here with ?stage=Order Received (or any stage) to open the list already filtered.
+  useEffect(() => {
+    const wanted = new URLSearchParams(window.location.search).get('stage');
+    if (wanted && (ORDER_STAGES as readonly string[]).includes(wanted)) setStage(wanted);
+  }, []);
+
   useEffect(() => {
     (async () => {
       const res = await fetch('/api/admin/orders');
