@@ -2,9 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Modal from '@/components/Modal';
-import { createReplication, uploadReplicationPhoto, getReplicationLookups, type ReplicationRequest } from '@/lib/replicationStorage';
-
-const GARMENTS: ReplicationRequest['garmentType'][] = ['jacket', 'parka', 'coat', 'vest', 'pants', 'overalls', 'hoodie'];
+import { createReplication, uploadReplicationPhoto, getReplicationLookups, getGarmentTypes, type ReplicationRequest } from '@/lib/replicationStorage';
+import { DEFAULT_GARMENT_CATEGORIES, DEFAULT_GARMENT_TYPES, type GarmentCategory, type GarmentType } from '@/lib/garment-types-data';
 const MAX_PHOTOS = 12;
 const MAX_BYTES = 4 * 1024 * 1024;
 const OK_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
@@ -38,7 +37,14 @@ export default function NewRequestDialog({ role, onClose, onCreated }: Props) {
   const [active, setActive] = useState(0);
   const [clientName, setClientName] = useState('');
   const [productName, setProductName] = useState('');
-  const [garmentType, setGarmentType] = useState<ReplicationRequest['garmentType']>('jacket');
+  // Category first, then the garment type inside it. The built-in list shows at once; the saved list replaces it when it arrives.
+  const [categories, setCategories] = useState<GarmentCategory[]>(DEFAULT_GARMENT_CATEGORIES);
+  const [types, setTypes] = useState<GarmentType[]>(DEFAULT_GARMENT_TYPES);
+  const [category, setCategory] = useState('outerwear');
+  const [garmentType, setGarmentType] = useState('jacket');
+  useEffect(() => { getGarmentTypes().then(l => { setCategories(l.categories); setTypes(l.types); }).catch(() => {}); }, []);
+  const typesInCategory = types.filter(t => t.category === category);
+  const chooseCategory = (key: string) => { setCategory(key); const first = types.find(t => t.category === key); if (first) setGarmentType(first.key); };
   const [notes, setNotes] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
@@ -162,17 +168,25 @@ export default function NewRequestDialog({ role, onClose, onCreated }: Props) {
           )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="space-y-4">
           <label className="block space-y-1">
             <span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Product name</span>
             <input className={field} value={productName} onChange={e => setProductName(e.target.value)} placeholder="e.g. Winter work parka" maxLength={200} required />
           </label>
-          <label className="block space-y-1">
-            <span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Garment type</span>
-            <select className={field} value={garmentType} onChange={e => setGarmentType(e.target.value as ReplicationRequest['garmentType'])}>
-              {GARMENTS.map(g => <option key={g} value={g}>{g[0].toUpperCase() + g.slice(1)}</option>)}
-            </select>
-          </label>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <label className="block space-y-1">
+              <span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Category</span>
+              <select className={field} value={category} onChange={e => chooseCategory(e.target.value)}>
+                {categories.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+              </select>
+            </label>
+            <label className="block space-y-1">
+              <span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Garment type</span>
+              <select className={field} value={garmentType} onChange={e => setGarmentType(e.target.value)}>
+                {typesInCategory.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
+              </select>
+            </label>
+          </div>
         </div>
 
         <label className="block space-y-1">

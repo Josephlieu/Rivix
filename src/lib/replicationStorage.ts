@@ -1,4 +1,5 @@
 import type { PersistedGarmentAIAnalysis } from './garmentAiAnalysis';
+import type { GarmentCategory, GarmentType } from './garment-types-data';
 
 export interface ReplicationSpec {
   fabricWeight: string;
@@ -34,7 +35,7 @@ export interface ReplicationRequest {
   createdByName?: string | null;
   clientName: string;
   productName: string;
-  garmentType: 'overalls' | 'parka' | 'jacket' | 'pants' | 'vest' | 'hoodie' | 'coat';
+  garmentType: string; // the key of a garment type (see garment-types-data.ts); show it with garmentTypeLabel()
   status: 'received' | 'spec_mapped' | 'sample_production' | 'sample_shipped';
   submissionDate: string;
   images: string[]; // short-lived private links to the photos, in display order
@@ -136,6 +137,15 @@ export const getReplicationLookups = async (): Promise<ReplicationLookups> => {
   const res = await fetch(`${API}/lookups`, { cache: 'no-store' });
   if (!res.ok) await fail(res, 'Could not load the form options.');
   return (await res.json()) as ReplicationLookups;
+};
+
+export interface GarmentLibraryData { categories: GarmentCategory[]; types: GarmentType[]; editable: boolean }
+
+/** The garment categories and types for the new-request form (admins can ask for the inactive ones too). */
+export const getGarmentTypes = async (all = false): Promise<GarmentLibraryData> => {
+  const res = await fetch(`${API}/garment-types${all ? '?all=1' : ''}`, { cache: 'no-store' });
+  if (!res.ok) await fail(res, 'Could not load the garment types.');
+  return (await res.json()) as GarmentLibraryData;
 };
 
 export interface DownloadEntry { id: string; by: string | null; role: string | null; revision: number | null; approved: boolean | null; at: string }

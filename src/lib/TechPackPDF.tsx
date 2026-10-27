@@ -6,6 +6,7 @@
 // Every section is always printed, with "Not specified" when nobody has entered it, so the structure never
 // changes between garments. A file that has not been approved is stamped DRAFT on every page.
 
+import { garmentTypeLabel } from './garment-types-data';
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Image, Font } from '@react-pdf/renderer';
 import { formatDate } from '@/lib/format';
@@ -196,7 +197,7 @@ export const TechPackPDF = ({ d }: { d: TechFileData }) => {
           <Text style={s.heroMeta}>{d.clientName}  ·  {d.requestCode}</Text>
           <View style={s.chipRow}>
             <Text style={d.approved ? s.chip : s.chipGrey}>{d.approved ? `Rev ${d.revision} approved` : 'Draft: not approved'}</Text>
-            <Text style={s.chipGrey}>{d.garmentType}</Text>
+            <Text style={s.chipGrey}>{garmentTypeLabel(d.garmentType)}</Text>
             <Text style={s.chipGrey}>Sizes XS – XL</Text>
           </View>
         </View>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { logRepActivity } from '@/lib/rep-activity';
+import { allowedGarmentKeys } from '@/lib/garment-types';
 import { getReplicationActor, unauthorized, notFound, canAccess, repsByIds, requestLink } from '@/lib/replication-access';
 import { isValidReplicationId, replicationToRow, rowToReplication, applyReview, approvalProblem, REPLICATION_BUCKET } from '@/lib/replication-server';
 import { notifyUsers } from '@/lib/notify';
@@ -35,7 +36,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!existing || !canAccess(actor, existing)) return notFound();
 
   const body = await req.json().catch(() => null);
-  const parsed = replicationToRow(body ?? {}, id, Array.isArray(existing.images) ? existing.images : []);
+  const parsed = replicationToRow(body ?? {}, id, Array.isArray(existing.images) ? existing.images : [], {
+    allowed: await allowedGarmentKeys(admin, existing.garment_type as string | null),
+    currentType: existing.garment_type as string | undefined,
+  });
   if ('error' in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 });
 
   const isAdmin = actor.kind === 'admin';

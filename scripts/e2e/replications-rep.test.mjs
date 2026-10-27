@@ -34,6 +34,12 @@ try{
     ok('and the refreshed sign-in is sent back to the browser',setCookies.some(c=>c.startsWith(ckName)&&!c.includes('expired.invalid.token')),setCookies.length+' cookies');
   }
 
+  // --- the garment list: a rep reads it (active types only), cannot manage it, and cannot pick an unknown type
+  let gl=await call('GET',`${B}/garment-types`,ra); let gj=await gl.json();
+  ok('a rep can read the garment types (35 or more, all active)',gl.status===200&&gj.types?.length>=35&&gj.types.every(x=>x.active),gl.status);
+  gl=await call('GET',`${B}/garment-types?all=1`,ra); gj=await gl.json(); ok('a rep cannot ask for the switched-off types too',gl.status===200&&gj.types.every(x=>x.active));
+  gl=await call('POST',B,ra,{clientName:'ZZ Prospect',productName:'ZZ Bad Type',garmentType:'spaceship'}); ok('a rep cannot create a request with an unknown type',gl.status===400);
+  gl=await call('POST','/api/admin/garment-types',ra,{label:'ZZ Rep Type',category:'outerwear'}); ok('a rep cannot add a garment type',gl.status===401||gl.status===403);
   // --- a rep creates a request: it is theirs, whatever the browser claims
   let r=await call('POST',B,ra,{clientName:'ZZ Prospect',productName:'ZZ Rep Parka',garmentType:'parka',repId:repB.id}); let j=await r.json();
   const A1=j.replication?.id; ids.push(A1);
