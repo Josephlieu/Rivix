@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
 import { createAdminClient } from '@/lib/supabase-admin';
+import { logRepActivity } from '@/lib/rep-activity';
 import { getReplicationActor, unauthorized, repsByIds, requestLink } from '@/lib/replication-access';
 import { replicationToRow, rowToReplication } from '@/lib/replication-server';
 import { adminUserIds, notifyUsers } from '@/lib/notify';
@@ -68,5 +69,6 @@ export async function POST(req: NextRequest) {
       kind: 'replication_new', title: `Replication request ${code} assigned to you`, body: what, link: requestLink('rep', code),
     });
   }
+  await logRepActivity(admin, { repId, kind: 'replication', by: actor.name, summary: `Replication request ${code} created: ${what}`, link: requestLink('admin', code) });
   return NextResponse.json({ replication: await rowToReplication(admin, data, reps) });
 }

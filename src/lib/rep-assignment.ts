@@ -2,13 +2,14 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { notifyUsers } from '@/lib/notify';
 import { sendEmail } from '@/lib/email';
 import { repChangeEmails } from '@/lib/rep-change-emails';
+import { logRepActivity } from '@/lib/rep-activity';
 
 // Tells the people involved when a customer's sales rep changes. In the app: the new rep, the old rep and the customer.
 // By email: the customer, the new rep and the previous rep. Used by the Clients page (edit a customer) and by the admin "New order" form.
 // Returns a warning text when an email could not be sent (the change itself has already happened and is never undone).
 export async function announceRepChange(
   admin: SupabaseClient,
-  c: { customerId: string; companyName: string | null; customerUserId: string | null; beforeRepId: string | null; afterRepId: string | null }
+  c: { customerId: string; companyName: string | null; customerUserId: string | null; beforeRepId: string | null; afterRepId: string | null; by?: string }
 ): Promise<{ emailWarning?: string }> {
   const ids = [c.afterRepId, c.beforeRepId].filter(Boolean) as string[];
   const { data: reps } = ids.length
@@ -18,6 +19,15 @@ export async function announceRepChange(
   const company = c.companyName || 'A customer';
   const newRep = c.afterRepId ? byId.get(c.afterRepId) : null;
   const oldRep = c.beforeRepId ? byId.get(c.beforeRepId) : null;
+  // History on each rep's page.
+  if (c.afterRepId) {
+    await logRepActivity(admin, { repId: c.afterRepId, kind: 'customer_assigned', customerId: c.customerId, by: c.by, link: `/admin/clients/${c.customerId}`,
+      summary: `Customer assigned: ${company}${oldRep ? ` (from ${oldRep.name})` : ''}` });
+  }
+  if (c.beforeRepId) {
+    await logRepActivity(admin, { repId: c.beforeRepId, kind: 'customer_removed', customerId: c.customerId, by: c.by, link: `/admin/clients/${c.customerId}`,
+      summary: `Customer removed: ${company}${newRep ? ` (moved to ${newRep.name})` : ' (now handled by admin)'}` });
+  }
   if (newRep) {
     await notifyUsers(admin, [newRep.user_id], {
       kind: 'customer_assigned',
@@ -59,10 +69,11 @@ export async function announceRepChange(
 // A brand-new customer was created with a sales rep already chosen: tell that rep, in the app and by email.
 export async function announceNewCustomerToRep(
   admin: SupabaseClient,
-  c: { customerId: string; companyName: string; customerEmail: string | null; customerPhone: string | null; repId: string }
+  c: { customerId: string; companyName: string; customerEmail: string | null; customerPhone: string | null; repId: string; by?: string }
 ): Promise<{ emailWarning?: string }> {
   const { data: rep } = await admin.from('reps').select('name, title, email, phone, user_id').eq('id', c.repId).maybeSingle();
   if (!rep) return {};
+  await logRepActivity(admin, { repId: c.repId, kind: 'customer_assigned', customerId: c.customerId, by: c.by, link: `/admin/clients/${c.customerId}`, summary: `Customer assigned: ${c.companyName} (new customer)` });
   await notifyUsers(admin, [rep.user_id], {
     kind: 'customer_assigned',
     title: `New customer assigned: ${c.companyName}`,

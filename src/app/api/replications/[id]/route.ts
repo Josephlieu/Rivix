@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
+import { logRepActivity } from '@/lib/rep-activity';
 import { getReplicationActor, unauthorized, notFound, canAccess, repsByIds, requestLink } from '@/lib/replication-access';
 import { isValidReplicationId, replicationToRow, rowToReplication, applyReview, approvalProblem, REPLICATION_BUCKET } from '@/lib/replication-server';
 import { notifyUsers } from '@/lib/notify';
@@ -85,6 +86,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const was = (existing.ai_analysis as { review?: { status?: string } } | null)?.review?.status;
     const now = (data.ai_analysis as { review?: { status?: string } } | null)?.review?.status;
     const link = requestLink('rep', code);
+    const adminLink = requestLink('admin', code);
+    const log = (repId: unknown, summary: string) => logRepActivity(admin, { repId: repId as string | null, kind: 'replication', by: actor.name, summary, link: adminLink });
+    if (data.rep_id !== existing.rep_id) { await log(data.rep_id, `Replication request ${code} assigned to this rep: ${what}`); await log(existing.rep_id, `Replication request ${code} taken away from this rep: ${what}`); }
+    else if (approve && now === 'approved' && was !== 'approved') await log(data.rep_id, `Tech file approved for ${code}: ${what}`);
+    else if (data.status !== existing.status && (data.status === 'sample_production' || data.status === 'sample_shipped')) await log(data.rep_id, `${code} ${data.status === 'sample_production' ? 'moved to sample production' : 'sample shipped'}: ${what}`);
     if (data.rep_id !== existing.rep_id) await notifyUsers(admin, [repUser], { kind: 'replication_assigned', title: `Replication request ${code} assigned to you`, body: what, link });
     else if (approve && now === 'approved' && was !== 'approved') await notifyUsers(admin, [repUser], { kind: 'replication_approved', title: `Tech file approved: ${code}`, body: what, link });
     else if (data.status !== existing.status && data.status === 'sample_production') await notifyUsers(admin, [repUser], { kind: 'replication_status', title: `${code} is in sample production`, body: what, link });

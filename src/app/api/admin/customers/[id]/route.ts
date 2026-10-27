@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/require-admin';
+import { requireAdmin, getAdminIdentity } from '@/lib/require-admin';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { BAN_FOREVER, isBanned } from '@/lib/customer-status';
 import { announceRepChange } from '@/lib/rep-assignment';
@@ -46,8 +46,8 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const denied = await requireAdmin();
-  if (denied) return denied;
+  const who = await getAdminIdentity();
+  if ('denied' in who) return who.denied;
 
   const { id } = await params;
   const body = await req.json().catch(() => null);
@@ -103,6 +103,7 @@ export async function PATCH(
       customerUserId: data.user_id,
       beforeRepId: before.rep_id ?? null,
       afterRepId: (update.rep_id as string | null) ?? null,
+      by: who.email,
     }));
   }
 

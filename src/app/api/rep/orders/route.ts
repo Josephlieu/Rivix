@@ -5,6 +5,7 @@ import { adminUserIds, customerParties, notifyUsers } from '@/lib/notify';
 import { clean, parseOrderBody } from '@/lib/order-input';
 import { localDateKey } from '@/lib/format';
 import { invalidateDashboard } from '@/lib/dashboard-data';
+import { logForOrder } from '@/lib/rep-activity';
 
 // A sales rep creates an order for one of THEIR customers; the rep is worked out from the session.
 // (Admins can create orders too, for any customer: see POST /api/admin/orders. Changed 2026-10-16 at the client's request.)
@@ -62,6 +63,8 @@ export async function POST(req: NextRequest) {
     await admin.from('orders').delete().eq('id', order.id);
     return NextResponse.json({ error: itemsErr.message }, { status: 500 });
   }
+
+  await logForOrder(admin, order.id, { kind: 'order_created', by: rep.name, text: (o) => `Order ${o.batch} created for ${o.company}` });
 
   await notifyUsers(admin, await adminUserIds(admin), {
     kind: 'new_order',

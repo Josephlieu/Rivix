@@ -3,6 +3,7 @@ import { getCurrentRep } from '@/lib/current-rep';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { adminUserIds, notifyUsers } from '@/lib/notify';
 import { DOC_TYPES } from '@/lib/documents';
+import { logForOrder } from '@/lib/rep-activity';
 
 // A rep asks admin for a document on one of their own customers' orders.
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -31,6 +32,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .select('id')
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await logForOrder(admin, order.id, { kind: 'request_created', by: rep.name, text: (o) => `Requested ${docType} on ${o.batch} (${o.company})` });
 
   await notifyUsers(admin, await adminUserIds(admin), {
     kind: 'document_request',

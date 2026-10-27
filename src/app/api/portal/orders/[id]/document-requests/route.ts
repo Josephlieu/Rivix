@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { createAdminClient } from '@/lib/supabase-admin';
+import { logForOrder } from '@/lib/rep-activity';
 import { adminUserIds, customerParties, notifyUsers } from '@/lib/notify';
 import { DOC_TYPES } from '@/lib/documents';
 import { canRequestDocuments } from '@/lib/order-stages';
@@ -57,6 +58,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .select('id')
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await logForOrder(admin, order.id, { kind: 'request_created', by: customer.company_name, text: (o) => `Customer asked for ${docType} on ${o.batch}` });
 
   const text = `${docType} for ${order.batch_number}${note ? ` — ${note}` : ''}`;
   if (toRep) {
