@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/require-admin';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { clearGarmentCache, loadGarmentLibrary } from '@/lib/garment-types';
+import { familyByKey } from '@/lib/garment-templates';
 
 // Rename a type, move it to another category, switch it on or off, or move it up or down inside its category.
 // Types are never deleted: older requests keep their type. Switching one off only hides it from the new-request form.
@@ -31,6 +32,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ke
     update.category = body.category;
   }
   if ('active' in body) update.active = Boolean(body.active);
+  if ('templateFamily' in body) {
+    const family = String(body.templateFamily ?? '');
+    if (family && !familyByKey(family)) return NextResponse.json({ error: 'Choose a template from the list.' }, { status: 400 });
+    update.template_family = family || null;
+  }
 
   if (body.move === 'up' || body.move === 'down') {
     const mates = lib.types.filter((t) => t.category === (update.category ?? type.category)).sort((a, b) => a.sort - b.sort);
@@ -45,6 +51,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ke
 
   if (Object.keys(update).length) {
     const { error } = await admin.from('garment_types').update({ ...update, updated_at: new Date().toISOString() }).eq('key', key);
+    if (error && /template_family/.test(error.message)) return NextResponse.json({ error: 'Template choice is not set up yet. Run dev-patch-garment-families.sql in the Supabase SQL Editor first.' }, { status: 409 });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   }
   clearGarmentCache();

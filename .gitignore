@@ -21,3 +21,6 @@ npm-debug.log*
 
 # Internal audit docs
 /audit-docs/
+
+# Large reference PDFs kept in the project folder (client tech pack book, catalogue): never commit
+/*.pdf

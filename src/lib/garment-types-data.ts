@@ -4,7 +4,7 @@
 // The first seven keys are the ones older requests already use (pants = Work Pants, overalls = Bib Overalls): do not rename them.
 
 export interface GarmentCategory { key: string; label: string; sort: number }
-export interface GarmentType { key: string; label: string; category: string; sort: number; active: boolean }
+export interface GarmentType { key: string; label: string; category: string; sort: number; active: boolean; templateFamily?: string | null }
 
 export const DEFAULT_GARMENT_CATEGORIES: GarmentCategory[] = [
   { key: 'outerwear', label: 'Outerwear', sort: 10 },

@@ -11,13 +11,16 @@ export const clearGarmentCache = () => { cache = null; };
 
 export async function loadGarmentLibrary(admin: SupabaseClient): Promise<GarmentLibrary> {
   if (cache && Date.now() - cache.at < TTL_MS) return cache.lib;
-  const [c, t] = await Promise.all([
+  const typeQuery = (cols: string) => admin.from('garment_types').select(cols).order('sort', { ascending: true });
+  const [c, first] = await Promise.all([
     admin.from('garment_categories').select('key, label, sort').order('sort', { ascending: true }),
-    admin.from('garment_types').select('key, label, category, sort, active').order('sort', { ascending: true }),
+    typeQuery('key, label, category, sort, active, template_family'),
   ]);
+  // Until dev-patch-garment-families.sql has been run the column is missing: read without it (families then come from the built-in mapping).
+  const t = first.error ? await typeQuery('key, label, category, sort, active') : first;
   const lib: GarmentLibrary = c.error || t.error || !t.data?.length
     ? { categories: DEFAULT_GARMENT_CATEGORIES, types: DEFAULT_GARMENT_TYPES, fromDatabase: false }
-    : { categories: c.data as GarmentCategory[], types: t.data as GarmentType[], fromDatabase: true };
+    : { categories: c.data as GarmentCategory[], types: (t.data as unknown as Array<GarmentType & { template_family?: string | null }>).map(({ template_family, ...x }) => ({ ...x, templateFamily: template_family ?? null })), fromDatabase: true };
   cache = { at: Date.now(), lib };
   return lib;
 }
