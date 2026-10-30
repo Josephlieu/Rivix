@@ -430,10 +430,55 @@ export const FAMILIES: Family[] = [
     sizing: { style: 'custom', note: 'Confirm the size structure with the client.' },
     views: ['front', 'back'],
   },
+  {
+    key: 'survival-suit', label: 'Immersion / survival suit', description: 'Cold-water immersion and survival suits (marine, fisheries).',
+    points: [
+      p('A', 'Height range', 'length', 'The wearer height range the suit is made for'),
+      p('B', 'Chest', 'flat', 'Straight across, 1 in below the armhole, seam to seam, closed'),
+      p('C', 'Torso length', 'length', 'From the high point of the shoulder to the crotch seam'),
+      p('D', 'Sleeve length', 'length', 'From the shoulder point to the end of the sleeve (before the mitt)'),
+      p('E', 'Inseam', 'length', 'From the crotch seam to the ankle seam'),
+      p('F', 'Hood opening', 'flat', 'Across the face opening of the hood, relaxed'),
+      p('G', 'Wrist seal opening', 'flat', 'Across the wrist seal, relaxed'),
+      p('H', 'Foot length', 'length', 'Inside length of the attached foot or boot'),
+    ],
+    construction: [
+      c('closure', 'Waterproof zipper and storm flap', 'photo'),
+      c('seals', 'Face, neck and wrist seals', 'photo'),
+      c('hood-hands-feet', 'Hood, mitts and feet: attached or separate', 'photo'),
+      c('flotation', 'Flotation material, rating and placement', 'document'),
+      c('lifting', 'Lifting loop, whistle and light attachments', 'photo', false),
+    ],
+    sizing: { style: 'height-based', note: 'Sized by wearer height and weight range from the maker\'s chart; universal sizes are common.' },
+    views: ['front', 'back'],
+  },
+  {
+    key: 'gown', label: 'Disposable gown', description: 'Single-use visitor and protective gowns (non-woven).',
+    points: [
+      p('A', 'Chest width', 'flat', 'Straight across the body at the underarm, seam to seam'),
+      p('B', 'Body length', 'length', 'From the high point of the shoulder to the hem'),
+      p('C', 'Sleeve length', 'length', 'From the shoulder point to the end of the cuff'),
+      p('D', 'Neck opening', 'flat', 'Across the neck opening, relaxed'),
+      p('E', 'Cuff opening', 'flat', 'Across the elastic cuff, relaxed'),
+      p('F', 'Tie length', 'length', 'Length of each tie (neck and waist)'),
+    ],
+    construction: [
+      c('material', 'Non-woven material, layers and weight (gsm)', 'document'),
+      c('neck-closure', 'Neck closure (tie-neck or snap)', 'photo'),
+      c('waist-ties', 'Waist ties: position and length', 'photo'),
+      c('cuffs', 'Cuffs: elastic or knit', 'photo'),
+      c('sterility', 'Sterile or non-sterile, single use', 'document'),
+      c('box-packing', 'Pieces per box, boxes per pallet', 'document', false),
+    ],
+    sizing: { style: 'alpha', note: 'Alpha sizes (for example S to XXL) from the maker\'s chart; the fabric weight may be offered in several options.' },
+    views: ['front', 'back'],
+  },
   // ---- Kits: made of several families ---------------------------------------------------------------------------
   { key: 'scrubs', label: 'Scrubs (top and pants)', description: 'A scrub set: top and pants, each with its own measurements.', points: [], construction: [], sizing: { style: 'alpha', note: 'See the top and the pants.' }, views: ['front', 'back'], composedOf: ['scrub-top', 'scrub-pants'] },
   { key: 'rain-suit', label: 'Rain suit (jacket and pants)', description: 'A rain jacket with rain pants.', points: [], construction: [], sizing: { style: 'alpha', note: 'See the jacket and the pants.' }, views: ['front', 'back'], composedOf: ['jacket', 'trousers'] },
   { key: 'station-wear', label: 'Station wear (shirt and pants)', description: 'Firefighter station wear: shirt and pants.', points: [], construction: [], sizing: { style: 'alpha', note: 'See the shirt and the pants.' }, views: ['front', 'back'], composedOf: ['shirt', 'trousers'] },
+  { key: 'two-piece-set', label: 'Jacket and trouser set', description: 'A matching two-piece set: jacket and trousers, each with its own measurements.', points: [], construction: [], sizing: { style: 'alpha', note: 'See the jacket and the trousers.' }, views: ['front', 'back'], composedOf: ['jacket', 'trousers'] },
+  { key: 'aluminized-set', label: 'Aluminized suit (jacket and trousers)', description: 'Heat-reflective aluminized jacket and trousers (hood, gloves and boots are separate products).', points: [], construction: [], sizing: { style: 'alpha', note: 'See the jacket and the trousers.' }, views: ['front', 'back'], composedOf: ['jacket', 'trousers'] },
   { key: 'protective-set', label: 'Protective clothing set', description: 'Hi-vis or arc rated clothing: a shirt, pants, jacket, coverall or vest chosen per project.', points: [], construction: [], sizing: { style: 'alpha', note: 'See the chosen garment.' }, views: ['front', 'back'], composedOf: ['shirt', 'trousers', 'jacket', 'coverall', 'vest'] },
 ];
 
@@ -479,6 +524,17 @@ export const MODULES: Module[] = [
     c('compat', 'Chemical compatibility and permeation data', 'document'),
     c('suit-seams', 'Seam and closure sealing tested', 'document'),
   ], protective: { standards: ['ISO 13688', 'The chemical protective clothing standard that applies to the intended use'], evidence: WARN } },
+  { key: 'immersion', label: 'Immersion protection', construction: [
+    c('buoyancy', 'Buoyancy: material, rating and test data', 'document'),
+    c('cold-water', 'Thermal insulation for cold water and how it was tested', 'document'),
+    c('marking', 'Retroreflective material, whistle and light', 'photo', false),
+  ], protective: { standards: ['CAN/CGSB 65.16 (check the edition)', 'IMO LSA Code, where it applies', 'Transport Canada approval for the exact model and the vessel requirements'], evidence: WARN } },
+  { key: 'heat-reflective', label: 'Heat reflective (aluminized)', construction: [
+    c('outer-layer', 'Aluminized outer layer and the base fabric it is bonded to', 'document'),
+    c('thermal-layers', 'Thermal liner and layers', 'document'),
+    c('heat-data', 'Radiant heat performance data from a test report', 'document'),
+    c('sealing', 'Closures and overlaps at collar, wrists, legs and front', 'photo'),
+  ], protective: { standards: ['The standard for aluminized proximity or heat protective clothing that applies to the intended use (verify the edition)', 'ISO 13688'], evidence: WARN } },
   { key: 'disposable', label: 'Disposable', construction: [
     c('barrier', 'Material barrier (particles, liquids) and rating', 'document'),
     c('hood-cuffs', 'Hood, cuffs and ankles (elastic) and zipper', 'photo'),
@@ -523,6 +579,12 @@ export const TYPE_TEMPLATES: Record<string, TypeTemplate> = {
   'rain-suit': { family: 'rain-suit', modules: ['waterproof'] },
   'high-visibility-clothing': { family: 'protective-set', modules: ['hivis'] },
   'arc-rated-clothing': { family: 'protective-set', modules: ['arc'] },
+  'four-in-one-jacket': { family: 'jacket', modules: ['insulation'] },
+  'jacket-trouser-set': { family: 'two-piece-set' },
+  'dress-shirt': { family: 'shirt' },
+  'survival-suit': { family: 'survival-suit', modules: ['immersion'] },
+  'aluminized-suit': { family: 'aluminized-set', modules: ['heat-reflective'] },
+  'disposable-gown': { family: 'gown' },
 };
 
 export const familyByKey = (key: string | null | undefined): Family | undefined => FAMILIES.find((f) => f.key === key);

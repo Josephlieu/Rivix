@@ -14,7 +14,7 @@ export const DEFAULT_GARMENT_CATEGORIES: GarmentCategory[] = [
 
 const t = (category: string, rows: [string, string][]): Omit<GarmentType, 'sort' | 'active'>[] => rows.map(([key, label]) => ({ key, label, category }));
 
-export const DEFAULT_GARMENT_TYPES: GarmentType[] = [
+const MAIN_TYPES: GarmentType[] = [
   ...t('outerwear', [
     ['jacket', 'Jacket'], ['parka', 'Parka'], ['coat', 'Coat'], ['bomber-jacket', 'Bomber Jacket'], ['softshell-jacket', 'Softshell Jacket'],
     ['rain-jacket', 'Rain Jacket'], ['winter-jacket', 'Winter Jacket'], ['fleece-jacket', 'Fleece Jacket'], ['vest', 'Vest'], ['high-visibility-vest', 'High Visibility Vest'],
@@ -31,6 +31,19 @@ export const DEFAULT_GARMENT_TYPES: GarmentType[] = [
     ['high-visibility-clothing', 'High Visibility Clothing'], ['arc-rated-clothing', 'Arc Rated Clothing'],
   ]),
 ].map((g, i) => ({ ...g, sort: (i + 1) * 10, active: true }));
+
+// Types found in RIVIX's own catalogue that are not in the client's list of 35 (added 2026-10-30; sort numbers continue after the 35).
+// Admins can switch any of them off on the Garment types screen. Seed: audit-docs/deliverables/dev-patch-garment-types-catalogue.sql.
+export const CATALOGUE_TYPES: GarmentType[] = [
+  { key: 'four-in-one-jacket', label: '4-in-1 Jacket', category: 'outerwear', sort: 360, active: true },
+  { key: 'jacket-trouser-set', label: 'Jacket and Trouser Set', category: 'workwear', sort: 370, active: true },
+  { key: 'dress-shirt', label: 'Dress Shirt or Blouse', category: 'workwear', sort: 380, active: true },
+  { key: 'survival-suit', label: 'Immersion / Survival Suit', category: 'protective', sort: 390, active: true },
+  { key: 'aluminized-suit', label: 'Aluminized Heat Protection Suit', category: 'protective', sort: 400, active: true },
+  { key: 'disposable-gown', label: 'Disposable Visitor Gown', category: 'protective', sort: 410, active: true },
+];
+
+export const DEFAULT_GARMENT_TYPES: GarmentType[] = [...MAIN_TYPES, ...CATALOGUE_TYPES];
 
 /** Readable name for a stored key ("high-visibility-vest" -> "High Visibility Vest"). Unknown keys are tidied up instead of shown raw. */
 export function garmentTypeLabel(key: string | null | undefined, types: GarmentType[] = DEFAULT_GARMENT_TYPES): string {
