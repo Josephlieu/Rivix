@@ -3,7 +3,10 @@
 import { useEffect, useState } from 'react';
 import type { PersistedGarmentAIAnalysis } from '@/lib/garmentAiAnalysis';
 import type { ReplicationRequest, ReplicationSpec } from '@/lib/replicationStorage';
-import { suggestedTests, suggestFrenchCare, prefillSpecs } from '@/lib/techFileStandards';
+import { suggestedTests, suggestFrenchCare, prefillSpecs, HIVIS_STANDARDS, TAPE_OPTIONS } from '@/lib/techFileStandards';
+import { resolveTemplate } from '@/lib/garment-templates';
+import { checklistFor, templateMeasurements, outstandingConfirmations } from '@/lib/garmentAiAnalysis';
+import { getGarmentTypes } from '@/lib/replicationStorage';
 
 type Analysis = PersistedGarmentAIAnalysis;
 type Measurement = Analysis['measurements'][number];
@@ -44,30 +47,76 @@ function Section({ title, hint, children }: { title: string; hint?: string; chil
   );
 }
 
-function Field({ name, value, onChange, wide }: { name: string; value: string; onChange: (v: string) => void; wide?: boolean }) {
+function Field({ name, value, onChange, wide, options, flagged, onConfirm, suggestion, onUse, note }: {
+  name: string; value: string; onChange: (v: string) => void; wide?: boolean;
+  options?: string[]; // suggestions (the field stays free text)
+  flagged?: boolean; onConfirm?: () => void; // "needs confirmation" flag and the button that clears it
+  suggestion?: string; onUse?: () => void; // the AI's idea (never filled in by itself)
+  note?: string; // where the value came from, for example the customer's form
+}) {
+  const listId = options ? `list-${name.replace(/\W+/g, '-')}` : undefined;
   return (
-    <label className={`block space-y-1 ${wide ? 'sm:col-span-2' : ''}`}>
-      <span className={label}>{name}</span>
-      <input className={input} value={value} onChange={e => onChange(e.target.value)} maxLength={500} />
-    </label>
+    <div className={`block space-y-1 ${wide ? 'sm:col-span-2' : ''}`}>
+      <label className="block space-y-1">
+        <span className={label}>{name}</span>
+        <input className={`${input} ${flagged ? 'border-amber-400 bg-amber-50' : ''}`} value={value} onChange={e => onChange(e.target.value)} maxLength={500} list={listId} />
+      </label>
+      {listId && <datalist id={listId}>{options!.map(o => <option key={o} value={o} />)}</datalist>}
+      {note && <span className="block text-[10px] text-slate-500">{note}</span>}
+      {flagged && onConfirm && <ConfirmFlag onConfirm={onConfirm} />}
+      {suggestion && onUse && <Suggestion text={suggestion} onUse={onUse} />}
+    </div>
   );
 }
 
-function ListBox({ name, hint, value, onChange }: { name: string; hint?: string; value: string[]; onChange: (v: string[]) => void }) {
+function Suggestion({ text, onUse }: { text: string; onUse: () => void }) {
+  return (
+    <span className="flex flex-wrap items-center gap-2 rounded bg-slate-50 px-2 py-1 text-[10px] text-slate-500">
+      <span><b>AI suggests (not confirmed):</b> {text}</span>
+      <button type="button" onClick={onUse} className="font-bold text-rivix hover:underline">Use this</button>
+    </span>
+  );
+}
+
+function ConfirmFlag({ onConfirm }: { onConfirm: () => void }) {
+  return (
+    <span className="flex items-center gap-2 text-[10px]">
+      <span className="rounded bg-amber-100 px-1.5 py-0.5 font-bold uppercase tracking-widest text-amber-800">Needs confirmation</span>
+      <button type="button" onClick={onConfirm} className="font-bold text-rivix hover:underline">Confirmed, it is correct</button>
+    </span>
+  );
+}
+
+function ListBox({ name, hint, value, onChange, flagged, onConfirm, suggestion, onUse, note }: {
+  name: string; hint?: string; value: string[]; onChange: (v: string[]) => void;
+  flagged?: boolean; onConfirm?: () => void; suggestion?: string; onUse?: () => void; note?: string;
+}) {
   // Keep what is being typed (including empty lines) while editing; split into lines when saving into the draft.
   const [text, setText] = useState(value.join('\n'));
   useEffect(() => { if (stable(lines(text)) !== stable(value)) setText(value.join('\n')); }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <label className="block space-y-1">
       <span className={label}>{name}</span>
-      <textarea className={input} rows={4} value={text} onChange={e => { setText(e.target.value); onChange(lines(e.target.value)); }} />
-      {hint && <span className="text-[10px] text-slate-400">{hint}</span>}
+      <textarea className={`${input} ${flagged ? 'border-amber-400 bg-amber-50' : ''}`} rows={4} value={text} onChange={e => { setText(e.target.value); onChange(lines(e.target.value)); }} />
+      {hint && <span className="block text-[10px] text-slate-400">{hint}</span>}
+      {note && <span className="block text-[10px] text-slate-500">{note}</span>}
+      {flagged && onConfirm && <ConfirmFlag onConfirm={onConfirm} />}
+      {suggestion && onUse && <Suggestion text={suggestion} onUse={onUse} />}
     </label>
   );
 }
 
 export default function ReviewTab({ rep, onSave }: Props) {
-  const fromRep = () => ({ specs: { ...rep.specs } as ReplicationSpec, analysis: (rep.aiAnalysis ? structuredClone(rep.aiAnalysis) : emptyAnalysis()) as Analysis });
+  // The garment type's template (the family an admin set on the type, else the built-in one) pre-fills the checklist and the measurement points.
+  const [family, setFamily] = useState<string | null>(null);
+  useEffect(() => { getGarmentTypes().then(l => setFamily(l.types.find(t => t.key === rep.garmentType)?.templateFamily ?? null)).catch(() => {}); }, [rep.garmentType]);
+  const template = resolveTemplate(rep.garmentType, family);
+  const fromRep = () => {
+    const analysis = (rep.aiAnalysis ? structuredClone(rep.aiAnalysis) : emptyAnalysis()) as Analysis;
+    if (!analysis.checklist) analysis.checklist = checklistFor(template);
+    if (analysis.measurements.length === 0) analysis.measurements = templateMeasurements(template);
+    return { specs: { ...rep.specs } as ReplicationSpec, analysis };
+  };
   const [draft, setDraft] = useState(fromRep);
   const [saving, setSaving] = useState<'' | 'save' | 'approve'>('');
   const [problem, setProblem] = useState('');
@@ -87,6 +136,20 @@ export default function ReviewTab({ rep, onSave }: Props) {
   const a = draft.analysis;
   const setA = (patch: Partial<Analysis>) => setDraft(d => ({ ...d, analysis: { ...d.analysis, ...patch } }));
   const setSpec = (k: keyof ReplicationSpec, v: string) => setDraft(d => ({ ...d, specs: { ...d.specs, [k]: v } }));
+  const flags = a.flags || [];
+  const isFlagged = (path: string) => flags.includes(path);
+  const confirm = (path: string) => setA({ flags: flags.filter(f => f !== path) });
+  // The AI's idea for a field it could not see: shown beside the field; "Use this" copies it in, and it still needs confirming.
+  const sug = (path: string) => a.suggestions?.[path];
+  const src = (path: string) => (a.fromCustomer?.includes(path) ? "From the customer's request form. Check it, then confirm." : undefined);
+  const use = (path: string) => {
+    const text = a.suggestions?.[path];
+    if (!text) return;
+    const [group, field] = path.split('.');
+    const current = ({ fabricAnalysis: a.fabricAnalysis || emptyFabric, colorway: a.colorway || emptyColor, bom: a.bom || emptyBom, washCare: a.washCare || emptyCare } as Record<string, object>)[group];
+    const isList = path === 'bom.hardware' || path === 'bom.thread' || path === 'bom.labels' || path === 'washCare.instructions';
+    setA({ [group]: { ...current, [field]: isList ? lines(text) : text } } as Partial<Analysis>);
+  };
   const fabric = a.fabricAnalysis || emptyFabric;
   const bom = a.bom || emptyBom;
   const color = a.colorway || emptyColor;
@@ -96,6 +159,13 @@ export default function ReviewTab({ rep, onSave }: Props) {
   const [frNote, setFrNote] = useState('');
   const [specNote, setSpecNote] = useState('');
   const review = rep.aiAnalysis?.review;
+  // What to ask the customer for, worked out from the fields that are still open.
+  const askList: string[] = [];
+  if (['fabricAnalysis.material', 'fabricAnalysis.weight', 'fabricAnalysis.weaveType', 'washCare.instructions', 'bom.labels'].some(isFlagged)) askList.push('A clear photo of the inside label (fabric and care text), or the fabric spec sheet');
+  if (isFlagged('fabricAnalysis.frRating')) askList.push('The safety standard or certification, if any (a brand certification does not transfer to a copy)');
+  if (a.measurements.some(m => m.needsConfirmation)) askList.push('A sample garment or the size chart with measurements');
+  if (['colorway.threadColor', 'colorway.hardwareFinish', 'bom.hardware', 'bom.thread'].some(isFlagged)) askList.push('Close-up photos of the zipper, snaps and stitching');
+  if ((a.checklist || []).some(c => c.required && c.needsConfirmation)) askList.push('Photos from the back and the sides, if only the front was sent');
   const approved = review?.status === 'approved';
 
   const rowInput = (v: string | number, on: (s: string) => void, cls = '') => (
@@ -109,6 +179,8 @@ export default function ReviewTab({ rep, onSave }: Props) {
   const problems = (): string => {
     if (a.measurements.length === 0) return 'Add at least one measurement before approving.';
     if (a.measurements.some(m => !m.pom.trim() || !m.description.trim())) return 'Every measurement needs a point code and a description.';
+    const open = outstandingConfirmations(a);
+    if (open.length) return `${open.length} item${open.length > 1 ? 's' : ''} still need confirmation: ${open.slice(0, 5).join(', ')}${open.length > 5 ? '…' : ''}. Check each against the garment and confirm it.`;
     return '';
   };
 
@@ -153,9 +225,35 @@ export default function ReviewTab({ rep, onSave }: Props) {
         <p className="rounded-xl border border-dashed border-slate-200 px-4 py-3 text-xs text-slate-500">The AI analysis has not been run for this request. Run it on the “AI Garment Analysis” tab to get a first draft, or fill in the values below by hand.</p>
       )}
 
+      {askList.length > 0 && (
+        <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+          <h3 className="text-xs font-black uppercase tracking-widest text-amber-900">Ask the customer for</h3>
+          <p className="mb-2 text-[11px] text-amber-800">The photos do not show these. If the customer cannot send them, fill the fields yourself, or use the AI's suggestion and confirm it.</p>
+          <ul className="list-disc space-y-0.5 pl-5 text-xs text-amber-900">{askList.map(x => <li key={x}>{x}</li>)}</ul>
+        </section>
+      )}
+
+      <Section title={`Checklist for ${template.family.label}${template.modules.length ? ' + ' + template.modules.map(m => m.label.toLowerCase()).join(', ') : ''}`} hint="From the garment type's template. Fill in what you know, then confirm each item. Items marked required must be confirmed before approval.">
+        <div className="space-y-2">
+          {(a.checklist || []).map((item, i) => (
+            <div key={item.key} className={`rounded-xl border p-3 ${item.needsConfirmation ? 'border-amber-200 bg-amber-50/50' : 'border-slate-100'}`}>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs font-bold text-slate-700">{item.label}{item.required && <span className="ml-1 text-rivix">*</span>} <span className="font-normal text-slate-400">({item.source === 'photo' ? 'often visible in a photo' : 'needs a spec sheet or sample'})</span></span>
+                {item.needsConfirmation
+                  ? <ConfirmFlag onConfirm={() => setA({ checklist: (a.checklist || []).map((x, j) => (j === i ? { ...x, needsConfirmation: false } : x)) })} />
+                  : <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-700">Confirmed</span>}
+              </div>
+              <input className={`${input} mt-1.5`} placeholder="What the garment has (blank = not known yet)" value={item.value} maxLength={500}
+                onChange={e => setA({ checklist: (a.checklist || []).map((x, j) => (j === i ? { ...x, value: e.target.value } : x)) })} />
+            </div>
+          ))}
+        </div>
+        {template.protective && <p className="text-[11px] text-slate-500">Standards to check for this garment: {template.protective.standards.join(', ')}. {template.protective.evidence}</p>}
+      </Section>
+
       <Section title="Basic specification" hint="What the customer’s garment is made of. Shown on the Client Spec Review tab.">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {specFields.map(([k, name]) => <Field key={k} name={name} value={String(draft.specs[k] ?? '')} onChange={v => setSpec(k, v)} />)}
+          {specFields.map(([k, name]) => <Field key={k} name={name} value={String(draft.specs[k] ?? '')} onChange={v => setSpec(k, v)} options={k === 'safetyRating' ? HIVIS_STANDARDS : k === 'reflectiveStriping' ? TAPE_OPTIONS : undefined} />)}
           <Field wide name="Special instructions" value={draft.specs.specialInstructions || ''} onChange={v => setSpec('specialInstructions', v)} />
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -170,21 +268,21 @@ export default function ReviewTab({ rep, onSave }: Props) {
 
       <Section title="Fabric">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <Field name="Material" value={fabric.material} onChange={v => setA({ fabricAnalysis: { ...fabric, material: v } })} />
-          <Field name="Weight" value={fabric.weight} onChange={v => setA({ fabricAnalysis: { ...fabric, weight: v } })} />
-          <Field name="Weave" value={fabric.weaveType} onChange={v => setA({ fabricAnalysis: { ...fabric, weaveType: v } })} />
-          <Field name="Flame-resistance rating" value={fabric.frRating} onChange={v => setA({ fabricAnalysis: { ...fabric, frRating: v } })} />
-          <Field name="Finish" value={fabric.finish || ''} onChange={v => setA({ fabricAnalysis: { ...fabric, finish: v } })} />
-          <Field name="Shrinkage" value={fabric.shrinkage || ''} onChange={v => setA({ fabricAnalysis: { ...fabric, shrinkage: v } })} />
+          <Field name="Material" value={fabric.material} onChange={v => setA({ fabricAnalysis: { ...fabric, material: v } })} flagged={isFlagged('fabricAnalysis.material')} onConfirm={() => confirm('fabricAnalysis.material')} suggestion={sug('fabricAnalysis.material')} onUse={() => use('fabricAnalysis.material')} note={src('fabricAnalysis.material')} />
+          <Field name="Weight" value={fabric.weight} onChange={v => setA({ fabricAnalysis: { ...fabric, weight: v } })} flagged={isFlagged('fabricAnalysis.weight')} onConfirm={() => confirm('fabricAnalysis.weight')} suggestion={sug('fabricAnalysis.weight')} onUse={() => use('fabricAnalysis.weight')} note={src('fabricAnalysis.weight')} />
+          <Field name="Weave" value={fabric.weaveType} onChange={v => setA({ fabricAnalysis: { ...fabric, weaveType: v } })} flagged={isFlagged('fabricAnalysis.weaveType')} onConfirm={() => confirm('fabricAnalysis.weaveType')} suggestion={sug('fabricAnalysis.weaveType')} onUse={() => use('fabricAnalysis.weaveType')} note={src('fabricAnalysis.weaveType')} />
+          <Field name="Flame-resistance rating" value={fabric.frRating} onChange={v => setA({ fabricAnalysis: { ...fabric, frRating: v } })} flagged={isFlagged('fabricAnalysis.frRating')} onConfirm={() => confirm('fabricAnalysis.frRating')} suggestion={sug('fabricAnalysis.frRating')} onUse={() => use('fabricAnalysis.frRating')} note={src('fabricAnalysis.frRating')} />
+          <Field name="Finish" value={fabric.finish || ''} onChange={v => setA({ fabricAnalysis: { ...fabric, finish: v } })} flagged={isFlagged('fabricAnalysis.finish')} onConfirm={() => confirm('fabricAnalysis.finish')} suggestion={sug('fabricAnalysis.finish')} onUse={() => use('fabricAnalysis.finish')} note={src('fabricAnalysis.finish')} />
+          <Field name="Shrinkage" value={fabric.shrinkage || ''} onChange={v => setA({ fabricAnalysis: { ...fabric, shrinkage: v } })} flagged={isFlagged('fabricAnalysis.shrinkage')} onConfirm={() => confirm('fabricAnalysis.shrinkage')} suggestion={sug('fabricAnalysis.shrinkage')} onUse={() => use('fabricAnalysis.shrinkage')} note={src('fabricAnalysis.shrinkage')} />
         </div>
       </Section>
 
       <Section title="Colours" hint="Pantone references are best (for example PANTONE 19-4052 TCX).">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Field name="Body colour" value={color.bodyColor} onChange={v => setA({ colorway: { ...color, bodyColor: v } })} />
-          <Field name="Thread colour" value={color.threadColor} onChange={v => setA({ colorway: { ...color, threadColor: v } })} />
-          <Field name="Hardware finish" value={color.hardwareFinish} onChange={v => setA({ colorway: { ...color, hardwareFinish: v } })} />
-          <Field name="Reflective tape" value={color.reflectiveTape} onChange={v => setA({ colorway: { ...color, reflectiveTape: v } })} />
+          <Field name="Body colour" value={color.bodyColor} onChange={v => setA({ colorway: { ...color, bodyColor: v } })} flagged={isFlagged('colorway.bodyColor')} onConfirm={() => confirm('colorway.bodyColor')} suggestion={sug('colorway.bodyColor')} onUse={() => use('colorway.bodyColor')} note={src('colorway.bodyColor')} />
+          <Field name="Thread colour" value={color.threadColor} onChange={v => setA({ colorway: { ...color, threadColor: v } })} flagged={isFlagged('colorway.threadColor')} onConfirm={() => confirm('colorway.threadColor')} suggestion={sug('colorway.threadColor')} onUse={() => use('colorway.threadColor')} note={src('colorway.threadColor')} />
+          <Field name="Hardware finish" value={color.hardwareFinish} onChange={v => setA({ colorway: { ...color, hardwareFinish: v } })} flagged={isFlagged('colorway.hardwareFinish')} onConfirm={() => confirm('colorway.hardwareFinish')} suggestion={sug('colorway.hardwareFinish')} onUse={() => use('colorway.hardwareFinish')} note={src('colorway.hardwareFinish')} />
+          <Field name="Reflective tape" value={color.reflectiveTape} onChange={v => setA({ colorway: { ...color, reflectiveTape: v } })} options={TAPE_OPTIONS} flagged={isFlagged('colorway.reflectiveTape')} onConfirm={() => confirm('colorway.reflectiveTape')} suggestion={sug('colorway.reflectiveTape')} onUse={() => use('colorway.reflectiveTape')} note={src('colorway.reflectiveTape')} />
           <Field wide name="Contrast colours (separate with commas)" value={color.contrastColors.join(', ')} onChange={v => setA({ colorway: { ...color, contrastColors: v.split(',').map(x => x.trim()).filter(Boolean) } })} />
         </div>
       </Section>
@@ -196,7 +294,7 @@ export default function ReviewTab({ rep, onSave }: Props) {
               <tr className="text-left text-[10px] uppercase tracking-widest text-slate-400">
                 <th className="w-16 pb-2">Point</th><th className="pb-2">Description</th>
                 {['XS', 'S', 'M', 'L', 'XL'].map(s => <th key={s} className="w-16 pb-2 text-center">{s}</th>)}
-                <th className="w-20 pb-2 text-center">Tol. ±</th><th className="w-8" />
+                <th className="w-20 pb-2 text-center">Tol. ±</th><th className="w-8" /><th />
               </tr>
             </thead>
             <tbody>
@@ -207,6 +305,7 @@ export default function ReviewTab({ rep, onSave }: Props) {
                   {(['xs', 's', 'm', 'l', 'xl'] as const).map(k => <td key={k} className="pr-1 pb-1.5">{rowInput(m[k], v => updateRow('measurements', i, { [k]: v }), 'text-center')}</td>)}
                   <td className="pr-1 pb-1.5">{rowInput(m.tolerance, v => updateRow('measurements', i, { tolerance: v }), 'text-center')}</td>
                   <td className="pb-1.5"><button type="button" onClick={() => removeRow('measurements', i)} aria-label="Remove row" className="text-slate-400 hover:text-red-600">✕</button></td>
+                  <td className="pb-1.5 pl-2 whitespace-nowrap">{m.needsConfirmation && <ConfirmFlag onConfirm={() => updateRow('measurements', i, { needsConfirmation: false })} />}</td>
                 </tr>
               ))}
             </tbody>
@@ -217,9 +316,9 @@ export default function ReviewTab({ rep, onSave }: Props) {
 
       <Section title="Bill of materials" hint="One item per line.">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <ListBox name="Hardware" value={bom.hardware} onChange={v => setA({ bom: { ...bom, hardware: v } })} />
-          <ListBox name="Thread" value={bom.thread} onChange={v => setA({ bom: { ...bom, thread: v } })} />
-          <ListBox name="Labels" value={bom.labels} onChange={v => setA({ bom: { ...bom, labels: v } })} />
+          <ListBox name="Hardware" value={bom.hardware} onChange={v => setA({ bom: { ...bom, hardware: v } })} flagged={isFlagged('bom.hardware')} onConfirm={() => confirm('bom.hardware')} suggestion={sug('bom.hardware')} onUse={() => use('bom.hardware')} note={src('bom.hardware')} />
+          <ListBox name="Thread" value={bom.thread} onChange={v => setA({ bom: { ...bom, thread: v } })} flagged={isFlagged('bom.thread')} onConfirm={() => confirm('bom.thread')} suggestion={sug('bom.thread')} onUse={() => use('bom.thread')} note={src('bom.thread')} />
+          <ListBox name="Labels" value={bom.labels} onChange={v => setA({ bom: { ...bom, labels: v } })} flagged={isFlagged('bom.labels')} onConfirm={() => confirm('bom.labels')} suggestion={sug('bom.labels')} onUse={() => use('bom.labels')} note={src('bom.labels')} />
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field name="Fold" value={bom.packaging.foldDescription} onChange={v => setA({ bom: { ...bom, packaging: { ...bom.packaging, foldDescription: v } } })} />
@@ -239,6 +338,7 @@ export default function ReviewTab({ rep, onSave }: Props) {
               <Field name="Stitches per inch" value={String(c.spiTop ?? '')} onChange={v => updateRow('construction', i, { spiTop: Number(v) || 0, spiBottom: Number(v) || 0 })} />
               <Field name="Seam allowance" value={c.seamAllowance} onChange={v => updateRow('construction', i, { seamAllowance: v })} />
               <div className="flex items-end justify-end"><button type="button" onClick={() => removeRow('construction', i)} className="text-xs font-bold text-slate-400 hover:text-red-600">Remove</button></div>
+              {c.needsConfirmation && <div className="col-span-2 sm:col-span-6"><ConfirmFlag onConfirm={() => updateRow('construction', i, { needsConfirmation: false })} /></div>}
               <Field wide name="Notes" value={c.notes} onChange={v => updateRow('construction', i, { notes: v })} />
             </div>
           ))}
@@ -256,6 +356,7 @@ export default function ReviewTab({ rep, onSave }: Props) {
               <Field name="Size" value={l.dimensions} onChange={v => updateRow('labelPlacements', i, { dimensions: v })} />
               <Field name="Material" value={l.material} onChange={v => updateRow('labelPlacements', i, { material: v })} />
               <div className="flex items-end justify-end"><button type="button" onClick={() => removeRow('labelPlacements', i)} className="text-xs font-bold text-slate-400 hover:text-red-600">Remove</button></div>
+              {l.needsConfirmation && <div className="col-span-2 sm:col-span-6"><ConfirmFlag onConfirm={() => updateRow('labelPlacements', i, { needsConfirmation: false })} /></div>}
             </div>
           ))}
         </div>
@@ -264,7 +365,7 @@ export default function ReviewTab({ rep, onSave }: Props) {
 
       <Section title="Wash and care" hint="English and French (Canadian labels need both).">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <ListBox name="Care instructions (English)" hint="One per line." value={care.instructions} onChange={v => setA({ washCare: { ...care, instructions: v } })} />
+          <ListBox name="Care instructions (English)" hint="One per line." value={care.instructions} onChange={v => setA({ washCare: { ...care, instructions: v } })} flagged={isFlagged('washCare.instructions')} onConfirm={() => confirm('washCare.instructions')} suggestion={sug('washCare.instructions')} onUse={() => use('washCare.instructions')} note={src('washCare.instructions')} />
           <ListBox name="Instructions de lavage (français)" hint="One per line, same order as the English." value={care.instructionsFr || []} onChange={v => setA({ washCare: { ...care, instructionsFr: v } })} />
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -310,7 +411,7 @@ export default function ReviewTab({ rep, onSave }: Props) {
 
       <div className="sticky bottom-3 flex flex-wrap items-center justify-end gap-3 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur">
         <span className="mr-auto text-[11px] text-slate-500">Stitch types and detected components are not editable here yet.</span>
-        <button type="button" onClick={() => run(false)} disabled={!!saving || !dirty} className="rounded-xl border border-slate-200 px-5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40">
+        <button type="button" onClick={() => run(false)} disabled={!!saving || (!dirty && !!rep.aiAnalysis?.checklist)} className="rounded-xl border border-slate-200 px-5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40">
           {saving === 'save' ? 'Saving…' : 'Save changes'}
         </button>
         <button type="button" onClick={() => run(true)} disabled={!!saving || (approved && !dirty)} className="rounded-xl bg-rivix px-5 py-2 text-xs font-bold text-white shadow-lg shadow-rivix/30 hover:bg-rivix-dark disabled:opacity-40">

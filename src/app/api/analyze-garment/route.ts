@@ -1,13 +1,18 @@
-import { GEMINI_MODEL } from '@/lib/gemini-model';
+import { GEMINI_MODEL, GEMINI_VISION_MODEL, askWithFallback, isQuotaError } from '@/lib/gemini-model';
 import { NextRequest, NextResponse } from 'next/server';
 import { getReplicationActor, unauthorized, canAccess } from '@/lib/replication-access';
 import { GoogleGenAI } from '@google/genai';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { isValidReplicationId, REPLICATION_BUCKET } from '@/lib/replication-server';
+import { resolveTemplate } from '@/lib/garment-templates';
+import { applyTemplate, FLAGGABLE, SUGGESTABLE, type GivenValues } from '@/lib/garmentAiAnalysis';
+import { buildGarmentPrompt } from '@/lib/garmentAiPrompt';
+import { GARMENT_RESPONSE_SCHEMA } from '@/lib/garmentAiSchema';
+import { garmentTypeLabel } from '@/lib/garment-types-data';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 
-/** Gemini cannot combine tool use (googleSearch) with responseMimeType application/json */
+/** The reply is JSON, but older models (or the old way of asking) may wrap it in text or a code fence: read it tolerantly. */
 function parseJsonFromModel(text: string): unknown {
   const trimmed = text.trim();
   try {
@@ -26,14 +31,15 @@ function parseJsonFromModel(text: string): unknown {
   }
 }
 
-const isQuotaError = (e: unknown) => /RESOURCE_EXHAUSTED|"code":\s*429|quota/i.test(e instanceof Error ? e.message : String(e));
-
 export async function POST(req: NextRequest) {
   const actor = await getReplicationActor();
   if (!actor) return unauthorized();
 
   try {
     const body = await req.json();
+    let garmentKey: string | null = typeof body.garmentType === 'string' ? body.garmentType : null; // loose images: the admin may say what it is
+    let customerNotes = '';
+    const given: GivenValues = {}; // what the customer wrote on the request form
     let imageArray: string[] = body.images
       ? (body.images as string[])
       : body.image
@@ -49,6 +55,13 @@ export async function POST(req: NextRequest) {
       const { data: row } = await admin.from('replications').select('*').eq('id', body.replicationId).maybeSingle();
       // A rep can only scan their own request (the same answer as "not found" for anyone else's).
       if (!row || !canAccess(actor, row)) return NextResponse.json({ error: 'Request not found.' }, { status: 404 });
+      garmentKey = row.garment_type ?? garmentKey;
+      const sp = (row.specs && typeof row.specs === 'object' ? row.specs : {}) as Record<string, unknown>;
+      const said = (k: string) => (typeof sp[k] === 'string' ? (sp[k] as string).trim().slice(0, 300) : '');
+      customerNotes = said('specialInstructions');
+      given['fabricAnalysis.material'] = said('coreMaterial');
+      given['fabricAnalysis.weight'] = said('fabricWeight');
+      given['washCare.instructions'] = said('careText');
       imageArray = [];
       for (const path of (Array.isArray(row.images) ? row.images : []) as string[]) {
         const { data: blob } = await admin.storage.from(REPLICATION_BUCKET).download(path);
@@ -88,166 +101,48 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const prompt = `You are an expert industrial garment pattern-maker, technical designer, and compliance inspector with 20+ years of experience creating factory-ready Tech Packs for workwear, outerwear, and protective apparel manufacturers.
-
-You are being given ${imageArray.length} reference photo(s) of the SAME garment from different angles. Cross-reference ALL images to build the most complete analysis possible.
-
-## STEP 1 — PRODUCT IDENTIFICATION (DO THIS FIRST)
-
-Examine the garment image(s) carefully. Use Google Search to determine if this is a recognizable retail/commercial product (specific brand and model visible or identifiable from design cues, logos, or distinctive construction).
-
-- If you find a confident retail match (e.g., Arc'teryx Monitor Coat, Carhartt J140 Jacket): set productIdentification.mode to "retail", fill brand and model with the REAL product name, and use manufacturer-published specifications where available (materials, features, intended use). garmentClass must still describe SHAPE (e.g., "Hardshell Hip-Length Coat") — NOT the marketing product name alone.
-- If NO retail match is found (common for blank factory uniforms with no branding): set productIdentification.mode to "visual", leave brand and model as null, and do NOT invent a brand or retail product name. Classify by visible SHAPE using these rules BEFORE naming garmentClass:
-  - Hood present? → hoodie, hooded jacket, parka, or coat (distinguish by length and closure)
-  - Bib with shoulder straps? → overalls or coveralls
-  - No sleeves? → vest
-  - Pants only, no upper body? → work pants
-  - Body length below hip / mid-thigh or longer? → coat or parka
-  - Hip-length body with sleeves, no hood? → jacket
-  - Pullover knit/fleece with hood, no front zip? → Hooded Pullover Sweatshirt
-
-garmentClass examples for visual mode: "Hooded Pullover Sweatshirt", "Full-Zip Hooded Jacket", "FR Bib Overalls", "Insulated Parka", "Cargo Work Pants", "High-Vis Safety Vest", "Hardshell Coat" — shape-based, never a hallucinated brand model name.
-
-CRITICAL: Wrong classification is worse than missing detail. A hoodie must NEVER be called a generic jacket or unrelated product name unless productIdentification confirms that exact retail SKU.
-
-KNOWN RETAIL EXAMPLE — Arc'teryx Veilance Monitor Coat (thigh-length, integrated StormHood, 3L GORE-TEX, hidden CF zip, fishtail hem): If identified, set productIdentification.brand/model accordingly, garmentClass MUST be shape-based and include hood + length (e.g. "Hooded Thigh-Length Technical Coat"), hasHood: true. NEVER label this garment "Monitor Jacket" — it is a hooded COAT, not a collar-only jacket.
-
-Always set hasHood: true/false from visible hood OR known product specs (Monitor Coat, parkas, hooded jackets, hoodies = true).
-
-## STEP 2 — TECH PACK ANALYSIS
-
-Analyze with extreme precision. Output is used DIRECTLY by factory cutting room, sewing floor, and QC. Must read like a professional pattern-maker's tech pack.
-
-If you cannot see a detail perfectly, extrapolate the most likely professional-grade specification based on garment type, fabric, and industry standards. Blank fields are NOT acceptable except brand/model when mode is "visual".
-
-### REQUIREMENTS
-1. GARMENT CLASSIFICATION — shape-based class as above; overallConfidence 0-100
-2. COMPONENT DETECTION — every visible detail with professional labels, placement, confidence, x/y % coordinates
-3. FABRIC ANALYSIS — material, GSM weight, weave, FR rating, finish, shrinkage
-4. POM MEASUREMENTS — graded XS–XL in inches with tolerances; use POM set appropriate to garment type
-5. BOM — hardware, thread, labels, packaging with factory-grade specs
-6. CONSTRUCTION — every major seam: location, seam type, ISO stitch, spiTop/spiBottom, seam allowance, notes
-7. STITCH REFERENCE — ISO codes, machine types, default SPI, usage
-8. LABEL PLACEMENTS — type, location, attachment, dimensions, material
-9. COLORWAY — body color + Pantone, contrast, thread, hardware finish, reflective tape
-10. WASH & CARE — instructions array + specialNotes
-
-REQUIRED JSON STRUCTURE (return ONLY valid JSON, no markdown):
-{
-  "productIdentification": {
-    "mode": "retail" | "visual",
-    "brand": "string or null",
-    "model": "string or null",
-    "source": "string — e.g. manufacturer website URL or 'Visual analysis only — no retail match'"
-  },
-  "garmentClass": "string — shape-based garment type, NOT a hallucinated brand name in visual mode. Use 'coat' or 'parka' for thigh-length hooded shells, not 'jacket'",
-  "hasHood": boolean,
-  "overallConfidence": number,
-  "season": "string",
-  "components": [
-    {
-      "id": "string",
-      "type": "zipper" | "snap" | "button" | "seam" | "pocket" | "reflective" | "fabric" | "collar" | "cuff" | "knee_pad" | "hood" | "vent" | "drawcord" | "closure" | "reinforcement",
-      "label": "string",
-      "location": "string",
-      "confidence": number,
-      "x": number,
-      "y": number
+    // The garment type's template: its checklist goes into the prompt, and the answer is merged back into it (measurement points come from the template).
+    let savedFamily: string | null = null;
+    if (garmentKey) {
+      const { data: gt } = await createAdminClient().from('garment_types').select('template_family').eq('key', garmentKey).maybeSingle();
+      savedFamily = (gt?.template_family as string | null) ?? null;
     }
-  ],
-  "fabricAnalysis": {
-    "material": "string",
-    "weight": "string",
-    "weaveType": "string",
-    "frRating": "string",
-    "finish": "string",
-    "shrinkage": "string",
-    "confidence": number
-  },
-  "measurements": [
-    {
-      "pom": "string",
-      "description": "string",
-      "xs": "string",
-      "s": "string",
-      "m": "string",
-      "l": "string",
-      "xl": "string",
-      "tolerance": "string"
-    }
-  ],
-  "bom": {
-    "hardware": ["string"],
-    "thread": ["string"],
-    "labels": ["string"],
-    "packaging": {
-      "foldDescription": "string",
-      "polybagSize": "string",
-      "cartonSize": "string",
-      "hangtagSpec": "string"
-    }
-  },
-  "construction": [
-    {
-      "location": "string",
-      "seamType": "string",
-      "stitchType": "string",
-      "spiTop": number,
-      "spiBottom": number,
-      "seamAllowance": "string",
-      "notes": "string"
-    }
-  ],
-  "stitchReference": [
-    {
-      "code": "string",
-      "name": "string",
-      "machineType": "string",
-      "defaultSpi": number,
-      "usage": "string"
-    }
-  ],
-  "labelPlacements": [
-    {
-      "type": "string",
-      "location": "string",
-      "attachment": "string",
-      "dimensions": "string",
-      "material": "string"
-    }
-  ],
-  "colorway": {
-    "bodyColor": "string",
-    "contrastColors": ["string"],
-    "threadColor": "string",
-    "hardwareFinish": "string",
-    "reflectiveTape": "string"
-  },
-  "washCare": {
-    "instructions": ["string"],
-    "specialNotes": "string"
-  }
-}`;
+    const template = resolveTemplate(garmentKey || 'jacket', savedFamily);
+    const typeName = garmentKey ? garmentTypeLabel(garmentKey) : 'unknown';
+    const checklistText = template.checklist.map((i) => `- ${i.key}: ${i.label}${i.required ? ' (required)' : ''}`).join('\n');
 
-    const ask = (withSearch: boolean) =>
-      ai.models.generateContent({
-        model: GEMINI_MODEL,
-        contents: [{ role: 'user', parts: [{ text: prompt }, ...imageParts] }],
-        // NOTE: responseMimeType cannot be used with googleSearch (API 400)
-        config: withSearch ? { tools: [{ googleSearch: {} }] } : {},
-      });
+    const prompt = buildGarmentPrompt({
+      photoCount: imageArray.length,
+      typeName,
+      customerNotes,
+      checklistText,
+      flagList: Object.keys(FLAGGABLE).join(', '),
+      suggestList: Array.from(SUGGESTABLE).join(', '),
+    });
 
-    // Google Search (used to recognise known retail products) has its own quota. When that is used up, still
-    // analyse the photos without it rather than failing the whole scan.
-    let searchSkipped = false;
-    let response;
-    try {
-      response = await ask(true);
-    } catch (e) {
-      if (!isQuotaError(e)) throw e;
-      searchSkipped = true;
-      response = await ask(false);
-    }
+    // Strict answer format (a JSON schema) so the reply is always valid JSON. Google says Gemini 3 models can combine it with
+    // Google Search, but that is a preview; if the model refuses the combination (400), ask again the old way. The reply is
+    // read by the same tolerant parser either way.
+    const isBadRequest = (e: unknown) => /INVALID_ARGUMENT|"code":\s*400/i.test(e instanceof Error ? e.message : String(e));
+    const ask = async (model: string, withSearch: boolean) => {
+      const contents = [{ role: 'user', parts: [{ text: prompt }, ...imageParts] }];
+      const tools = withSearch ? { tools: [{ googleSearch: {} }] } : {};
+      try {
+        return await ai.models.generateContent({ model, contents, config: { ...tools, responseMimeType: 'application/json', responseJsonSchema: GARMENT_RESPONSE_SCHEMA } });
+      } catch (e) {
+        if (!isBadRequest(e)) throw e;
+        return ai.models.generateContent({ model, contents, config: tools });
+      }
+    };
+
+    // The best image model first, then the standard one. Google Search (used to recognise known retail products) has its
+    // own quota; when that is used up, the photos are still analysed without it rather than failing the whole scan.
+    const models = Array.from(new Set([GEMINI_VISION_MODEL, GEMINI_MODEL]));
+    const { response, model: usedModel, searchSkipped } = await askWithFallback(models, ask);
+    const note = [
+      usedModel !== models[0] ? `The main image model (${models[0]}) was not available (no quota or billing on the Gemini key, or busy), so this scan used ${usedModel} and may be less accurate.` : '',
+      searchSkipped ? 'Google Search was out of quota, so this analysis uses the photos only (no retail product lookup).' : '',
+    ].filter(Boolean).join(' ');
 
     const responseText = response.text;
     if (!responseText) {
@@ -268,8 +163,8 @@ REQUIRED JSON STRUCTURE (return ONLY valid JSON, no markdown):
 
     return NextResponse.json({
       status: 'success',
-      analysis: analysisData,
-      ...(searchSkipped ? { note: 'Google Search was out of quota, so this analysis uses the photos only (no retail product lookup).' } : {}),
+      analysis: analysisData && typeof analysisData === 'object' ? applyTemplate(analysisData as Record<string, unknown>, template, given) : analysisData,
+      ...(note ? { note } : {}),
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
@@ -280,7 +175,7 @@ REQUIRED JSON STRUCTURE (return ONLY valid JSON, no markdown):
       : /API key|PERMISSION_DENIED|"code":40[13]/i.test(message)
         ? 'The Gemini API key was refused. Check GEMINI_API_KEY.'
         : /NOT_FOUND|"code":404/i.test(message)
-          ? 'The AI model name was not found. Check GEMINI_MODEL.'
+          ? 'The AI model name was not found. Check GEMINI_VISION_MODEL and GEMINI_MODEL.'
           : 'Failed to process garment analysis';
     return NextResponse.json({ error: friendly, details: message.slice(0, 500) }, { status: isQuotaError(error) ? 429 : 500 });
   }

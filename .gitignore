@@ -24,3 +24,8 @@ npm-debug.log*
 
 # Large reference PDFs kept in the project folder (client tech pack book, catalogue): never commit
 /*.pdf
+
+# Client reference files (quotations etc.), local only
+/rivixportaldevelopmentpricingfilesquotationsandten/
+/Supplier Price Lists and Product Catalogues/
+/rerivixportaldevelopmentpricingfilesquotationsand/

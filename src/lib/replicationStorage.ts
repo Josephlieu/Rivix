@@ -12,6 +12,8 @@ export interface ReplicationSpec {
   pocketsCount: string;
   seamConstruction: string;
   specialInstructions: string;
+  /** Care text the customer copied from the label (optional; the AI never writes care text). */
+  careText?: string;
   /** When the customer's parcel arrived at RIVIX (set from the inbound parcel card). */
   inboundReceivedAt?: string;
   /** True when the customer is posting the real garment to RIVIX (otherwise photos only). */

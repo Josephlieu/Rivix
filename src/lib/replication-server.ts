@@ -2,6 +2,7 @@
 // uses, and clean whatever the browser sends before it is saved.
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { repsByIds, type RepInfo } from '@/lib/replication-access';
+import { outstandingConfirmations } from '@/lib/garmentAiAnalysis';
 
 export const REPLICATION_BUCKET = 'replication-photos';
 export const MAX_PHOTO_BYTES = 4 * 1024 * 1024; // stays under the request size limit on the host
@@ -112,6 +113,8 @@ export function approvalProblem(analysis: Row | null): string | null {
   if (!analysis) return 'Run the AI analysis (or enter the details) before approving.';
   if (m.length === 0) return 'Add at least one measurement before approving.';
   if (m.some((r: Row) => !String(r?.pom ?? '').trim() || !String(r?.description ?? '').trim())) return 'Every measurement needs a point code and a description.';
+  const open = outstandingConfirmations(analysis);
+  if (open.length) return `${open.length} item${open.length > 1 ? 's' : ''} still need confirmation: ${open.slice(0, 5).join(', ')}${open.length > 5 ? '…' : ''}. Check each against the garment and confirm it.`;
   return null;
 }
 

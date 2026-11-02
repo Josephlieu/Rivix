@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import ReviewTab from './ReviewTab';
+import { prepare as preparePhoto, MAX_PHOTOS, MAX_BYTES, OK_TYPES } from './NewRequestDialog';
+import { outstandingConfirmations } from '@/lib/garmentAiAnalysis';
 import ChatPanel from './ChatPanel';
 import { useReplicationChat } from './useReplicationChat';
 import Toast, { type ToastMessage } from '@/components/Toast';
@@ -16,6 +18,7 @@ import {
   getReplication,
   saveReplication, 
   deleteReplication,
+  uploadReplicationPhoto,
   getReplicationLookups,
   getDownloadLog,
   logDownload,
@@ -154,6 +157,9 @@ interface AIAnalysisResult {
   colorway: AIColorway | null;
   washCare: AIWashCare | null;
 }
+
+// The generic on-screen sketch is not drawn from the photo (it showed bib overalls for a coverall). Hidden until real drawings per garment type exist (milestone M4).
+const SHOW_GENERIC_SKETCH = false;
 
 const AI_SCAN_STEPS = [
   { label: 'Initializing Computer Vision Model...', duration: 800 },
@@ -433,6 +439,46 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
     };
     loadData();
   }, [idOrCode]);
+
+  // Photos on a saved request: add more (shrunk first, like on the new-request form), make one the main photo, or remove one.
+  const photoInput = useRef<HTMLInputElement>(null);
+  const [photoMsg, setPhotoMsg] = useState('');
+  const addPhotos = async (list: FileList | null) => {
+    if (!selectedRep || !list?.length || photoMsg) return;
+    const room = MAX_PHOTOS - (selectedRep.images?.length || 0);
+    const all = Array.from(list).filter(f => OK_TYPES.includes(f.type));
+    const picked = all.slice(0, Math.max(0, room));
+    if (picked.length === 0) { setError(room <= 0 ? `A request can hold up to ${MAX_PHOTOS} photos.` : 'Choose JPEG, PNG or WebP photos.'); return; }
+    let latest: ReplicationRequest = selectedRep;
+    let added = 0;
+    try {
+      for (let i = 0; i < picked.length; i++) {
+        setPhotoMsg(`Uploading photo ${i + 1} of ${picked.length}…`);
+        const f = await preparePhoto(picked[i]);
+        if (f.size > MAX_BYTES) throw new Error(`"${picked[i].name}" is still over 4 MB after shrinking.`);
+        latest = await uploadReplicationPhoto(selectedRep.id, f);
+        added++;
+      }
+      setError(all.length > picked.length ? `Only ${added} photo${added === 1 ? '' : 's'} added: a request can hold up to ${MAX_PHOTOS}.` : '');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not add the photo.');
+    } finally {
+      if (added > 0) {
+        const saved = latest;
+        setReplications(prev => prev.map(r => (r.id === saved.id ? saved : r)));
+        setSelectedRep(cur => (cur && cur.id === saved.id ? saved : cur));
+        setToast({ type: 'success', text: `${added} photo${added === 1 ? '' : 's'} added. Click "Run again" on the AI tab to include ${added === 1 ? 'it' : 'them'} in the analysis.` });
+      }
+      setPhotoMsg('');
+      if (photoInput.current) photoInput.current.value = '';
+    }
+  };
+  const removePhoto = async (idx: number) => {
+    if (!selectedRep || photoMsg) return;
+    if (!window.confirm('Remove this photo from the request?\n\nThe AI result is not changed. Click "Run again" on the AI tab to scan without it.')) return;
+    const drop = <T,>(l: T[]) => l.filter((_, i) => i !== idx);
+    await persist({ ...selectedRep, images: drop(selectedRep.images || []), imagePaths: drop(selectedRep.imagePaths || []) });
+  };
 
   // Save a changed request. On success the saved copy (with fresh photo links) replaces the old one
   // everywhere; on failure nothing changes on screen and the reason is shown.
@@ -968,26 +1014,45 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
                         alt={`${selectedRep.productName} — client reference photo`}
                         className="w-full h-full max-h-[480px] object-contain rounded-2xl"
                       />
-                      {selectedRep.images.length > 1 && (
-                        <div className="flex gap-2 mt-4 overflow-x-auto pb-1">
-                          {selectedRep.images.map((img, idx) => (
+                      <div className="mt-4 flex w-full gap-2 overflow-x-auto pb-1">
+                        {selectedRep.images.map((img, idx) => (
+                          <div key={idx} className="group relative shrink-0">
                             <img
-                              key={idx}
                               src={img}
-                              alt={`Reference ${idx + 1}`}
-                              className="w-16 h-16 object-cover rounded-lg border-2 border-white/10 hover:border-rivix cursor-pointer transition-all shrink-0"
+                              alt={idx === 0 ? 'Main reference photo' : `Reference ${idx + 1}`}
+                              title={idx === 0 ? 'Main photo' : 'Click to make this the main photo'}
+                              className={`h-16 w-16 rounded-lg border-2 object-cover transition-all ${idx === 0 ? 'border-rivix' : 'cursor-pointer border-white/10 hover:border-rivix'}`}
                               onClick={() => {
+                                if (idx === 0) return;
                                 const move = <T,>(list: T[]) => { const c = [...list]; const [x] = c.splice(idx, 1); c.unshift(x); return c; };
                                 persist({ ...selectedRep, images: move(selectedRep.images), imagePaths: move(selectedRep.imagePaths || []) });
                               }}
                             />
-                          ))}
-                        </div>
-                      )}
+                            {idx === 0 && <span className="absolute bottom-0 left-0 right-0 rounded-b-md bg-rivix/90 text-center text-[9px] font-bold uppercase text-white">Main</span>}
+                            <button
+                              type="button"
+                              onClick={() => removePhoto(idx)}
+                              aria-label={`Remove photo ${idx + 1}`}
+                              className="absolute -right-1.5 -top-1.5 hidden h-5 w-5 items-center justify-center rounded-full bg-slate-900 text-[11px] font-bold text-white ring-1 ring-white/30 hover:bg-red-600 group-hover:flex"
+                            >×</button>
+                          </div>
+                        ))}
+                      </div>
                     </>
                   ) : (
-                    <RenderBlueprint garmentType={selectedRep.garmentType} annotations={selectedRep.specs.annotations} />
+                    <RenderBlueprint garmentType={selectedRep.garmentType} annotations={selectedRep.specs?.annotations ?? []} />
                   )}
+                  <div className="mt-4 flex w-full flex-wrap items-center gap-3 text-xs text-white/70">
+                    <button
+                      type="button"
+                      onClick={() => photoInput.current?.click()}
+                      disabled={!!photoMsg || (selectedRep.images?.length || 0) >= MAX_PHOTOS}
+                      className="rounded-lg bg-white/10 px-3 py-1.5 font-semibold text-white hover:bg-white/20 disabled:opacity-50"
+                    >+ Add photos</button>
+                    <span>{selectedRep.images?.length || 0} of {MAX_PHOTOS} photos{(selectedRep.images?.length || 0) > 1 ? ' · hover a photo to remove it, click to make it the main one' : ''}</span>
+                    {photoMsg && <span className="flex items-center gap-1.5 text-white"><Loader2 size={12} className="animate-spin" />{photoMsg}</span>}
+                    <input ref={photoInput} type="file" accept="image/jpeg,image/png,image/webp" multiple hidden onChange={e => addPhotos(e.target.files)} />
+                  </div>
                   <div className="absolute top-4 left-4 bg-white/5 border border-white/10 rounded-full px-3 py-1 text-[8px] font-black uppercase text-white/50 tracking-widest">
                     {selectedRep.images?.length ? 'Client Reference Photo' : 'Generic Schematic — No Photo Uploaded'}
                   </div>
@@ -1103,10 +1168,8 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
                           <ScanLine size={24} />
                         </div>
                         <div>
-                          <h3 className="text-sm font-bold text-slate-800 uppercase tracking-widest">AI-Powered Garment Analysis Engine</h3>
-                          <p className="text-xs text-slate-500 mt-1 leading-relaxed max-w-lg">
-                            Computer vision analyzes client-uploaded reference photos to automatically detect hardware components (snaps, zippers, buttons), map seam construction patterns, identify fabric composition, and generate a production-ready CAD wireframe.
-                          </p>
+                          <h3 className="text-base font-semibold text-slate-900">AI garment analysis</h3>
+                          <p className="text-sm text-slate-600 mt-1 leading-relaxed max-w-xl">Reads the customer's photos and drafts the tech file. It only describes what it can see; anything else is left blank for you to confirm.</p>
                         </div>
                       </div>
                       {analysis.status === 'idle' && (
@@ -1118,8 +1181,17 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
                         </button>
                       )}
                       {analysis.status === 'complete' && (
-                        <div className="flex items-center gap-2 bg-emerald-100 text-emerald-700 px-4 py-2 rounded-full text-[13px] font-black uppercase tracking-widest shrink-0">
-                          <CheckCircle size={14} /> Analysis Complete
+                        <div className="flex shrink-0 flex-col items-end gap-2">
+                          <div className="flex items-center gap-2 bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-full text-xs font-bold">
+                            <CheckCircle size={14} /> Analysis complete
+                          </div>
+                          <button
+                            onClick={() => handleStartAIAnalysis(selectedRep.id, selectedRep.garmentType)}
+                            className="flex items-center gap-1.5 rounded-lg border border-violet-200 bg-white px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-50 active:scale-95"
+                            title="Scan the photos again. This replaces the current draft and any corrections."
+                          >
+                            <Zap size={13} /> Run again
+                          </button>
                         </div>
                       )}
                     </div>
@@ -1305,24 +1377,32 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
                     )}
                   </div>
 
-                  {/* The AI is only estimating from photos: say so clearly before anyone relies on it */}
-                  {analysis.status === 'complete' && (
-                    <div role="note" className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4">
-                      <AlertCircle size={20} className="mt-0.5 shrink-0 text-amber-600" />
-                      <p className="text-[14px] leading-relaxed text-amber-900">
-                        <span className="font-bold">The AI can make mistakes.</span> Everything below was estimated from photos and is a first draft. Check every value carefully against the real garment and the customer's request, especially the safety standard, fabric and weight, measurements and care text. Correct anything wrong on the <button type="button" onClick={() => setActiveTab('review')} className="font-bold underline underline-offset-2 hover:text-amber-700">Review &amp; Approve</button> tab before approving.
-                      </p>
-                    </div>
-                  )}
+                  {/* Status: how much is still open, and the way on to the Review tab */}
+                  {analysis.status === 'complete' && (() => {
+                    const open = outstandingConfirmations(selectedRep.aiAnalysis).length;
+                    return (
+                      <div role="note" className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3 ${open ? 'border-amber-200 bg-amber-50' : 'border-emerald-200 bg-emerald-50'}`}>
+                        <div className="flex items-start gap-3">
+                          <AlertCircle size={18} className={`mt-0.5 shrink-0 ${open ? 'text-amber-600' : 'text-emerald-600'}`} />
+                          <p className={`text-sm leading-relaxed ${open ? 'text-amber-900' : 'text-emerald-900'}`}>
+                            {open
+                              ? <><b>{open} item{open > 1 ? 's' : ''} still need confirmation.</b> This is a draft from photos: blank means the AI could not see it. Confirm each item on the Review tab.</>
+                              : <b>Everything is confirmed. Check the draft once more, then approve it.</b>}
+                          </p>
+                        </div>
+                        {isAdmin && <button onClick={() => setActiveTab('review')} className="rounded-lg bg-slate-900 px-3.5 py-2 text-xs font-semibold text-white hover:bg-slate-800">Review and approve →</button>}
+                      </div>
+                    );
+                  })()}
 
                   {/* AI Results Grid — only show when analysis is complete */}
                   {analysis.status === 'complete' && (
-                    <div className="bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden flex flex-col">
+                    <div className="bg-white border border-slate-200 shadow-sm rounded-xl overflow-clip flex flex-col">
                       {/* Tech Pack Header */}
                       <div className="bg-slate-900 text-white p-6 border-b border-slate-800 flex flex-col md:flex-row md:items-start justify-between gap-4">
                         <div>
                           <div className="flex items-center gap-3 mb-2">
-                            <h2 className="text-xl font-black tracking-tight text-white">TECH PACK: AI-EXTRAPOLATED</h2>
+                            <h2 className="text-xl font-black tracking-tight text-white">TECH PACK: AI DRAFT</h2>
                             <span className="bg-violet-500/20 text-[13px] font-bold px-2.5 py-0.5 rounded-sm uppercase tracking-widest text-violet-300 border border-violet-500/30 flex items-center gap-1.5">
                               <Sparkles size={10} /> AI Inferred Spec
                             </span>
@@ -1352,11 +1432,13 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
                       <div className="grid grid-cols-1 lg:grid-cols-12 bg-slate-50">
                         {/* Left: Technical Flat Sketch & POM Callouts */}
                         <div className="lg:col-span-5 bg-white p-6 lg:p-8 border-r border-slate-200 flex flex-col">
-                          <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest border-b border-slate-200 pb-2.5 mb-6 flex items-center justify-between">
-                            1. TECHNICAL FLAT SKETCH — FRONT / BACK
-                            <span className="text-[12px] text-slate-400">RIVIX TECH PACK</span>
+                          <div className="lg:sticky lg:top-24 flex flex-col">
+                          <h3 className="text-sm font-semibold text-slate-900 border-b border-slate-200 pb-2 mb-4 flex items-center justify-between">
+                            Garment photos
+                            <span className="text-xs font-normal text-slate-400">{selectedRep.images?.length || 0} uploaded</span>
                           </h3>
 
+                          {SHOW_GENERIC_SKETCH ? (
                           <div className="relative w-full bg-white border border-slate-300 rounded-sm overflow-hidden flex flex-col shadow-sm">
                             {/* Title Block */}
                             <div className="bg-slate-50 border-b border-slate-300 px-4 py-2 flex items-center justify-between">
@@ -1701,17 +1783,70 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
                               </text>
                             </svg>
                           </div>
+                          ) : (
+                            <p className="mb-3 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">Front and back drawings for each garment type are planned. Use the photos and the checklist on the Review tab.</p>
+                          )}
 
-                          {/* Reference photo thumbnail */}
+                          {/* Photos the AI read: first one large, the rest as a grid */}
                           {selectedRep.images?.[0] && (
-                            <div className="mt-4 flex items-start gap-3">
-                              <img src={selectedRep.images[0]} alt="Reference" className="w-20 h-20 object-cover rounded border border-slate-200" />
-                              <div className="text-[12px] text-slate-400 space-y-1 pt-1">
-                                <p className="font-bold text-slate-600 uppercase tracking-widest">Reference Photo</p>
-                                <p>Client-uploaded garment image used as basis for AI flat sketch generation and component detection.</p>
-                              </div>
+                            <div className="grid grid-cols-3 gap-2">
+                              <img src={selectedRep.images[0]} alt="Main reference photo" className="col-span-3 max-h-[26rem] w-full rounded-lg border border-slate-200 bg-slate-50 object-contain" />
+                              {selectedRep.images.slice(1).map((u, i) => (
+                                <img key={u || i} src={u} alt={`Reference photo ${i + 2}`} className="aspect-square w-full rounded-lg border border-slate-200 object-cover" />
+                              ))}
                             </div>
                           )}
+                          {/* Colours & WASH CARE — side by side */}
+                          <div className="grid grid-cols-1 gap-6 mt-8">
+                            {analysis.colorway && (
+                            <div>
+                              <h3 className="text-sm font-semibold text-slate-900 border-b border-slate-200 pb-2 mb-3 flex items-center gap-2">
+                                <Eye size={14} className="text-violet-500" />
+                                Colours
+                              </h3>
+                              <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm space-y-3">
+                                <div className="grid grid-cols-1 gap-2 text-[14px]">
+                                  <div className="flex justify-between"><span className="text-slate-400 font-bold uppercase text-[12px]">Body</span><span className="font-semibold text-slate-800">{analysis.colorway.bodyColor || <i className="font-normal text-amber-700">Not visible in the photo, needs confirmation</i>}</span></div>
+                                  {analysis.colorway.contrastColors?.length > 0 && (
+                                    <div className="flex justify-between"><span className="text-slate-400 font-bold uppercase text-[12px]">Contrast</span><span className="font-semibold text-slate-800">{analysis.colorway.contrastColors.join(', ')}</span></div>
+                                  )}
+                                  <div className="flex justify-between"><span className="text-slate-400 font-bold uppercase text-[12px]">Thread</span><span className="font-semibold text-slate-800">{analysis.colorway.threadColor || <i className="font-normal text-amber-700">Not visible in the photo, needs confirmation</i>}</span></div>
+                                  <div className="flex justify-between"><span className="text-slate-400 font-bold uppercase text-[12px]">Hardware</span><span className="font-semibold text-slate-800">{analysis.colorway.hardwareFinish || <i className="font-normal text-amber-700">Not visible in the photo, needs confirmation</i>}</span></div>
+                                  {analysis.colorway.reflectiveTape && analysis.colorway.reflectiveTape !== 'N/A' && (
+                                    <div className="flex justify-between"><span className="text-slate-400 font-bold uppercase text-[12px]">Reflective</span><span className="font-semibold text-slate-800">{analysis.colorway.reflectiveTape}</span></div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            )}
+
+                            {analysis.washCare && (
+                            <div>
+                              <h3 className="text-sm font-semibold text-slate-900 border-b border-slate-200 pb-2 mb-3 flex items-center gap-2">
+                                <ShieldCheck size={14} className="text-violet-500" />
+                                Wash and care
+                              </h3>
+                              <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm space-y-3">
+                                <ul className="text-[14px] font-medium text-slate-700 space-y-1.5">
+                                  {!analysis.washCare.instructions?.length && <li className="text-amber-700 italic">Not visible in the photo (no readable care label), needs confirmation</li>}
+                                  {analysis.washCare.instructions?.map((inst, i) => (
+                                    <li key={i} className="flex items-start gap-2">
+                                      <span className="w-1.5 h-1.5 mt-1.5 bg-slate-300 rounded-full shrink-0" />
+                                      {inst}
+                                    </li>
+                                  ))}
+                                </ul>
+                                {analysis.washCare.specialNotes && (
+                                  <div className="bg-amber-50 border border-amber-200 px-3 py-2 rounded-md mt-2">
+                                    <span className="text-[12px] font-black uppercase tracking-widest text-amber-700">NOTE: </span>
+                                    <span className="text-[13px] text-amber-800 font-medium">{analysis.washCare.specialNotes}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            )}
+                          </div>
+                          </div>
                         </div>
 
                         {/* Right: Measurements & BOM */}
@@ -1719,9 +1854,9 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
                           
                           {/* Measurement Spec Table */}
                           <div>
-                            <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest border-b border-slate-200 pb-2.5 mb-4 flex items-center gap-2">
+                            <h3 className="text-sm font-semibold text-slate-900 border-b border-slate-200 pb-2 mb-3 flex items-center gap-2">
                               <Sliders size={14} className="text-violet-500" />
-                              2. MEASUREMENT SPECIFICATION (INCHES)
+                              Measurements (inches)
                             </h3>
                             <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
                               <table className="w-full text-left text-[13px]">
@@ -1762,14 +1897,14 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
 
                           {/* BOM & Trims */}
                           <div>
-                            <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest border-b border-slate-200 pb-2.5 mb-4 flex items-center gap-2">
+                            <h3 className="text-sm font-semibold text-slate-900 border-b border-slate-200 pb-2 mb-3 flex items-center gap-2">
                               <BookOpen size={14} className="text-violet-500" />
-                              3. BILL OF MATERIALS & TRIMS
+                              Bill of materials
                             </h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
                                 <h4 className="text-[12.5px] font-black text-slate-400 uppercase mb-3 tracking-widest">Main Fabric</h4>
-                                <p className="text-sm font-bold text-slate-800 mb-1">{analysis.fabricAnalysis?.material || 'Pending AI Analysis'}</p>
+                                <p className="text-sm font-bold text-slate-800 mb-1">{analysis.fabricAnalysis?.material || 'Not visible in the photo, needs confirmation'}</p>
                                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-2">
                                   <p className="text-[14px] text-slate-500 font-medium">Weight: <span className="text-slate-700 font-semibold">{analysis.fabricAnalysis?.weight || '—'}</span></p>
                                   <p className="text-[14px] text-slate-500 font-medium">Weave: <span className="text-slate-700 font-semibold">{analysis.fabricAnalysis?.weaveType || '—'}</span></p>
@@ -1788,7 +1923,7 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
                                   {analysis.bom?.hardware?.length ? analysis.bom.hardware.map((item, i) => (
                                     <li key={i} className="flex items-start gap-2"><span className="w-1.5 h-1.5 mt-1 bg-slate-300 rounded-full shrink-0" /> {item}</li>
                                   )) : (
-                                    <li className="text-slate-400 italic">Pending AI analysis</li>
+                                    <li className="text-amber-700 italic">Not visible in the photo, needs confirmation</li>
                                   )}
                                 </ul>
                               </div>
@@ -1802,13 +1937,13 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
                                     <li key={`l-${i}`} className="flex items-start gap-2"><span className="w-1.5 h-1.5 mt-1 bg-slate-300 rounded-full shrink-0" /> {item}</li>
                                   ))}
                                   {(!analysis.bom?.thread?.length && !analysis.bom?.labels?.length) && (
-                                    <li className="text-slate-400 italic">Pending AI analysis</li>
+                                    <li className="text-amber-700 italic">Not visible in the photo, needs confirmation</li>
                                   )}
                                 </ul>
                               </div>
                               <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
                                 <h4 className="text-[12.5px] font-black text-slate-400 uppercase mb-3 tracking-widest">Folding & Packaging</h4>
-                                {analysis.bom?.packaging ? (
+                                {analysis.bom?.packaging && (analysis.bom.packaging.foldDescription || analysis.bom.packaging.polybagSize || analysis.bom.packaging.cartonSize) ? (
                                   <>
                                     <p className="text-xs font-semibold text-slate-700 mb-2">{analysis.bom.packaging.foldDescription}</p>
                                     <ul className="text-[14px] text-slate-500 font-medium space-y-1">
@@ -1817,7 +1952,7 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
                                     </ul>
                                   </>
                                 ) : (
-                                  <p className="text-xs text-slate-400 italic">Pending AI analysis</p>
+                                  <p className="text-xs text-amber-700 italic">Not given yet (a person fills in packaging)</p>
                                 )}
                               </div>
                             </div>
@@ -1826,9 +1961,9 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
                           {/* 4. CONSTRUCTION DETAILS */}
                           {analysis.construction.length > 0 && (
                           <div>
-                            <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest border-b border-slate-200 pb-2.5 mb-4 flex items-center gap-2">
+                            <h3 className="text-sm font-semibold text-slate-900 border-b border-slate-200 pb-2 mb-3 flex items-center gap-2">
                               <Layers size={14} className="text-violet-500" />
-                              4. CONSTRUCTION & SEAM DETAILS
+                              Construction and seams
                             </h3>
                             <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
                               <table className="w-full text-left text-[13px]">
@@ -1859,12 +1994,12 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
                           </div>
                           )}
 
-                          {/* 5. STITCH TYPE REFERENCE */}
+                          {/* Stitch reference */}
                           {analysis.stitchReference.length > 0 && (
                           <div>
-                            <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest border-b border-slate-200 pb-2.5 mb-4 flex items-center gap-2">
+                            <h3 className="text-sm font-semibold text-slate-900 border-b border-slate-200 pb-2 mb-3 flex items-center gap-2">
                               <Activity size={14} className="text-violet-500" />
-                              5. STITCH TYPE REFERENCE
+                              Stitch reference
                             </h3>
                             <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
                               <table className="w-full text-left text-[13px]">
@@ -1896,9 +2031,9 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
                           {/* 6. LABEL PLACEMENTS */}
                           {analysis.labelPlacements.length > 0 && (
                           <div>
-                            <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest border-b border-slate-200 pb-2.5 mb-4 flex items-center gap-2">
+                            <h3 className="text-sm font-semibold text-slate-900 border-b border-slate-200 pb-2 mb-3 flex items-center gap-2">
                               <Target size={14} className="text-violet-500" />
-                              6. LABEL PLACEMENT SCHEDULE
+                              Labels
                             </h3>
                             <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
                               <table className="w-full text-left text-[13px]">
@@ -1927,55 +2062,6 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
                           </div>
                           )}
 
-                          {/* 7. COLORWAY & WASH CARE — side by side */}
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {analysis.colorway && (
-                            <div>
-                              <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest border-b border-slate-200 pb-2.5 mb-4 flex items-center gap-2">
-                                <Eye size={14} className="text-violet-500" />
-                                7. COLORWAY
-                              </h3>
-                              <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm space-y-3">
-                                <div className="grid grid-cols-1 gap-2 text-[14px]">
-                                  <div className="flex justify-between"><span className="text-slate-400 font-bold uppercase text-[12px]">Body</span><span className="font-semibold text-slate-800">{analysis.colorway.bodyColor}</span></div>
-                                  {analysis.colorway.contrastColors?.length > 0 && (
-                                    <div className="flex justify-between"><span className="text-slate-400 font-bold uppercase text-[12px]">Contrast</span><span className="font-semibold text-slate-800">{analysis.colorway.contrastColors.join(', ')}</span></div>
-                                  )}
-                                  <div className="flex justify-between"><span className="text-slate-400 font-bold uppercase text-[12px]">Thread</span><span className="font-semibold text-slate-800">{analysis.colorway.threadColor}</span></div>
-                                  <div className="flex justify-between"><span className="text-slate-400 font-bold uppercase text-[12px]">Hardware</span><span className="font-semibold text-slate-800">{analysis.colorway.hardwareFinish}</span></div>
-                                  {analysis.colorway.reflectiveTape && analysis.colorway.reflectiveTape !== 'N/A' && (
-                                    <div className="flex justify-between"><span className="text-slate-400 font-bold uppercase text-[12px]">Reflective</span><span className="font-semibold text-slate-800">{analysis.colorway.reflectiveTape}</span></div>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                            )}
-
-                            {analysis.washCare && (
-                            <div>
-                              <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest border-b border-slate-200 pb-2.5 mb-4 flex items-center gap-2">
-                                <ShieldCheck size={14} className="text-violet-500" />
-                                8. WASH & CARE
-                              </h3>
-                              <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm space-y-3">
-                                <ul className="text-[14px] font-medium text-slate-700 space-y-1.5">
-                                  {analysis.washCare.instructions?.map((inst, i) => (
-                                    <li key={i} className="flex items-start gap-2">
-                                      <span className="w-1.5 h-1.5 mt-1.5 bg-slate-300 rounded-full shrink-0" />
-                                      {inst}
-                                    </li>
-                                  ))}
-                                </ul>
-                                {analysis.washCare.specialNotes && (
-                                  <div className="bg-amber-50 border border-amber-200 px-3 py-2 rounded-md mt-2">
-                                    <span className="text-[12px] font-black uppercase tracking-widest text-amber-700">NOTE: </span>
-                                    <span className="text-[13px] text-amber-800 font-medium">{analysis.washCare.specialNotes}</span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                            )}
-                          </div>
 
                         </div>
                       </div>
