@@ -7,6 +7,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { garmentTypeLabel } from '@/lib/garment-types-data';
 import { useRouter } from 'next/navigation';
 import { Loader2, Package, Search } from 'lucide-react';
 import NewRequestDialog from './NewRequestDialog';
@@ -54,7 +55,7 @@ export default function ReplicationQueue({ role }: { role: 'admin' | 'rep' }) {
     return requests.filter(r =>
       (status === 'all' || r.status === status) &&
       (repFilter === 'all' || (repFilter === 'none' ? !r.repId : r.repId === repFilter)) &&
-      (!q || [r.requestCode, r.productName, r.clientName, r.garmentType, r.repName].some(v => (v || '').toLowerCase().includes(q)))
+      (!q || [r.requestCode, r.productName, r.clientName, r.garmentType, garmentTypeLabel(r.garmentType), r.repName].some(v => (v || '').toLowerCase().includes(q)))
     );
   }, [requests, search, status, repFilter]);
   const repOptions = useMemo(() => {
@@ -91,7 +92,10 @@ export default function ReplicationQueue({ role }: { role: 'admin' | 'rep' }) {
           <h1 className="text-xl font-bold text-slate-900 lg:text-2xl">Replication Queue</h1>
           <p className="mt-1 text-xs text-slate-500">{isAdmin ? 'Garments to copy, from every sales rep: photos in, factory tech file out. Customers never see this.' : 'Your garments to copy: add the photos, run the scan, and chat with the admin. Customers never see this.'}</p>
         </div>
-        <button onClick={() => setShowNew(true)} className="whitespace-nowrap rounded-xl bg-rivix px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-rivix/30 transition-all hover:bg-rivix-dark">+ New request</button>
+        <div className="flex items-center gap-3">
+          {isAdmin && <Link href="/admin/replication/garment-types" className="whitespace-nowrap rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 transition-colors hover:border-rivix/40 hover:text-rivix">Garment types</Link>}
+          <button onClick={() => setShowNew(true)} className="whitespace-nowrap rounded-xl bg-rivix px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-rivix/30 transition-all hover:bg-rivix-dark">+ New request</button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -169,7 +173,7 @@ export default function ReplicationQueue({ role }: { role: 'admin' | 'rep' }) {
                     <tr key={r.id} onClick={() => open(r)} className="cursor-pointer border-b border-slate-50 transition-colors last:border-0 hover:bg-slate-50">
                       <td className="px-5 py-4">
                         <Link href={`${basePath}/${encodeURIComponent(r.requestCode || r.id)}`} onClick={e => e.stopPropagation()} className="font-bold text-slate-900 hover:text-rivix">{r.productName}</Link>
-                        <div className="text-[11px] text-slate-400">{r.requestCode} · {r.garmentType} · {r.images.length} photo{r.images.length === 1 ? '' : 's'}</div>
+                        <div className="text-[11px] text-slate-400">{r.requestCode} · {garmentTypeLabel(r.garmentType)} · {r.images.length} photo{r.images.length === 1 ? '' : 's'}</div>
                       </td>
                       <td className="px-3 py-4 text-slate-700">{r.clientName}</td>
                       {isAdmin && <td className="px-3 py-4 text-slate-700">{r.repName || <span className="text-slate-400">Admin (handled directly)</span>}</td>}

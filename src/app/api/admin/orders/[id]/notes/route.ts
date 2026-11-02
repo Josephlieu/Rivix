@@ -3,6 +3,7 @@ import { getAdminIdentity } from '@/lib/require-admin';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { customerParties, notifyUsers } from '@/lib/notify';
 import { invalidateDashboard } from '@/lib/dashboard-data';
+import { logForOrder } from '@/lib/rep-activity';
 
 // Add a note to the order's timeline. `customer_visible: false` keeps it
 // internal — the customer's read rule only returns visible events.
@@ -27,6 +28,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   invalidateDashboard(); // a new note shows in Recent Activity
+  await logForOrder(admin, id, { kind: 'order_note', by: who.email, text: (o) => `Note on ${o.batch}${body?.customer_visible === false ? ' (internal)' : ''}: ${note.length > 120 ? note.slice(0, 120) + '…' : note}` });
   if (body?.customer_visible !== false) {
     const parties = await customerParties(admin, order.customer_id);
     await notifyUsers(admin, [parties.customerUserId], {

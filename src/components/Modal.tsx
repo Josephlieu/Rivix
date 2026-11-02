@@ -18,11 +18,12 @@ export default function Modal({ onClose, busy = false, maxWidth = 'max-w-xl', ch
     return () => document.removeEventListener('keydown', onKey);
   }, [busy, onClose]);
 
+  // !m-0: a parent with space-y-* gives later children a top margin, which would push this fixed backdrop down and leave a strip at the top uncovered.
   // The backdrop scrolls; the inner wrapper is at least as tall as the screen and centres the dialog.
   // (Centring directly inside a scrolling flex box cuts the top and bottom off a dialog taller than the
   // screen and leaves them unreachable.) A click on the empty area around the dialog closes it.
   return (
-    <div className="fixed inset-0 z-[70] overflow-y-auto bg-slate-950/60 backdrop-blur-sm">
+    <div className="fixed inset-0 !m-0 z-[70] overflow-y-auto bg-slate-950/60 backdrop-blur-sm">
       <div
         className="flex min-h-full items-center justify-center p-4"
         onClick={(e) => { if (e.target === e.currentTarget && !busy) onClose(); }}

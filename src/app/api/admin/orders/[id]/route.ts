@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminIdentity, requireAdmin } from '@/lib/require-admin';
 import { createAdminClient } from '@/lib/supabase-admin';
+import { logForOrder } from '@/lib/rep-activity';
 import { isOrderStage } from '@/lib/order-stages';
 import { customerParties, notifyUsers } from '@/lib/notify';
 import { invalidateDashboard } from '@/lib/dashboard-data';
@@ -74,6 +75,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { error } = await admin.from('orders').update(update).eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (newStatus) invalidateDashboard(); // a stage change moves the stage counts and recent activity
+  if (newStatus) await logForOrder(admin, id, { kind: 'order_status', by: who.email, text: (o) => `${o.batch} moved to ${newStatus}` });
 
   const note = clean(body.note, 2000) || null;
 
@@ -115,6 +117,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       customer_visible: true,
       created_by: who.email,
     });
+    await logForOrder(admin, id, { kind: 'order_note', by: who.email, text: (o) => `Shipping updated on ${o.batch}: carrier ${carrier}, tracking ${tn}` });
   }
 
   return NextResponse.json({ ok: true, changed: true });

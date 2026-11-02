@@ -30,9 +30,41 @@ try{
 
   // --- create / validate
   let r=await call('POST',BASE,ac,{clientName:'',productName:'ZZ'}); ok('a request without a customer name is refused',r.status===400);
-  r=await call('POST',BASE,ac,{clientName:'ZZ Customer',productName:'ZZ Parka',garmentType:'spaceship',status:'bogus'}); let j=await r.json();
+  r=await call('POST',BASE,ac,{clientName:'ZZ Customer',productName:'ZZ Parka',garmentType:'spaceship'}); ok('an unknown garment type is refused',r.status===400);
+  r=await call('POST',BASE,ac,{clientName:'ZZ Customer',productName:'ZZ Parka',garmentType:'work-shirt',status:'bogus'}); let j=await r.json();
   ok('admin creates a request',r.status===200&&!!j.replication?.id,j.error||''); id=j.replication?.id;
-  ok('unknown garment type and status fall back',j.replication?.garmentType==='jacket'&&j.replication?.status==='received');
+  ok('a garment type from the new list is saved; an unknown status falls back',j.replication?.garmentType==='work-shirt'&&j.replication?.status==='received',j.replication?.garmentType);
+  r=await call('POST',BASE,ac,{clientName:'ZZ Customer',productName:'ZZ Default'}); j=await r.json(); const dflt=j.replication?.id;
+  ok('a new request without a type defaults to Jacket',r.status===200&&j.replication?.garmentType==='jacket');
+  if(dflt) await a.from('replications').delete().eq('id',dflt);
+  // --- garment library: the lists, and the admin screen's routes (changes need dev-patch-garment-types.sql)
+  r=await call('GET',`${BASE}/garment-types`,null); ok('garment types: signed out is refused',r.status===401||r.status===403);
+  r=await call('GET',`${BASE}/garment-types`,cc); ok('garment types: a customer is refused',r.status===401||r.status===403);
+  r=await call('GET',`${BASE}/garment-types`,ac); j=await r.json();
+  ok('garment types: 3 categories and 35 types',r.status===200&&j.categories?.length===3&&j.types?.length>=35,JSON.stringify([j.categories?.length,j.types?.length]));
+  ok('garment types: the older keys are still there',['jacket','parka','coat','vest','pants','overalls','hoodie'].every(k=>j.types?.some(x=>x.key===k)));
+  r=await call('POST','/api/admin/garment-types',rc,{label:'ZZ Rep Type',category:'outerwear'}); ok('garment types: a sales rep cannot add one',r.status===401||r.status===403);
+  r=await call('GET',`${BASE}/garment-types`,ac); j=await r.json();
+  if(!j.editable) console.log('SKIP garment library changes (run dev-patch-garment-types.sql on dev first)');
+  else{
+    const zz='ZZ Test Garment '+t;
+    r=await call('POST','/api/admin/garment-types',ac,{label:zz,category:'workwear'}); j=await r.json(); const zk=j.type?.key;
+    ok('admin adds a garment type',r.status===201&&!!zk,j.error||'');
+    r=await call('POST','/api/admin/garment-types',ac,{label:zz.toUpperCase(),category:'workwear'}); ok('adding the same name twice is refused',r.status===409);
+    r=await call('POST','/api/admin/garment-types',ac,{label:'ZZ Bad Cat',category:'nope'}); ok('an unknown category is refused',r.status===400);
+    r=await call('POST',BASE,ac,{clientName:'ZZ Customer',productName:'ZZ New Type',garmentType:zk}); j=await r.json(); const nt=j.replication?.id;
+    ok('a request can use the new type',r.status===200&&j.replication?.garmentType===zk,j.error||'');
+    r=await call('PATCH',`/api/admin/garment-types/${zk}`,ac,{active:false}); ok('admin switches the type off',r.status===200);
+    r=await call('POST',BASE,ac,{clientName:'ZZ Customer',productName:'ZZ Off Type',garmentType:zk}); ok('a type that is off cannot be chosen for a new request',r.status===400);
+    if(nt){ r=await call('GET',`${BASE}/${nt}`,ac); j=await r.json(); ok('an older request keeps its type after it is switched off',j.replication?.garmentType===zk);
+      r=await call('PUT',`${BASE}/${nt}`,ac,{clientName:'ZZ Customer',productName:'ZZ New Type renamed',garmentType:zk,imagePaths:[]}); ok('and can still be saved',r.status===200);
+      await a.from('replications').delete().eq('id',nt); }
+    r=await call('PATCH',`/api/admin/garment-types/${zk}`,ac,{label:zz+' renamed',category:'outerwear'}); ok('admin renames it and moves it to another category',r.status===200);
+    const row=(await a.from('garment_types').select('*').eq('key',zk).single()).data; ok('the change is saved',row?.label===zz+' renamed'&&row?.category==='outerwear'&&row?.active===false);
+    r=await call('PATCH',`/api/admin/garment-types/${zk}`,rc,{active:true}); ok('a sales rep cannot change a type',r.status===401||r.status===403);
+    await a.from('garment_types').delete().eq('key',zk);
+    r=await call('PATCH','/api/admin/garment-types/does-not-exist',ac,{active:true}); ok('an unknown type gives 404',r.status===404);
+  }
   r=await call('GET',BASE,ac); j=await r.json(); ok('admin lists requests',r.status===200&&j.replications.some(x=>x.id===id));
   const code=j.replications.find(x=>x.id===id)?.requestCode;
   r=await call('GET',`${BASE}/${id}`,ac); j=await r.json(); ok('admin opens one request by its id',r.status===200&&j.replication?.id===id,j.error||'');

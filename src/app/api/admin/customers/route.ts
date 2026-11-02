@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/require-admin';
+import { requireAdmin, getAdminIdentity } from '@/lib/require-admin';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { generateTempPassword } from '@/lib/temp-password';
 import { loadBannedMap } from '@/lib/customer-status';
@@ -33,8 +33,8 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const denied = await requireAdmin();
-  if (denied) return denied;
+  const who = await getAdminIdentity();
+  if ('denied' in who) return who.denied;
 
   const body = await req.json().catch(() => null);
   const company = String(body?.company_name || '').trim();
@@ -91,6 +91,7 @@ export async function POST(req: NextRequest) {
       customerEmail: email,
       customerPhone: phone,
       repId,
+      by: who.email,
     }));
   }
 

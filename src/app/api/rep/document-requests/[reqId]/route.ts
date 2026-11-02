@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentRep } from '@/lib/current-rep';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { adminUserIds, customerParties, notifyUsers } from '@/lib/notify';
+import { logForOrder } from '@/lib/rep-activity';
 
 // The rep deals with a customer's request: send it to admin, or dismiss it.
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ reqId: string }> }) {
@@ -28,6 +29,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ re
 
   const { error } = await admin.from('document_requests').update({ status: action === 'forward' ? 'open' : 'dismissed' }).eq('id', reqId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await logForOrder(admin, (r as any).order_id, { kind: 'request_done', by: rep.name, text: (o) => `Customer's ${(r as any).doc_type} request on ${o.batch} ${action === 'forward' ? 'sent to admin' : 'dismissed'}` });
 
   const parties = await customerParties(admin, r.customer_id);
   if (action === 'forward') {

@@ -99,3 +99,21 @@ export function prefillSpecs(specs: ReplicationSpec, a: Partial<PersistedGarment
   }
   return { specs: next, filled };
 }
+
+// Pick lists in the catalogue's wording (RIVIX General Contact Catalogue, hi-vis pages). They are suggestions: the field stays free text,
+// and the customer's required standard always wins. A listed standard is only a claim to check, never proof for a RIVIX garment.
+export const HIVIS_STANDARDS = [
+  'ANSI/ISEA 107-2015 Type R Class 3',
+  'ANSI/ISEA 107-2015 Type R Class 2',
+  'ANSI/ISEA 107-2015 Type O Class 1',
+  'ANSI/ISEA 107-2015 Type P Class 2',
+  'EN ISO 20471:2013 Class 3',
+  'EN ISO 20471:2013 Class 2',
+  'EN ISO 20471:2013 Class 1',
+  'CSA Z96-15 Class 3',
+  'CSA Z96-15 Class 2',
+];
+export const TAPE_WIDTHS = ['25 mm (1 in)', '50 mm (2 in)'];
+export const TAPE_COLOURS = ['Silver', 'Dual silver', 'Silver FR (flame-resistant) tape'];
+/** Reflective-tape descriptions built from the width and colour lists, for the Reflective tape field. */
+export const TAPE_OPTIONS = TAPE_COLOURS.flatMap((colour) => TAPE_WIDTHS.map((w) => `${w} ${colour.toLowerCase()} reflective tape`));

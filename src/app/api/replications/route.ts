@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
 import { createAdminClient } from '@/lib/supabase-admin';
+import { logRepActivity } from '@/lib/rep-activity';
 import { getReplicationActor, unauthorized, repsByIds, requestLink } from '@/lib/replication-access';
 import { replicationToRow, rowToReplication } from '@/lib/replication-server';
+import { allowedGarmentKeys } from '@/lib/garment-types';
 import { adminUserIds, notifyUsers } from '@/lib/notify';
 
 const SQL_HINT = 'The replication rep-side tables are missing. Run dev-patch-replication-rep-side.sql in Supabase.';
@@ -33,10 +35,10 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => null);
   const id = randomUUID();
-  const parsed = replicationToRow(body ?? {}, id);
+  const admin = createAdminClient();
+  const parsed = replicationToRow(body ?? {}, id, [], { allowed: await allowedGarmentKeys(admin) });
   if ('error' in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 });
 
-  const admin = createAdminClient();
   let repId: string | null = null;
   if (actor.kind === 'rep') repId = actor.repId;
   else if (typeof body?.repId === 'string' && body.repId) {
@@ -68,5 +70,6 @@ export async function POST(req: NextRequest) {
       kind: 'replication_new', title: `Replication request ${code} assigned to you`, body: what, link: requestLink('rep', code),
     });
   }
+  await logRepActivity(admin, { repId, kind: 'replication', by: actor.name, summary: `Replication request ${code} created: ${what}`, link: requestLink('admin', code) });
   return NextResponse.json({ replication: await rowToReplication(admin, data, reps) });
 }

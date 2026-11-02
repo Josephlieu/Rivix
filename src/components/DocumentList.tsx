@@ -167,7 +167,7 @@ export default function DocumentList({ documents, onDelete, showOrder, empty = '
       ))}
 
       {viewer && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-3 sm:p-8 bg-slate-950/70 backdrop-blur-sm" onClick={closeViewer}>
+        <div className="fixed inset-0 !m-0 z-[70] flex items-center justify-center p-3 sm:p-8 bg-slate-950/70 backdrop-blur-sm" onClick={closeViewer}>
           <div
             role="dialog"
             aria-modal="true"

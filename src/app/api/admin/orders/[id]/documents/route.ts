@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminIdentity } from '@/lib/require-admin';
 import { createAdminClient } from '@/lib/supabase-admin';
+import { logForOrder } from '@/lib/rep-activity';
 import { DOC_TYPES, MAX_DOC_BYTES } from '@/lib/documents';
 import { customerParties, notifyUsers } from '@/lib/notify';
 import { invalidateDashboard } from '@/lib/dashboard-data';
@@ -63,6 +64,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   invalidateDashboard(); // the document count changed
+  await logForOrder(admin, order.id, { kind: 'document', by: who.email, text: (o) => `Document uploaded on ${o.batch}: ${docType} (${title})` });
 
   // Open rep requests for this order and this kind of document are now answered.
   const { data: fulfilled } = await admin

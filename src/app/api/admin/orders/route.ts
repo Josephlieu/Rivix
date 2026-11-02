@@ -5,6 +5,7 @@ import { clean, parseOrderBody } from '@/lib/order-input';
 import { isBanned } from '@/lib/customer-status';
 import { customerParties, notifyUsers } from '@/lib/notify';
 import { announceRepChange } from '@/lib/rep-assignment';
+import { logForOrder } from '@/lib/rep-activity';
 import { localDateKey } from '@/lib/format';
 import { invalidateDashboard } from '@/lib/dashboard-data';
 
@@ -122,8 +123,11 @@ export async function POST(req: NextRequest) {
       customerUserId: customer.user_id,
       beforeRepId: customer.rep_id ?? null,
       afterRepId: toAdmin ? null : chosenRep!.id,
+      by: who.email,
     }));
   }
+
+  await logForOrder(admin, order.id, { kind: 'order_created', by: who.email, text: (o) => `Order ${o.batch} created for ${o.company} (entered by admin)` });
 
   // An internal note on the timeline so everyone can see this order was entered by an admin, and who.
   await admin.from('order_events').insert({

@@ -2,15 +2,14 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Modal from '@/components/Modal';
-import { createReplication, uploadReplicationPhoto, getReplicationLookups, type ReplicationRequest } from '@/lib/replicationStorage';
-
-const GARMENTS: ReplicationRequest['garmentType'][] = ['jacket', 'parka', 'coat', 'vest', 'pants', 'overalls', 'hoodie'];
-const MAX_PHOTOS = 12;
-const MAX_BYTES = 4 * 1024 * 1024;
-const OK_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+import { createReplication, uploadReplicationPhoto, getReplicationLookups, getGarmentTypes, type ReplicationRequest } from '@/lib/replicationStorage';
+import { DEFAULT_GARMENT_CATEGORIES, DEFAULT_GARMENT_TYPES, type GarmentCategory, type GarmentType } from '@/lib/garment-types-data';
+export const MAX_PHOTOS = 12;
+export const MAX_BYTES = 4 * 1024 * 1024;
+export const OK_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 // Phone photos are often over the 4 MB limit. Shrink big ones to at most 1800 px (JPEG) before sending.
-async function prepare(file: File): Promise<File> {
+export async function prepare(file: File): Promise<File> {
   if (file.size <= 1_500_000) return file;
   try {
     const bmp = await createImageBitmap(file);
@@ -38,8 +37,17 @@ export default function NewRequestDialog({ role, onClose, onCreated }: Props) {
   const [active, setActive] = useState(0);
   const [clientName, setClientName] = useState('');
   const [productName, setProductName] = useState('');
-  const [garmentType, setGarmentType] = useState<ReplicationRequest['garmentType']>('jacket');
+  // Category first, then the garment type inside it. The built-in list shows at once; the saved list replaces it when it arrives.
+  const [categories, setCategories] = useState<GarmentCategory[]>(DEFAULT_GARMENT_CATEGORIES);
+  const [types, setTypes] = useState<GarmentType[]>(DEFAULT_GARMENT_TYPES);
+  const [category, setCategory] = useState('outerwear');
+  const [garmentType, setGarmentType] = useState('jacket');
+  useEffect(() => { getGarmentTypes().then(l => { setCategories(l.categories); setTypes(l.types); }).catch(() => {}); }, []);
+  const typesInCategory = types.filter(t => t.category === category);
+  const chooseCategory = (key: string) => { setCategory(key); const first = types.find(t => t.category === key); if (first) setGarmentType(first.key); };
   const [notes, setNotes] = useState('');
+  // What the customer already knows (from the label or a spec sheet). Optional; anything entered here is taken as given, and the admin still confirms it.
+  const [known, setKnown] = useState({ coreMaterial: '', fabricWeight: '', safetyRating: '', careText: '' });
   const [files, setFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
@@ -92,7 +100,7 @@ export default function NewRequestDialog({ role, onClose, onCreated }: Props) {
       created = await createReplication({
         clientName, productName, garmentType, repId: role === 'admin' ? repId || null : undefined,
         specs: {
-          fabricWeight: '', coreMaterial: '', liningMaterial: '', zippers: '', buttonsSnaps: '', safetyRating: '',
+          fabricWeight: known.fabricWeight.trim(), coreMaterial: known.coreMaterial.trim(), liningMaterial: '', zippers: '', buttonsSnaps: '', safetyRating: known.safetyRating.trim(), careText: known.careText.trim(),
           reflectiveStriping: '', pocketsCount: '', seamConstruction: '', specialInstructions: notes.trim(), annotations: [], garmentPosted: posted,
         },
         messages: [],
@@ -162,23 +170,46 @@ export default function NewRequestDialog({ role, onClose, onCreated }: Props) {
           )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="space-y-4">
           <label className="block space-y-1">
             <span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Product name</span>
             <input className={field} value={productName} onChange={e => setProductName(e.target.value)} placeholder="e.g. Winter work parka" maxLength={200} required />
           </label>
-          <label className="block space-y-1">
-            <span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Garment type</span>
-            <select className={field} value={garmentType} onChange={e => setGarmentType(e.target.value as ReplicationRequest['garmentType'])}>
-              {GARMENTS.map(g => <option key={g} value={g}>{g[0].toUpperCase() + g.slice(1)}</option>)}
-            </select>
-          </label>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <label className="block space-y-1">
+              <span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Category</span>
+              <select className={field} value={category} onChange={e => chooseCategory(e.target.value)}>
+                {categories.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+              </select>
+            </label>
+            <label className="block space-y-1">
+              <span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Garment type</span>
+              <select className={field} value={garmentType} onChange={e => setGarmentType(e.target.value)}>
+                {typesInCategory.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
+              </select>
+            </label>
+          </div>
         </div>
 
         <label className="block space-y-1">
           <span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Special instructions (optional)</span>
           <textarea className={field} rows={2} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Anything the customer asked for: colour, logo, safety rating…" maxLength={2000} />
         </label>
+
+        <details className="rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2">
+          <summary className="cursor-pointer text-[11px] font-bold uppercase tracking-widest text-slate-500">What do you already know about the fabric? (optional)</summary>
+          <p className="mt-2 text-[11px] text-slate-400">Only fill in what is on the garment label or a spec sheet. A photo cannot show fabric or care text, and the AI will not guess it. Leave blank if unknown.</p>
+          <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label className="block space-y-1"><span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Fabric or material</span>
+              <input className={field} value={known.coreMaterial} onChange={e => setKnown(k => ({ ...k, coreMaterial: e.target.value }))} maxLength={200} placeholder="e.g. 65/35 poly-cotton" /></label>
+            <label className="block space-y-1"><span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Fabric weight</span>
+              <input className={field} value={known.fabricWeight} onChange={e => setKnown(k => ({ ...k, fabricWeight: e.target.value }))} maxLength={100} placeholder="e.g. 7 oz or 240 gsm" /></label>
+            <label className="block space-y-1"><span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Safety standard or rating</span>
+              <input className={field} value={known.safetyRating} onChange={e => setKnown(k => ({ ...k, safetyRating: e.target.value }))} maxLength={200} placeholder="e.g. CSA Z96 Class 2" /></label>
+            <label className="block space-y-1"><span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Care text from the label</span>
+              <input className={field} value={known.careText} onChange={e => setKnown(k => ({ ...k, careText: e.target.value }))} maxLength={300} placeholder="e.g. Machine wash cold, do not bleach" /></label>
+          </div>
+        </details>
 
         {role === 'admin' ? (
           <label className="block space-y-1">

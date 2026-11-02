@@ -1,0 +1,14 @@
+#!/bin/sh
+# Before every commit: secret/malware guard on the staged files, type check, and lint of the staged code.
+ROOT=$(git rev-parse --show-toplevel) || exit 1
+cd "$ROOT" || exit 1
+command -v node >/dev/null 2>&1 || { echo "Node.js is required. Commit BLOCKED."; exit 1; }
+node scripts/guard.mjs --staged || { echo "Commit BLOCKED by guard. Fix the findings above first."; exit 1; }
+echo "pre-commit: type check..."
+npx --no-install tsc --noEmit || { echo "Commit BLOCKED: type errors."; exit 1; }
+FILES=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '^src/.*\.(ts|tsx)$' || true)
+if [ -n "$FILES" ]; then
+  echo "pre-commit: lint staged files..."
+  echo "$FILES" | xargs npx --no-install eslint --quiet || { echo "Commit BLOCKED: lint errors."; exit 1; }
+fi
+exit 0

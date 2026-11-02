@@ -37,7 +37,7 @@ export default function ConfirmModal({
 
   return (
     <div
-      className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm"
+      className="fixed inset-0 !m-0 z-[70] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm"
       onClick={() => !loading && onCancel()}
     >
       <div

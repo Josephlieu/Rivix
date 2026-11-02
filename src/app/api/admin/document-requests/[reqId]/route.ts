@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminIdentity } from '@/lib/require-admin';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { customerParties, notifyUsers } from '@/lib/notify';
+import { logForOrder } from '@/lib/rep-activity';
 
 // Admin marks a rep's document request as done (without uploading, or after).
 export async function PATCH(_req: NextRequest, { params }: { params: Promise<{ reqId: string }> }) {
@@ -23,6 +24,8 @@ export async function PATCH(_req: NextRequest, { params }: { params: Promise<{ r
     .update({ status: 'done', done_at: new Date().toISOString(), done_by: who.email })
     .eq('id', reqId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await logForOrder(admin, r.order_id, { kind: 'request_done', by: who.email, text: (o) => `${r.doc_type} request on ${o.batch} marked done` });
 
   const parties = await customerParties(admin, r.customer_id);
   await notifyUsers(admin, [parties.repUserId], {

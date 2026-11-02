@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import ConfirmModal from '@/components/ConfirmModal';
 import Modal from '@/components/Modal';
-import { UserPlus, Mail, Phone, Loader2, AlertCircle, Pencil, Trash2, KeyRound, X, Check, Search } from 'lucide-react';
+import { UserPlus, Mail, Phone, Loader2, AlertCircle, Pencil, Trash2, KeyRound, X, Check, Search, Eye } from 'lucide-react';
 import CredentialsCard, { NewCredentials } from '@/components/CredentialsCard';
+import RepEditModal from '@/components/RepEditModal';
 
 interface Rep {
   id: string;
@@ -13,13 +15,16 @@ interface Rep {
   title: string | null;
   email: string;
   phone: string | null;
+  territory?: string | null;
   active: boolean;
   customer_count: number;
+  orders_completed: number;
+  request_count: number;
   has_login: boolean;
   created_at?: string;
 }
 
-const emptyForm = { name: '', title: '', email: '', phone: '', active: true, create_login: true };
+const emptyForm = { name: '', title: '', email: '', phone: '', territory: '', active: true, create_login: true };
 
 export default function TeamManagement() {
   const [reps, setReps] = useState<Rep[]>([]);
@@ -27,7 +32,7 @@ export default function TeamManagement() {
   const [error, setError] = useState<string | null>(null);
 
   const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingRep, setEditingRep] = useState<Rep | null>(null); // the rep open in the shared Edit dialog
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [credentials, setCredentials] = useState<NewCredentials | null>(null);
@@ -56,23 +61,16 @@ export default function TeamManagement() {
   }, []);
 
   const openAdd = () => {
-    setEditingId(null);
     setForm(emptyForm);
     setError(null);
     setCredentials(null);
     setShowForm(true);
   };
 
-  const openEdit = (rep: Rep) => {
-    setEditingId(rep.id);
-    setForm({ name: rep.name, title: rep.title || '', email: rep.email, phone: rep.phone || '', active: rep.active, create_login: false });
-    setError(null);
-    setShowForm(true);
-  };
+  const openEdit = (rep: Rep) => { setError(null); setEditingRep(rep); };
 
   const closeForm = () => {
     setShowForm(false);
-    setEditingId(null);
     setForm(emptyForm);
   };
 
@@ -81,10 +79,11 @@ export default function TeamManagement() {
     setSaving(true);
     setError(null);
 
-    const res = await fetch(editingId ? `/api/admin/reps/${editingId}` : '/api/admin/reps', {
-      method: editingId ? 'PATCH' : 'POST',
+    const res = await fetch('/api/admin/reps', {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
+      // Leave territory out until the database has the column (dev-patch-rep-territory.sql).
+      body: JSON.stringify(territorySupported ? form : { ...form, territory: undefined }),
     });
     const data = await res.json();
     setSaving(false);
@@ -168,7 +167,8 @@ export default function TeamManagement() {
     setConfirm(null);
   };
 
-  const editingHasLogin = !!editingId && !!reps.find((r) => r.id === editingId)?.has_login;
+  // The territory column only exists once dev-patch-rep-territory.sql has been run.
+  const territorySupported = reps.some((r) => 'territory' in r);
 
   // Newest first (the API returns oldest first because the client pages use that order for their rep pickers).
   const visibleReps = useMemo(() => {
@@ -182,7 +182,7 @@ export default function TeamManagement() {
         if (customerFilter === 'with' && r.customer_count === 0) return false;
         if (customerFilter === 'none' && r.customer_count > 0) return false;
         if (!q) return true;
-        return [r.name, r.title, r.email, r.phone, r.rep_code].some((v) => (v || '').toLowerCase().includes(q));
+        return [r.name, r.title, r.email, r.phone, r.rep_code, r.territory].some((v) => (v || '').toLowerCase().includes(q));
       })
       .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
   }, [reps, search, statusFilter, loginFilter, customerFilter]);
@@ -197,7 +197,7 @@ export default function TeamManagement() {
     'w-full px-4 py-3 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-rivix/20 outline-none font-medium placeholder:text-slate-300';
 
   return (
-    <div className="space-y-8 max-w-5xl">
+    <div className="space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Team & Reps</h1>
@@ -227,7 +227,7 @@ export default function TeamManagement() {
         <Modal onClose={closeForm} busy={saving}>
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="flex items-center justify-between">
-            <h3 className="font-bold text-slate-900">{editingId ? 'Edit rep' : 'New rep'}</h3>
+            <h3 className="font-bold text-slate-900">New rep</h3>
             <button type="button" onClick={closeForm} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg" aria-label="Close">
               <X size={18} />
             </button>
@@ -252,20 +252,23 @@ export default function TeamManagement() {
               <input
                 required
                 type="email"
-                disabled={editingHasLogin}
-                className={`${inputClass} ${editingHasLogin ? 'opacity-60' : ''}`}
+                className={inputClass}
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
                 placeholder="tyler@rivix.ca"
               />
-              {editingHasLogin && <p className="text-xs text-slate-400 px-1">This is their login, so it can&apos;t be changed.</p>}
             </div>
             <div className="space-y-1.5">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Phone</label>
               <input className={inputClass} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="(403) 555-0100" />
             </div>
-            {!editingId && (
-              <label className="sm:col-span-2 flex items-start gap-3 bg-slate-50 rounded-xl px-4 py-3 cursor-pointer">
+            {territorySupported && (
+              <div className="space-y-1.5 sm:col-span-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Province / territory</label>
+                <input className={inputClass} value={form.territory} onChange={(e) => setForm({ ...form, territory: e.target.value })} placeholder="Alberta — Calgary/Cochrane" />
+              </div>
+            )}
+            <label className="sm:col-span-2 flex items-start gap-3 bg-slate-50 rounded-xl px-4 py-3 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={form.create_login}
@@ -277,25 +280,6 @@ export default function TeamManagement() {
                   You&apos;ll get a temporary password to send them.
                 </span>
               </label>
-            )}
-            {editingId && (
-              <div className="space-y-1.5 sm:col-span-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Status</label>
-                <select
-                  className={inputClass}
-                  value={form.active ? 'active' : 'disabled'}
-                  onChange={(e) => setForm({ ...form, active: e.target.value === 'active' })}
-                >
-                  <option value="active">Active — can be assigned to customers</option>
-                  <option value="disabled">Disabled — can't be assigned, and can't sign in</option>
-                </select>
-                {!form.active && (reps.find((r) => r.id === editingId)?.customer_count ?? 0) > 0 && (
-                  <p className="text-xs text-amber-600 px-1">
-                    This rep still has {reps.find((r) => r.id === editingId)?.customer_count} customer(s). They&apos;ll keep showing this rep until you reassign them.
-                  </p>
-                )}
-              </div>
-            )}
           </div>
           <div className="flex gap-3">
             <button
@@ -303,7 +287,7 @@ export default function TeamManagement() {
               className="bg-slate-950 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-rivix transition-all flex items-center gap-2 disabled:opacity-60"
             >
               {saving ? <Loader2 className="animate-spin" size={16} /> : <Check size={16} />}
-              {editingId ? 'Save changes' : 'Add rep'}
+              Add rep
             </button>
             <button type="button" onClick={closeForm} className="px-6 py-3 rounded-xl font-bold text-sm text-slate-500 hover:bg-slate-50">
               Cancel
@@ -318,7 +302,7 @@ export default function TeamManagement() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
           <input
             type="text"
-            placeholder="Search name, email, phone or code..."
+            placeholder="Search name, email, phone, territory or code..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-rivix/20 focus:border-rivix outline-none transition-all w-full sm:w-80"
@@ -351,42 +335,47 @@ export default function TeamManagement() {
       </div>
 
       <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-x-auto">
-        <table className="w-full text-left min-w-[640px]">
+        <table className="w-full text-left min-w-[1100px]">
           <thead className="bg-slate-50/50 border-b border-slate-100">
             <tr>
-              <th className="px-4 sm:px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Rep</th>
-              <th className="px-4 sm:px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Contact</th>
-              <th className="px-4 sm:px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Customers</th>
-              <th className="px-4 sm:px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Status</th>
-              <th className="px-4 sm:px-8 py-5" />
+              <th className="px-4 sm:px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Sales rep</th>
+              <th className="px-4 sm:px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Email &amp; phone</th>
+              <th className="px-4 sm:px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Province / territory</th>
+              <th className="px-4 sm:px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest" title="Delivered orders credited to this rep">Orders completed</th>
+              <th className="px-4 sm:px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest" title="Document requests linked to this rep">Customer requests</th>
+              <th className="px-4 sm:px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest" title="Quotes aren't in the portal yet">Quotes created</th>
+              <th className="px-4 sm:px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest" title="Customers currently assigned">Customers assigned</th>
+              <th className="px-4 sm:px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Status</th>
+              <th className="px-4 sm:px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {loading && (
-              <tr><td colSpan={5} className="px-8 py-10 text-center text-slate-400"><Loader2 className="animate-spin inline" size={18} /></td></tr>
+              <tr><td colSpan={9} className="px-8 py-10 text-center text-slate-400"><Loader2 className="animate-spin inline" size={18} /></td></tr>
             )}
             {!loading && reps.length === 0 && (
-              <tr><td colSpan={5} className="px-8 py-10 text-center text-sm text-slate-400">No reps yet. Add your first one above.</td></tr>
+              <tr><td colSpan={9} className="px-8 py-10 text-center text-sm text-slate-400">No reps yet. Add your first one above.</td></tr>
             )}
             {!loading && reps.length > 0 && visibleReps.length === 0 && (
-              <tr><td colSpan={5} className="px-8 py-10 text-center text-sm text-slate-400">No reps match your search or filters.</td></tr>
+              <tr><td colSpan={9} className="px-8 py-10 text-center text-sm text-slate-400">No reps match your search or filters.</td></tr>
             )}
             {visibleReps.map((rep) => (
               <tr key={rep.id} className={rep.active ? '' : 'opacity-60'}>
-                <td className="px-4 sm:px-8 py-5">
-                  <p className="font-bold text-slate-900">{rep.name}</p>
+                <td className="px-4 sm:px-6 py-5 whitespace-nowrap">
+                  <Link href={`/admin/team/${rep.id}`} className="font-bold text-slate-900 hover:text-rivix">{rep.name}</Link>
                   {rep.title && <p className="text-xs text-slate-400">{rep.title}</p>}
                   {rep.rep_code && <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">{rep.rep_code}</p>}
                 </td>
-                <td className="px-4 sm:px-8 py-5 text-xs text-slate-500 space-y-1">
+                <td className="px-4 sm:px-6 py-5 text-xs text-slate-500 space-y-1 whitespace-nowrap">
                   <p className="flex items-center gap-1.5"><Mail size={12} className="text-slate-400" />{rep.email}</p>
                   {rep.phone && <p className="flex items-center gap-1.5"><Phone size={12} className="text-slate-400" />{rep.phone}</p>}
-                  <p className={rep.has_login ? 'text-emerald-600 font-semibold' : 'text-slate-400'}>
-                    {rep.has_login ? 'Has login' : 'No login yet'}
-                  </p>
                 </td>
-                <td className="px-4 sm:px-8 py-5 text-sm font-bold text-slate-600">{rep.customer_count}</td>
-                <td className="px-4 sm:px-8 py-5">
+                <td className="px-4 sm:px-6 py-5 text-xs text-slate-500">{rep.territory || '—'}</td>
+                <td className="px-4 sm:px-6 py-5 text-sm font-bold text-slate-600">{rep.orders_completed}</td>
+                <td className="px-4 sm:px-6 py-5 text-sm font-bold text-slate-600">{rep.request_count}</td>
+                <td className="px-4 sm:px-6 py-5 text-sm text-slate-300" title="Quotes aren't in the portal yet">—</td>
+                <td className="px-4 sm:px-6 py-5 text-sm font-bold text-slate-600">{rep.customer_count}</td>
+                <td className="px-4 sm:px-6 py-5">
                   <button
                     onClick={() => toggleActive(rep)}
                     className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${
@@ -395,8 +384,14 @@ export default function TeamManagement() {
                   >
                     {rep.active ? 'Active' : 'Disabled'}
                   </button>
+                  {/* Only the exception is shown: most reps have a login. */}
+                  {!rep.has_login && <p className="text-[10px] text-slate-400 mt-1.5 whitespace-nowrap">No login yet</p>}
                 </td>
-                <td className="px-4 sm:px-8 py-5 text-right whitespace-nowrap">
+                <td className="px-4 sm:px-6 py-5 whitespace-nowrap">
+                  <div className="flex items-center justify-end">
+                  <Link href={`/admin/team/${rep.id}`} title="View details and activity history" className="p-2 text-slate-400 hover:text-rivix transition-colors" aria-label={`View ${rep.name}`}>
+                    <Eye size={16} />
+                  </Link>
                   <button
                     onClick={() => giveLogin(rep)}
                     disabled={keyBusyId === rep.id}
@@ -418,12 +413,21 @@ export default function TeamManagement() {
                   >
                     <Trash2 size={16} />
                   </button>
+                  </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {editingRep && (
+        <RepEditModal
+          rep={editingRep}
+          onClose={() => setEditingRep(null)}
+          onSaved={() => { setEditingRep(null); load(); }}
+        />
+      )}
 
       <ConfirmModal
         open={confirm !== null}

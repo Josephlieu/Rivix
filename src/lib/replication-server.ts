@@ -2,12 +2,12 @@
 // uses, and clean whatever the browser sends before it is saved.
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { repsByIds, type RepInfo } from '@/lib/replication-access';
+import { outstandingConfirmations } from '@/lib/garmentAiAnalysis';
 
 export const REPLICATION_BUCKET = 'replication-photos';
 export const MAX_PHOTO_BYTES = 4 * 1024 * 1024; // stays under the request size limit on the host
 export const MAX_PHOTOS = 12;
 export const REPLICATION_STATUSES = ['received', 'spec_mapped', 'sample_production', 'sample_shipped'] as const;
-export const GARMENT_TYPES = ['overalls', 'parka', 'jacket', 'pants', 'vest', 'hoodie', 'coat'] as const;
 export const PHOTO_TYPES: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
 
 export const isValidReplicationId = (v: unknown): v is string => typeof v === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(v);
@@ -58,12 +58,20 @@ const cleanPaths = (raw: unknown, id: string, current: string[]): string[] =>
   Array.isArray(raw) ? raw.filter((p): p is string => typeof p === 'string' && p.startsWith(`${id}/`) && current.includes(p)) : current;
 
 /** Validates and cleans a request sent by the browser. `current` = saved photo paths (for updates). */
-export function replicationToRow(body: Row, id: string, current: string[] = []): { error: string } | { row: Row } {
+export function replicationToRow(
+  body: Row,
+  id: string,
+  current: string[] = [],
+  garment: { allowed: string[]; currentType?: string } = { allowed: [] }
+): { error: string } | { row: Row } {
   const clientName = text(body?.clientName, 200);
   const productName = text(body?.productName, 200);
   if (!clientName) return { error: 'Customer name is required.' };
   if (!productName) return { error: 'Product name is required.' };
-  const garmentType = GARMENT_TYPES.includes(body?.garmentType) ? body.garmentType : 'jacket';
+  // A new request defaults to Jacket; an update keeps the saved type when none is sent. A type that is not on the list is refused.
+  const sent = typeof body?.garmentType === 'string' && body.garmentType ? body.garmentType : null;
+  if (sent && !garment.allowed.includes(sent)) return { error: 'Choose a garment type from the list.' };
+  const garmentType = sent ?? garment.currentType ?? 'jacket';
   const status = REPLICATION_STATUSES.includes(body?.status) ? body.status : 'received';
   const specs = body?.specs && typeof body.specs === 'object' && !Array.isArray(body.specs) ? body.specs : {};
   if (JSON.stringify(specs).length > 500_000) return { error: 'The specification is too large.' };
@@ -105,6 +113,8 @@ export function approvalProblem(analysis: Row | null): string | null {
   if (!analysis) return 'Run the AI analysis (or enter the details) before approving.';
   if (m.length === 0) return 'Add at least one measurement before approving.';
   if (m.some((r: Row) => !String(r?.pom ?? '').trim() || !String(r?.description ?? '').trim())) return 'Every measurement needs a point code and a description.';
+  const open = outstandingConfirmations(analysis);
+  if (open.length) return `${open.length} item${open.length > 1 ? 's' : ''} still need confirmation: ${open.slice(0, 5).join(', ')}${open.length > 5 ? '…' : ''}. Check each against the garment and confirm it.`;
   return null;
 }
 

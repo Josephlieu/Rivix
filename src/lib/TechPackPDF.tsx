@@ -6,6 +6,7 @@
 // Every section is always printed, with "Not specified" when nobody has entered it, so the structure never
 // changes between garments. A file that has not been approved is stamped DRAFT on every page.
 
+import { garmentTypeLabel } from './garment-types-data';
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Image, Font } from '@react-pdf/renderer';
 import { formatDate } from '@/lib/format';
@@ -116,10 +117,13 @@ export function buildTechFileData(rep: ReplicationRequest, photos: string[], log
 }
 
 const has = (v?: string | null) => !!v && v.trim() !== '';
-const Val = ({ v }: { v?: string | null }) => (has(v) ? <Text style={s.value}>{v}</Text> : <Text style={s.none}>Not specified</Text>);
-const Field = ({ name, v, wide }: { name: string; v?: string | null; wide?: boolean }) => (
-  <View style={wide ? s.cell2 : s.cell}><Text style={s.label}>{name}</Text><Val v={v} /></View>
+const NEEDS = 'Needs confirmation';
+const Val = ({ v, flag }: { v?: string | null; flag?: boolean }) => (has(v) ? <Text style={s.value}>{v}{flag ? `  [${NEEDS}]` : ''}</Text> : <Text style={s.none}>{flag ? NEEDS : 'Not specified'}</Text>);
+const Field = ({ name, v, wide, flag }: { name: string; v?: string | null; wide?: boolean; flag?: boolean }) => (
+  <View style={wide ? s.cell2 : s.cell}><Text style={s.label}>{name}</Text><Val v={v} flag={flag} /></View>
 );
+/** A table row's text with the flag added to its first text cell. */
+const flagRow = (cells: string[], flag?: boolean, at = 1): string[] => (flag ? cells.map((c, i) => (i === at ? `${c}${c ? ' ' : ''}[${NEEDS}]` : c)) : cells);
 
 function Table({ cols, rows, empty }: { cols: Array<{ h: string; w: string; center?: boolean }>; rows: string[][]; empty: string }) {
   if (rows.length === 0) return <Text style={s.none}>{empty}</Text>;
@@ -179,6 +183,13 @@ export const TechPackPDF = ({ d }: { d: TechFileData }) => {
   const bom = a.bom;
   const care = a.washCare;
   const sp = d.specs;
+  const flags = a.flags || [];
+  const fl = (path: string) => flags.includes(path);
+  // A list that is still open prints "Needs confirmation" (also when it is empty), so a blank never reads as "nothing needed".
+  const bomLines = (cat: string, items: string[] | undefined, path: string): string[][] => {
+    const list = (items || []).map(x => ['', cat, fl(path) ? `${x} [${NEEDS}]` : x]);
+    return list.length === 0 && fl(path) ? [['', cat, NEEDS]] : list;
+  };
   const careEn = care?.instructions || [];
   const careFr = care?.instructionsFr || [];
   const origin = (a.origin || '').trim();
@@ -196,7 +207,7 @@ export const TechPackPDF = ({ d }: { d: TechFileData }) => {
           <Text style={s.heroMeta}>{d.clientName}  ·  {d.requestCode}</Text>
           <View style={s.chipRow}>
             <Text style={d.approved ? s.chip : s.chipGrey}>{d.approved ? `Rev ${d.revision} approved` : 'Draft: not approved'}</Text>
-            <Text style={s.chipGrey}>{d.garmentType}</Text>
+            <Text style={s.chipGrey}>{garmentTypeLabel(d.garmentType)}</Text>
             <Text style={s.chipGrey}>Sizes XS – XL</Text>
           </View>
         </View>
@@ -220,20 +231,20 @@ export const TechPackPDF = ({ d }: { d: TechFileData }) => {
       <Sheet d={d} no={2} title="Colour & fabric information">
         <Text style={s.h2}>Colourway</Text>
         <View style={s.grid}>
-          <Field name="Body colour" v={col?.bodyColor} />
+          <Field name="Body colour" v={col?.bodyColor} flag={fl('colorway.bodyColor')} />
           <Field name="Contrast colours" v={col?.contrastColors?.join(', ')} />
-          <Field name="Thread colour" v={col?.threadColor} />
-          <Field name="Hardware finish" v={col?.hardwareFinish} />
-          <Field name="Reflective tape" v={col?.reflectiveTape} />
+          <Field name="Thread colour" v={col?.threadColor} flag={fl('colorway.threadColor')} />
+          <Field name="Hardware finish" v={col?.hardwareFinish} flag={fl('colorway.hardwareFinish')} />
+          <Field name="Reflective tape" v={col?.reflectiveTape} flag={fl('colorway.reflectiveTape')} />
         </View>
         <Text style={s.h2}>Fabric</Text>
         <View style={s.grid}>
-          <Field name="Material" v={fab?.material || sp.coreMaterial} />
-          <Field name="Weight" v={fab?.weight || sp.fabricWeight} />
-          <Field name="Weave" v={fab?.weaveType} />
-          <Field name="Flame-resistance rating" v={fab?.frRating} />
-          <Field name="Finish" v={fab?.finish} />
-          <Field name="Shrinkage" v={fab?.shrinkage} />
+          <Field name="Material" v={fab?.material || sp.coreMaterial} flag={fl('fabricAnalysis.material')} />
+          <Field name="Weight" v={fab?.weight || sp.fabricWeight} flag={fl('fabricAnalysis.weight')} />
+          <Field name="Weave" v={fab?.weaveType} flag={fl('fabricAnalysis.weaveType')} />
+          <Field name="Flame-resistance rating" v={fab?.frRating} flag={fl('fabricAnalysis.frRating')} />
+          <Field name="Finish" v={fab?.finish} flag={fl('fabricAnalysis.finish')} />
+          <Field name="Shrinkage" v={fab?.shrinkage} flag={fl('fabricAnalysis.shrinkage')} />
           <Field name="Lining" v={sp.liningMaterial} />
           <Field name="Safety rating" v={sp.safetyRating} />
         </View>
@@ -257,6 +268,16 @@ export const TechPackPDF = ({ d }: { d: TechFileData }) => {
           rows={(a.components || []).map((c, i) => [String(i + 1), c.label, c.type, c.location])}
           empty="No features listed."
         />
+        {(a.checklist || []).length > 0 && (
+          <>
+            <Text style={s.h2}>Checklist for this garment type</Text>
+            <Table
+              cols={[{ h: 'Item', w: '46%' }, { h: 'Status', w: '16%' }, { h: 'Value', w: '38%' }]}
+              rows={(a.checklist || []).map(c => [c.label + (c.required ? ' *' : ''), c.needsConfirmation ? NEEDS : 'Confirmed', c.value])}
+              empty=""
+            />
+          </>
+        )}
         {extra.length > 0 && (
           <>
             <Text style={s.h2}>Reference photos</Text>
@@ -271,7 +292,7 @@ export const TechPackPDF = ({ d }: { d: TechFileData }) => {
       <Sheet d={d} no={5} title="Construction details">
         <Table
           cols={[{ h: 'Location', w: '22%' }, { h: 'Seam', w: '20%' }, { h: 'Stitch', w: '14%' }, { h: 'SPI', w: '8%', center: true }, { h: 'Allowance', w: '12%' }, { h: 'Notes', w: '24%' }]}
-          rows={(a.construction || []).map(c => [c.location, c.seamType, c.stitchType, c.spiTop ? String(c.spiTop) : '', c.seamAllowance, c.notes])}
+          rows={(a.construction || []).map(c => flagRow([c.location, c.seamType, c.stitchType, c.spiTop ? String(c.spiTop) : '', c.seamAllowance, c.notes], c.needsConfirmation, 0))}
           empty="No seams specified."
         />
         <Text style={s.h2}>Stitch reference</Text>
@@ -287,9 +308,9 @@ export const TechPackPDF = ({ d }: { d: TechFileData }) => {
         <Table
           cols={[{ h: 'No.', w: '8%' }, { h: 'Category', w: '20%' }, { h: 'Item', w: '72%' }]}
           rows={[
-            ...(bom?.hardware || []).map(x => ['', 'Hardware', x]),
-            ...(bom?.thread || []).map(x => ['', 'Thread', x]),
-            ...(bom?.labels || []).map(x => ['', 'Labels', x]),
+            ...bomLines('Hardware', bom?.hardware, 'bom.hardware'),
+            ...bomLines('Thread', bom?.thread, 'bom.thread'),
+            ...bomLines('Labels', bom?.labels, 'bom.labels'),
           ].map((r, i) => [String(i + 1), r[1], r[2]])}
           empty="No materials listed."
         />
@@ -309,7 +330,7 @@ export const TechPackPDF = ({ d }: { d: TechFileData }) => {
       <Sheet d={d} no={8} title="Measurement specification (inches, flat on the half)" landscape>
         <Table
           cols={[{ h: 'POM', w: '8%' }, { h: 'Description', w: '34%' }, { h: 'XS', w: '10%', center: true }, { h: 'S', w: '10%', center: true }, { h: 'M', w: '10%', center: true }, { h: 'L', w: '10%', center: true }, { h: 'XL', w: '10%', center: true }, { h: 'Tol. ±', w: '8%', center: true }]}
-          rows={(a.measurements || []).map(m => [m.pom, m.description, m.xs, m.s, m.m, m.l, m.xl, m.tolerance])}
+          rows={(a.measurements || []).map(m => flagRow([m.pom, m.description, m.xs, m.s, m.m, m.l, m.xl, m.tolerance], m.needsConfirmation))}
           empty="No measurements entered."
         />
         {!d.approved && <Text style={s.warn}>Measurements are estimates until approved. Measure the physical garment.</Text>}
@@ -328,7 +349,7 @@ export const TechPackPDF = ({ d }: { d: TechFileData }) => {
         <Text style={s.h2}>Label placement</Text>
         <Table
           cols={[{ h: 'Type', w: '20%' }, { h: 'Location', w: '24%' }, { h: 'Attachment', w: '20%' }, { h: 'Size', w: '16%' }, { h: 'Material', w: '20%' }]}
-          rows={(a.labelPlacements || []).map(l => [l.type, l.location, l.attachment, l.dimensions, l.material])}
+          rows={(a.labelPlacements || []).map(l => flagRow([l.type, l.location, l.attachment, l.dimensions, l.material], l.needsConfirmation, 0))}
           empty="No labels specified."
         />
         <Text style={s.h2}>Care text (English / Français)</Text>
@@ -337,6 +358,7 @@ export const TechPackPDF = ({ d }: { d: TechFileData }) => {
           rows={careEn.map((en, i) => [en, careFr[i] || ''])}
           empty="No care instructions."
         />
+        {fl('washCare.instructions') && <Text style={s.note}>Care instructions: {NEEDS}</Text>}
         {has(care?.specialNotes) && <Text style={s.note}>Notes: {care?.specialNotes}</Text>}
         <Text style={s.h2}>Origin</Text>
         {!has(origin)
