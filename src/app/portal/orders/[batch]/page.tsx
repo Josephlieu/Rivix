@@ -21,6 +21,7 @@ import OrderHeading from '@/components/OrderHeading';
 import SizeBreakdown from '@/components/SizeBreakdown';
 import DocumentList from '@/components/DocumentList';
 import RequestDocument from './RequestDocument';
+import OrderRequestForm from '@/components/OrderRequestForm';
 import type { DocumentRow } from '@/lib/documents';
 import { formatDate, formatDateTime } from '@/lib/format';
 
@@ -31,6 +32,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ batch: s
   const [items, setItems] = useState<any[]>([]);
   const [events, setEvents] = useState<any[]>([]);
   const [docs, setDocs] = useState<DocumentRow[]>([]);
+  const [reordering, setReordering] = useState(false);
 
 
   useEffect(() => {
@@ -91,7 +93,27 @@ export default function OrderDetailPage({ params }: { params: Promise<{ batch: s
           <OrderHeading number={order.batch_number} status={order.status} />
           <p className="text-slate-500 font-medium mt-2">{order.product_name}</p>
         </div>
+        {!reordering && (
+          <button onClick={() => setReordering(true)} className="inline-flex items-center gap-2 bg-rivix text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-rivix/30 hover:bg-rivix-dark transition-all">
+            <RotateCw size={16} />Reorder
+          </button>
+        )}
       </div>
+
+      {reordering && (
+        <OrderRequestForm
+          kind="reorder"
+          sourceOrderId={order.id}
+          sourceBatch={order.batch_number}
+          // Each product with its sizes. Imported orders have no size list, so their quantity starts as "One size".
+          initialItems={(items.length ? items : [{ product_name: order.product_name, quantity: order.quantity }]).map((it) => ({
+            product_name: it.product_name || '',
+            sizes: Array.isArray(it.size_breakdown) && it.size_breakdown.length ? it.size_breakdown : [{ size: 'One size', qty: it.quantity || 1 }],
+            branding: it.branding ?? null,
+          }))}
+          onCancel={() => setReordering(false)}
+        />
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">

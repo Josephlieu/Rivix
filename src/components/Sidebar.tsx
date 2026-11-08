@@ -19,7 +19,8 @@ import {
   X,
   PanelLeftClose,
   PanelLeftOpen,
-  BookOpen
+  BookOpen,
+  ClipboardList
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import RepWidget from './RepWidget';
@@ -34,6 +35,7 @@ const adminLinks = [
   { href: '/admin/clients', label: 'Clients', icon: Users },
   { href: '/admin/replication', label: 'Replication Queue', icon: FileUp },
   { href: '/admin/orders', label: 'Orders', icon: FileText },
+  { href: '/admin/requests', label: 'Requests', icon: ClipboardList },
   { href: '/admin/products', label: 'Products', icon: Package }, // redirects to Catalogs until task 7 (product specifications)
   { href: '/admin/catalogs', label: 'Catalogs', icon: BookOpen },
   { href: '/admin/hiring', label: 'Sales Hiring', icon: Users },
@@ -44,6 +46,7 @@ const adminLinks = [
 const clientLinks = [
   { href: '/portal', label: 'Overview', icon: LayoutDashboard },
   { href: '/portal/orders', label: 'My Orders', icon: FileText },
+  { href: '/portal/requests', label: 'Requests', icon: ClipboardList },
   { href: '/portal/products', label: 'Product Specs', icon: Package },
   { href: '/portal/catalogs', label: 'Catalogs', icon: BookOpen },
   // Uniform Replication removed from the customer side per the 2026-09-25
@@ -59,6 +62,7 @@ const repLinks = [
   { href: '/rep/customers', label: 'My Customers', icon: Users },
   { href: '/rep/orders', label: 'Orders', icon: FileText },
   { href: '/rep/orders/new', label: 'New Order', icon: PlusCircle },
+  { href: '/rep/requests', label: 'Requests', icon: ClipboardList },
   { href: '/rep/catalogs', label: 'Catalogs', icon: BookOpen },
   { href: '/rep/replication', label: 'Replication', icon: FileUp }, // internal tool between the rep and the admin; customers never see it
   { href: '/rep/account', label: 'Account', icon: UserCircle },

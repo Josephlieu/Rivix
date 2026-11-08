@@ -3,9 +3,10 @@ import { ArrowLeft } from 'lucide-react';
 import { getCurrentRep } from '@/lib/current-rep';
 import { createAdminClient } from '@/lib/supabase-admin';
 import NewOrderForm from './NewOrderForm';
+import { requestForOrderForm } from '@/lib/order-requests';
 
-export default async function NewOrderPage({ searchParams }: { searchParams: Promise<{ customer?: string }> }) {
-  const { customer } = await searchParams;
+export default async function NewOrderPage({ searchParams }: { searchParams: Promise<{ customer?: string; request?: string }> }) {
+  const { customer, request } = await searchParams;
   const rep = await getCurrentRep();
 
   if (!rep) {
@@ -17,7 +18,12 @@ export default async function NewOrderPage({ searchParams }: { searchParams: Pro
     );
   }
 
-  const { data: customers } = await createAdminClient()
+  const db = createAdminClient();
+  // From a customer's request: only one of THIS rep's customers, and only while it is still open.
+  const fromReq = await requestForOrderForm(db, request);
+  const usable = fromReq && fromReq.customerRepId === rep.id ? fromReq : null;
+
+  const { data: customers } = await db
     .from('customers')
     .select('id, customer_code, company_name')
     .eq('rep_id', rep.id)
@@ -32,7 +38,8 @@ export default async function NewOrderPage({ searchParams }: { searchParams: Pro
         <h1 className="text-2xl font-bold text-slate-900">New order</h1>
         <p className="text-slate-500">Enter what your customer asked for. Admin takes it from here.</p>
       </div>
-      <NewOrderForm customers={customers || []} initialCustomerId={customer} />
+      {request && !usable && <p className="text-sm text-amber-700 bg-amber-50 border border-amber-100 rounded-2xl px-4 py-3">That request is no longer open (or is not one of your customers&apos;), so the form starts empty.</p>}
+      <NewOrderForm customers={customers || []} initialCustomerId={usable ? usable.customerId : customer} fromRequest={usable?.form} />
     </div>
   );
 }

@@ -2,11 +2,13 @@ import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase-admin';
 import NewOrderForm from '@/app/rep/orders/new/NewOrderForm';
+import { requestForOrderForm } from '@/lib/order-requests';
 
 // Admin enters an order for any customer. (/admin/* is already limited to signed-in admins by proxy.ts.)
-export default async function AdminNewOrderPage({ searchParams }: { searchParams: Promise<{ customer?: string }> }) {
-  const { customer } = await searchParams;
+export default async function AdminNewOrderPage({ searchParams }: { searchParams: Promise<{ customer?: string; request?: string }> }) {
+  const { customer, request } = await searchParams;
   const db = createAdminClient();
+  const fromReq = await requestForOrderForm(db, request); // admins may convert any customer's open request
   const [{ data }, { data: repRows }] = await Promise.all([
     db.from('customers').select('id, customer_code, company_name, rep_id, rep:reps(name)').order('company_name', { ascending: true }),
     db.from('reps').select('id, name').eq('active', true).order('name', { ascending: true }),
@@ -29,9 +31,11 @@ export default async function AdminNewOrderPage({ searchParams }: { searchParams
         <h1 className="text-2xl font-bold text-slate-900">New order</h1>
         <p className="text-slate-500">Enter an order for any customer and choose the sales rep. The customer and the rep are notified.</p>
       </div>
+      {request && !fromReq && <p className="text-sm text-amber-700 bg-amber-50 border border-amber-100 rounded-2xl px-4 py-3">That request is no longer open, so the form starts empty.</p>}
       <NewOrderForm
         customers={customers}
-        initialCustomerId={customer}
+        initialCustomerId={fromReq ? fromReq.customerId : customer}
+        fromRequest={fromReq?.form}
         endpoint="/api/admin/orders"
         orderBasePath="/admin/orders"
         cancelPath="/admin/orders"

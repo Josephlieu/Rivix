@@ -22,6 +22,17 @@ export const gridToSizes = (v: SizeGridValue) => [
     .map((c) => ({ size: c.label.trim(), qty: parseInt(c.qty, 10) })),
 ];
 
+// The other way round: a saved size list back into the grid (standard sizes in their boxes, anything else as a custom row).
+export const sizesToGrid = (sizes: { size: string; qty: number }[] | null | undefined): SizeGridValue => {
+  const v = emptySizeGrid();
+  for (const s of sizes || []) {
+    const std = STANDARD_SIZES.find((x) => x.toLowerCase() === String(s.size).trim().toLowerCase());
+    if (std) v.standard[std] = String((parseInt(v.standard[std], 10) || 0) + s.qty);
+    else v.custom.push({ label: String(s.size), qty: String(s.qty) });
+  }
+  return v;
+};
+
 const box =
   'w-full px-2 py-2.5 bg-slate-50 border-none rounded-xl text-sm text-center focus:ring-2 focus:ring-rivix/20 outline-none font-semibold placeholder:text-slate-300';
 

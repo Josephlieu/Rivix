@@ -8,6 +8,7 @@ import { announceRepChange } from '@/lib/rep-assignment';
 import { logForOrder } from '@/lib/rep-activity';
 import { localDateKey } from '@/lib/format';
 import { invalidateDashboard } from '@/lib/dashboard-data';
+import { CONVERT_RACE_MESSAGE, checkRequestForOrder, claimRequestForOrder } from '@/lib/order-requests';
 
 // Every order from every rep, for the admin Orders list.
 export async function GET() {
@@ -82,6 +83,13 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Optional: this order comes from a customer's reorder or quote request (same customer, still open).
+  const requestId = body.request_id ? String(body.request_id) : null;
+  if (requestId) {
+    const bad = await checkRequestForOrder(admin, requestId, customer.id);
+    if (bad) return bad;
+  }
+
   const totalQty = items.reduce((n, it) => n + it.quantity, 0);
   const summary = items.length === 1 ? items[0].product_name : `${items[0].product_name} + ${items.length - 1} more`;
 
@@ -108,6 +116,13 @@ export async function POST(req: NextRequest) {
   if (itemsErr) {
     await admin.from('orders').delete().eq('id', order.id); // never leave an order with no products behind
     return NextResponse.json({ error: itemsErr.message }, { status: 500 });
+  }
+
+  // Mark the request converted only if it is STILL open. If someone else got there first, undo this order
+  // (before any rep change below, so a lost race changes nothing).
+  if (requestId && !(await claimRequestForOrder(admin, { requestId, customerId: customer.id, orderId: order.id, by: who.email }))) {
+    await admin.from('orders').delete().eq('id', order.id);
+    return NextResponse.json({ error: CONVERT_RACE_MESSAGE }, { status: 409 });
   }
 
   // Reassign the customer only once the order exists, so a failed order never changes who owns the customer.

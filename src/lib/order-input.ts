@@ -8,35 +8,34 @@ export const clean = (v: unknown, max: number) => String(v ?? '').trim().slice(0
 
 export type OrderItemInput = { product_name: string; quantity: number; sizing: string; size_breakdown: SizeQty[]; branding: string | null; position: number };
 
-export function parseOrderBody(body: Record<string, any>): { error: NextResponse } | { customerId: string; items: OrderItemInput[] } { // eslint-disable-line @typescript-eslint/no-explicit-any
-  const fail = (error: string) => ({ error: NextResponse.json({ error }, { status: 400 }) });
-  const customerId = String(body.customer_id || '');
-  const rawItems = Array.isArray(body.items) ? body.items : [];
-  if (!customerId) return fail('Choose a customer.');
-  if (rawItems.length === 0) return fail('Add at least one product.');
-  if (rawItems.length > MAX_ITEMS) return fail(`An order can have at most ${MAX_ITEMS} products.`);
+// Checks a list of products with sizes (the same rules for orders and for customer order requests). Returns the
+// clean items, or a plain-language error.
+export function parseOrderItems(rawItemsIn: unknown): { items: OrderItemInput[] } | { message: string } {
+  const rawItems = Array.isArray(rawItemsIn) ? rawItemsIn : [];
+  if (rawItems.length === 0) return { message: 'Add at least one product.' };
+  if (rawItems.length > MAX_ITEMS) return { message: `An order can have at most ${MAX_ITEMS} products.` };
 
   const items: OrderItemInput[] = [];
   for (let i = 0; i < rawItems.length; i++) {
     const it = rawItems[i];
     const name = clean(it?.product_name, 200);
-    if (!name) return fail(`Product ${i + 1}: enter a product name.`);
+    if (!name) return { message: `Product ${i + 1}: enter a product name.` };
 
     const rawSizes = Array.isArray(it?.sizes) ? it.sizes : [];
     if (rawSizes.length < 1 || rawSizes.length > 40) {
-      return fail(`Product ${i + 1}: enter a quantity for at least one size.`);
+      return { message: `Product ${i + 1}: enter a quantity for at least one size.` };
     }
     const sizes: SizeQty[] = [];
     const seen = new Set<string>();
     for (const rs of rawSizes) {
       const size = cleanSizeLabel(rs?.size);
       const qty = Number(rs?.qty);
-      if (!size) return fail(`Product ${i + 1}: a size is missing its name.`);
+      if (!size) return { message: `Product ${i + 1}: a size is missing its name.` };
       if (!Number.isInteger(qty) || qty < 1 || qty > 1_000_000) {
-        return fail(`Product ${i + 1}: size ${size} needs a whole number of at least 1.`);
+        return { message: `Product ${i + 1}: size ${size} needs a whole number of at least 1.` };
       }
       if (seen.has(size.toLowerCase())) {
-        return fail(`Product ${i + 1}: size ${size} is listed twice.`);
+        return { message: `Product ${i + 1}: size ${size} is listed twice.` };
       }
       seen.add(size.toLowerCase());
       sizes.push({ size, qty });
@@ -51,5 +50,14 @@ export function parseOrderBody(body: Record<string, any>): { error: NextResponse
       position: i,
     });
   }
-  return { customerId, items };
+  return { items };
+}
+
+export function parseOrderBody(body: Record<string, any>): { error: NextResponse } | { customerId: string; items: OrderItemInput[] } { // eslint-disable-line @typescript-eslint/no-explicit-any
+  const fail = (error: string) => ({ error: NextResponse.json({ error }, { status: 400 }) });
+  const customerId = String(body.customer_id || '');
+  if (!customerId) return fail('Choose a customer.');
+  const parsed = parseOrderItems(body.items);
+  if ('message' in parsed) return fail(parsed.message);
+  return { customerId, items: parsed.items };
 }

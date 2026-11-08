@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Trash2, Loader2, AlertCircle, Check } from 'lucide-react';
-import SizeGrid, { SizeGridValue, emptySizeGrid, gridToSizes, gridTotal } from '@/components/SizeGrid';
+import SizeGrid, { SizeGridValue, emptySizeGrid, gridToSizes, gridTotal, sizesToGrid } from '@/components/SizeGrid';
 
 interface CustomerOption { id: string; customer_code: string; company_name: string; rep_id?: string | null; rep_name?: string | null }
 interface RepOption { id: string; name: string }
@@ -19,6 +19,7 @@ export default function NewOrderForm({
   cancelPath = '/rep',
   reps,
   emptyMessage = "You have no customers assigned yet, so there's nobody to create an order for.",
+  fromRequest,
 }: {
   customers: CustomerOption[];
   initialCustomerId?: string;
@@ -27,17 +28,23 @@ export default function NewOrderForm({
   cancelPath?: string;
   reps?: RepOption[];                 // admin only: when given, a "Sales rep" dropdown lets the admin pick the rep
   emptyMessage?: string;
+  // Pre-filled from a customer's reorder or quote request: the order is linked to it and the customer is fixed.
+  fromRequest?: { id: string; label: string; items: { product_name: string; sizes: { size: string; qty: number }[]; branding: string | null }[]; note: string | null };
 }) {
   const router = useRouter();
   const [customerId, setCustomerId] = useState(
     customers.some((c) => c.id === initialCustomerId) ? (initialCustomerId as string) : ''
   );
   const [repId, setRepId] = useState(''); // '' = keep the customer's current rep
-  const [items, setItems] = useState<Item[]>([newItem()]);
+  const [items, setItems] = useState<Item[]>(
+    fromRequest?.items.length
+      ? fromRequest.items.map((it) => ({ product_name: it.product_name, sizes: sizesToGrid(it.sizes), branding: it.branding || '' }))
+      : [newItem()]
+  );
   const [delivery, setDelivery] = useState('');
   const [po, setPo] = useState('');
   const [pricing, setPricing] = useState('');
-  const [notes, setNotes] = useState('');
+  const [notes, setNotes] = useState(fromRequest?.note ? `Customer note: ${fromRequest.note}` : '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -59,6 +66,7 @@ export default function NewOrderForm({
       body: JSON.stringify({
         customer_id: customerId,
         ...(reps ? { rep_id: repId } : {}),
+        ...(fromRequest ? { request_id: fromRequest.id } : {}),
         items: items.map((it) => ({ product_name: it.product_name, sizes: gridToSizes(it.sizes), branding: it.branding })),
         delivery_location: delivery,
         po_number: po,
@@ -91,9 +99,15 @@ export default function NewOrderForm({
         </div>
       )}
 
+      {fromRequest && (
+        <p className="text-xs text-sky-800 bg-sky-50 border border-sky-100 rounded-2xl px-4 py-3 leading-relaxed">
+          Pre-filled from the customer&apos;s {fromRequest.label}. Check the products and sizes, then submit: the request is marked as turned into this order.
+        </p>
+      )}
+
       <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 sm:p-8 space-y-2">
         <label className={label}>Customer *</label>
-        <select required className={input} value={customerId} onChange={(e) => { setCustomerId(e.target.value); setRepId(''); }}>
+        <select required disabled={!!fromRequest} className={`${input} ${fromRequest ? 'opacity-70' : ''}`} value={customerId} onChange={(e) => { setCustomerId(e.target.value); setRepId(''); }}>
           <option value="">Choose a customer…</option>
           {customers.map((c) => (
             <option key={c.id} value={c.id}>{c.company_name} ({c.customer_code})</option>

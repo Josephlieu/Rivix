@@ -6,6 +6,7 @@ import { clean, parseOrderBody } from '@/lib/order-input';
 import { localDateKey } from '@/lib/format';
 import { invalidateDashboard } from '@/lib/dashboard-data';
 import { logForOrder } from '@/lib/rep-activity';
+import { CONVERT_RACE_MESSAGE, checkRequestForOrder, claimRequestForOrder } from '@/lib/order-requests';
 
 // A sales rep creates an order for one of THEIR customers; the rep is worked out from the session.
 // (Admins can create orders too, for any customer: see POST /api/admin/orders. Changed 2026-10-16 at the client's request.)
@@ -30,6 +31,13 @@ export async function POST(req: NextRequest) {
     .maybeSingle();
   if (!customer || customer.rep_id !== rep.id) {
     return NextResponse.json({ error: 'That customer is not assigned to you.' }, { status: 403 });
+  }
+
+  // Optional: this order comes from a customer's reorder or quote request (same customer, still open).
+  const requestId = body.request_id ? String(body.request_id) : null;
+  if (requestId) {
+    const bad = await checkRequestForOrder(admin, requestId, customer.id);
+    if (bad) return bad;
   }
 
   const totalQty = items.reduce((n, it) => n + it.quantity, 0);
@@ -62,6 +70,12 @@ export async function POST(req: NextRequest) {
     // Never leave an order with no products behind
     await admin.from('orders').delete().eq('id', order.id);
     return NextResponse.json({ error: itemsErr.message }, { status: 500 });
+  }
+
+  // Mark the request converted only if it is STILL open. If someone else got there first, undo this order.
+  if (requestId && !(await claimRequestForOrder(admin, { requestId, customerId: customer.id, orderId: order.id, by: rep.name }))) {
+    await admin.from('orders').delete().eq('id', order.id);
+    return NextResponse.json({ error: CONVERT_RACE_MESSAGE }, { status: 409 });
   }
 
   await logForOrder(admin, order.id, { kind: 'order_created', by: rep.name, text: (o) => `Order ${o.batch} created for ${o.company}` });
