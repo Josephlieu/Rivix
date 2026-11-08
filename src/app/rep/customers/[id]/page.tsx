@@ -15,7 +15,7 @@ export default async function RepCustomerDetail({ params }: { params: Promise<{ 
   const admin = createAdminClient();
   const { data: customer } = await admin
     .from('customers')
-    .select('id, customer_code, company_name, contact_email, contact_phone, rep_id, created_at')
+    .select('id, customer_code, company_name, contact_name, contact_email, contact_phone, billing_address, shipping_address, rep_id, created_at')
     .eq('id', id)
     .maybeSingle();
 
@@ -56,6 +56,18 @@ export default async function RepCustomerDetail({ params }: { params: Promise<{ 
         <div>
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Customer since</p>
           <p className="text-sm font-semibold text-slate-700">{formatDate(customer.created_at)}</p>
+        </div>
+        <div>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Contact name</p>
+          <p className="text-sm font-semibold text-slate-700">{customer.contact_name || '—'}</p>
+        </div>
+        <div>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Billing address</p>
+          <p className="text-sm font-semibold text-slate-700 whitespace-pre-line">{customer.billing_address || '—'}</p>
+        </div>
+        <div>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Shipping address</p>
+          <p className="text-sm font-semibold text-slate-700 whitespace-pre-line">{customer.shipping_address || '—'}</p>
         </div>
       </div>
 

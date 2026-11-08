@@ -15,6 +15,12 @@ export async function adminUserIds(admin: SupabaseClient): Promise<string[]> {
   return (data?.users || []).filter((u) => isAdminUser(u as any)).map((u) => u.id);
 }
 
+// Every admin login with its email address (for alert emails).
+export async function adminUsers(admin: SupabaseClient): Promise<{ id: string; email: string | null }[]> {
+  const { data } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+  return (data?.users || []).filter((u) => isAdminUser(u as any)).map((u) => ({ id: u.id, email: u.email ?? null }));
+}
+
 // The people tied to a customer: the customer's own login and their assigned rep's login.
 export async function customerParties(admin: SupabaseClient, customerId: string) {
   const { data } = await admin

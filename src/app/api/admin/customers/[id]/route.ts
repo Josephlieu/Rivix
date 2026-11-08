@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase-admin';
 import { BAN_FOREVER, isBanned } from '@/lib/customer-status';
 import { announceRepChange } from '@/lib/rep-assignment';
 import { invalidateDashboard } from '@/lib/dashboard-data';
+import { checkField } from '@/lib/account-fields';
 
 // One customer with their orders, for the Client Detail page.
 export async function GET(
@@ -18,7 +19,7 @@ export async function GET(
 
   const { data: customer } = await admin
     .from('customers')
-    .select('id, user_id, customer_code, company_name, contact_email, contact_phone, rep_id, created_at')
+    .select('id, user_id, customer_code, company_name, contact_name, contact_email, contact_phone, billing_address, shipping_address, rep_id, created_at')
     .eq('id', id)
     .maybeSingle();
   if (!customer) return NextResponse.json({ error: 'Client not found.' }, { status: 404 });
@@ -35,13 +36,22 @@ export async function GET(
     disabled = isBanned(data?.user as any);
   }
 
+  // Account change requests: every pending one, plus the most recent decided ones.
+  const { data: changeRequests } = await admin
+    .from('account_change_requests')
+    .select('id, field, old_value, new_value, status, created_at, decided_at, decided_by, decision_note')
+    .eq('customer_id', id)
+    .order('created_at', { ascending: false })
+    .limit(30);
+
   return NextResponse.json({
     customer: { ...customer, user_id: undefined, disabled },
     orders: orders || [],
+    changeRequests: changeRequests || [],
   });
 }
 
-// Edit a customer: company, phone, rep, and Active/Disabled.
+// Edit a customer: company, contact name, phone, rep, and Active/Disabled.
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -63,6 +73,11 @@ export async function PATCH(
     update.company_name = name;
   }
   if ('contact_phone' in body) update.contact_phone = String(body.contact_phone ?? '').trim() || null;
+  if ('contact_name' in body) {
+    const r = checkField('contact_name', body.contact_name);
+    if (!r.ok) return NextResponse.json({ error: r.error }, { status: 400 });
+    update.contact_name = r.value;
+  }
 
   if ('rep_id' in body) {
     const repId = body.rep_id ? String(body.rep_id) : null;
@@ -84,12 +99,12 @@ export async function PATCH(
       .from('customers')
       .update(update)
       .eq('id', id)
-      .select('id, user_id, company_name, contact_phone, rep_id')
+      .select('id, user_id, company_name, contact_name, contact_phone, rep_id')
       .single();
     if (res.error) return NextResponse.json({ error: res.error.message }, { status: 500 });
     data = res.data;
   } else {
-    const res = await admin.from('customers').select('id, user_id, company_name, contact_phone, rep_id').eq('id', id).single();
+    const res = await admin.from('customers').select('id, user_id, company_name, contact_name, contact_phone, rep_id').eq('id', id).single();
     if (res.error) return NextResponse.json({ error: 'Client not found.' }, { status: 404 });
     data = res.data;
   }
