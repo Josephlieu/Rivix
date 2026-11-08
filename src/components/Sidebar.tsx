@@ -18,7 +18,8 @@ import {
   Menu,
   X,
   PanelLeftClose,
-  PanelLeftOpen
+  PanelLeftOpen,
+  BookOpen
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import RepWidget from './RepWidget';
@@ -33,7 +34,8 @@ const adminLinks = [
   { href: '/admin/clients', label: 'Clients', icon: Users },
   { href: '/admin/replication', label: 'Replication Queue', icon: FileUp },
   { href: '/admin/orders', label: 'Orders', icon: FileText },
-  { href: '/admin/products', label: 'Products', icon: Package },
+  { href: '/admin/products', label: 'Products', icon: Package }, // redirects to Catalogs until task 7 (product specifications)
+  { href: '/admin/catalogs', label: 'Catalogs', icon: BookOpen },
   { href: '/admin/hiring', label: 'Sales Hiring', icon: Users },
   { href: '/admin/team', label: 'Team / Reps', icon: Settings },
   { href: '/admin/import', label: 'Import CSV', icon: FileUp },
@@ -43,6 +45,7 @@ const clientLinks = [
   { href: '/portal', label: 'Overview', icon: LayoutDashboard },
   { href: '/portal/orders', label: 'My Orders', icon: FileText },
   { href: '/portal/products', label: 'Product Specs', icon: Package },
+  { href: '/portal/catalogs', label: 'Catalogs', icon: BookOpen },
   // Uniform Replication removed from the customer side per the 2026-09-25
   // decision — it's a purely internal Admin/Sales Rep workflow now, the
   // customer never gets access to the creation tool or any part of it.
@@ -56,6 +59,7 @@ const repLinks = [
   { href: '/rep/customers', label: 'My Customers', icon: Users },
   { href: '/rep/orders', label: 'Orders', icon: FileText },
   { href: '/rep/orders/new', label: 'New Order', icon: PlusCircle },
+  { href: '/rep/catalogs', label: 'Catalogs', icon: BookOpen },
   { href: '/rep/replication', label: 'Replication', icon: FileUp }, // internal tool between the rep and the admin; customers never see it
   { href: '/rep/account', label: 'Account', icon: UserCircle },
 ];

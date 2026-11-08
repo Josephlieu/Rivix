@@ -13,6 +13,10 @@ interface DocumentListProps {
   empty?: string;
   // Admin only: set or clear a document's expiry date. Returns an error message, or null when saved.
   onSetExpiry?: (doc: DocumentRow, expiresOn: string | null) => Promise<string | null>;
+  // Where to ask for a file's short-lived link. Default: order documents. Catalogs use /api/catalogs/<id>/file.
+  fileEndpoint?: (id: string) => string;
+  // Extra buttons for each row (the admin catalog screen adds Edit and Replace).
+  renderActions?: (doc: DocumentRow) => React.ReactNode;
 }
 
 // "Expired" (red) or "Expires in N days" (amber). Nothing for far-off dates or documents without a date.
@@ -32,8 +36,10 @@ function ExpiryBadge({ expiresOn, today }: { expiresOn?: string | null; today: s
 
 // Opens a document through the server: it checks you may see the file, then
 // returns a link that works for about 10 minutes.
-export async function openDocument(id: string, download = false): Promise<string | null> {
-  const res = await fetch(`/api/documents/${id}/file${download ? '?download=1' : ''}`);
+const documentFileEndpoint = (id: string) => `/api/documents/${id}/file`;
+
+export async function openDocument(id: string, download = false, endpoint: (id: string) => string = documentFileEndpoint): Promise<string | null> {
+  const res = await fetch(`${endpoint(id)}${download ? '?download=1' : ''}`);
   const data = await res.json().catch(() => ({}));
   if (!res.ok || !data.url) return data.error || 'Could not open the document.';
   if (download) {
@@ -50,7 +56,7 @@ export async function openDocument(id: string, download = false): Promise<string
   return null;
 }
 
-export default function DocumentList({ documents, onDelete, showOrder, empty = 'No documents yet.', onSetExpiry }: DocumentListProps) {
+export default function DocumentList({ documents, onDelete, showOrder, empty = 'No documents yet.', onSetExpiry, fileEndpoint = documentFileEndpoint, renderActions }: DocumentListProps) {
   // Today in the viewer's own time zone, worked out after the page loads (so server and browser render the same HTML).
   const [today, setToday] = useState<string | null>(null);
   useEffect(() => { setToday(localDateKey()); }, []);
@@ -112,7 +118,7 @@ export default function DocumentList({ documents, onDelete, showOrder, empty = '
   const view = async (d: DocumentRow) => {
     setBusy(d.id);
     try {
-      const res = await fetch(`/api/documents/${d.id}/file`);
+      const res = await fetch(fileEndpoint(d.id));
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.url) throw new Error(data.error || 'Could not open the document.');
       const file = await fetch(data.url);
@@ -134,7 +140,7 @@ export default function DocumentList({ documents, onDelete, showOrder, empty = '
     setBusy(d.id);
     setError(null);
     try {
-      const res = await fetch(`/api/documents/${d.id}/file`);
+      const res = await fetch(fileEndpoint(d.id));
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.url) throw new Error(data.error || 'Could not download the document.');
       const file = await fetch(data.url);
@@ -213,6 +219,7 @@ export default function DocumentList({ documents, onDelete, showOrder, empty = '
             {busy === d.id ? <Loader2 className="animate-spin" size={14} /> : <Download size={14} />}
             Download
           </button>
+          {renderActions?.(d)}
           {onDelete && (
             <button onClick={() => onDelete(d)} className="p-2 text-slate-400 hover:text-red-500 transition-colors shrink-0" aria-label={`Delete ${d.title}`}>
               <Trash2 size={16} />
