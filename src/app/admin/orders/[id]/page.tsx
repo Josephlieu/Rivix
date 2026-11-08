@@ -72,6 +72,7 @@ export default function AdminOrderDetail({ params }: { params: Promise<{ id: str
     setBusy(null);
     if (!res.ok) { setError(data.error || 'Could not save.'); return false; }
     setNotice(data.changed === false ? 'Nothing changed.' : 'Saved.');
+    setError(data.emailWarning || null); // the change worked; this only says if the customer email could not be sent
     await load();
     return true;
   };

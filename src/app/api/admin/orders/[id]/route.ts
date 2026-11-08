@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminIdentity, requireAdmin } from '@/lib/require-admin';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { logForOrder } from '@/lib/rep-activity';
-import { isOrderStage } from '@/lib/order-stages';
+import { emailsOnStage, isOrderStage } from '@/lib/order-stages';
+import { sendEmail } from '@/lib/email';
+import { orderUpdateEmail } from '@/lib/order-emails';
 import { customerParties, notifyUsers } from '@/lib/notify';
 import { invalidateDashboard } from '@/lib/dashboard-data';
 
@@ -120,5 +122,30 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     await logForOrder(admin, id, { kind: 'order_note', by: who.email, text: (o) => `Shipping updated on ${o.batch}: carrier ${carrier}, tracking ${tn}` });
   }
 
-  return NextResponse.json({ ok: true, changed: true });
+  // One email to the customer per save, covering the stage change and/or the new shipping details.
+  // sendEmail never throws; a failed email is reported to the admin, the change itself stays.
+  const finalCarrier = ((update.carrier ?? current.carrier) as string | null) || null;
+  const finalTracking = ((update.tracking_number ?? current.tracking_number) as string | null) || null;
+  const emailStage = newStatus && emailsOnStage(newStatus) ? newStatus : null;
+  const emailShipping = shippingChanged && Boolean(finalCarrier || finalTracking);
+  let emailWarning: string | undefined;
+  if (emailStage || emailShipping) {
+    const { data: cust } = await admin.from('customers').select('company_name, contact_email').eq('id', current.customer_id).maybeSingle();
+    const mail = orderUpdateEmail({
+      company: cust?.company_name ?? null,
+      to: cust?.contact_email ?? null,
+      batch: current.batch_number,
+      stage: emailStage,
+      note: emailStage ? note : null,
+      carrier: finalCarrier,
+      tracking: finalTracking,
+    });
+    const r = await sendEmail(mail);
+    if (!r.ok) {
+      console.error(`order update email failed (${current.batch_number}):`, r.error);
+      emailWarning = `The order was updated and the in-app alerts were sent, but the email to the customer was not sent: ${r.error}.`;
+    }
+  }
+
+  return NextResponse.json({ ok: true, changed: true, emailWarning });
 }

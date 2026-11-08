@@ -23,3 +23,8 @@ export const CARRIERS = ['Canada Post', 'Purolator', 'UPS', 'FedEx', 'DHL', 'Day
 // enforces the same list.
 export const DOCUMENT_REQUEST_STAGES: readonly OrderStage[] = ['Shipped', 'Delivered'];
 export const canRequestDocuments = (status: string) => (DOCUMENT_REQUEST_STAGES as readonly string[]).includes(status);
+
+// The stages that email the customer when an order moves into them (in-app alerts are sent for every stage regardless).
+// Default: every stage. Remove a stage here to stop emails for it; the server reads only this list.
+export const ORDER_EMAIL_STAGES: readonly OrderStage[] = ORDER_STAGES;
+export const emailsOnStage = (status: string) => (ORDER_EMAIL_STAGES as readonly string[]).includes(status);
