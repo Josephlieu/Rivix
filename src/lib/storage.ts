@@ -135,28 +135,3 @@ export const getOrders = async (): Promise<OrderData[]> => {
 
   return data || [];
 };
-
-export const saveOrders = async (orders: OrderData[]) => {
-  const { error } = await supabase
-    .from('orders')
-    .insert(orders.map(order => ({
-      id: order.id,
-      batch_number: order.batch_number,
-      client_name: order.client_name,
-      product_name: order.product_name,
-      quantity: order.quantity,
-      material: order.material,
-      origin: order.origin,
-      order_date: order.order_date,
-      ship_date: order.ship_date,
-      status: order.status,
-      certs_generated: order.certs_generated,
-      safety_standard: order.safety_standard,
-      inspector_name: order.inspector_name
-    })));
-
-  if (error) {
-    console.error('Error saving orders:', error);
-    throw error;
-  }
-};

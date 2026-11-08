@@ -1,3 +1,5 @@
+import { plainDateDay } from './format';
+
 export const DOC_TYPES = [
   'Certificate of Origin',
   'Quality Inspection Report',
@@ -40,25 +42,13 @@ export interface DocumentRow {
 // A document expiring within this many days gets the amber "Expires in N days" badge.
 export const EXPIRY_WARNING_DAYS = 30;
 
-const PLAIN_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
-const dayNumber = (key: string): number | null => {
-  const m = PLAIN_DATE.exec(key);
-  if (!m) return null;
-  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
-  const t = Date.UTC(y, mo - 1, d);
-  const back = new Date(t);
-  // 2026-02-30 would roll over to March: not a real date.
-  if (back.getUTCFullYear() !== y || back.getUTCMonth() !== mo - 1 || back.getUTCDate() !== d) return null;
-  return Math.round(t / 86400000);
-};
-
 // What the admin typed for an expiry date: a real "YYYY-MM-DD" date, null (empty: no expiry), or invalid.
 export function parseExpiryDate(v: unknown): { ok: true; value: string | null } | { ok: false } {
   if (v === null || v === undefined) return { ok: true, value: null };
   if (typeof v !== 'string') return { ok: false };
   const s = v.trim();
   if (!s) return { ok: true, value: null };
-  return dayNumber(s) === null ? { ok: false } : { ok: true, value: s };
+  return plainDateDay(s) === null ? { ok: false } : { ok: true, value: s };
 }
 
 export type ExpiryStatus = { kind: 'expired'; label: string } | { kind: 'soon'; days: number; label: string } | null;
@@ -66,7 +56,7 @@ export type ExpiryStatus = { kind: 'expired'; label: string } | { kind: 'soon'; 
 // The badge for a document, given today's date ("YYYY-MM-DD", the viewer's own day). Null means no badge.
 export function documentExpiry(expiresOn: string | null | undefined, todayKey: string): ExpiryStatus {
   if (!expiresOn) return null;
-  const end = dayNumber(expiresOn), today = dayNumber(todayKey);
+  const end = plainDateDay(expiresOn), today = plainDateDay(todayKey);
   if (end === null || today === null) return null;
   const days = end - today;
   if (days < 0) return { kind: 'expired', label: 'Expired' };

@@ -68,3 +68,14 @@ export const localDateKey = (v: DateInput = new Date()): string => {
   const d = toDate(v);
   return d ? fmt('key', activeTimeZone(), { year: 'numeric', month: '2-digit', day: '2-digit' }).format(d) : ''; // en-CA gives YYYY-MM-DD
 };
+
+/** Day number (days since 1970-01-01) of a real "YYYY-MM-DD" calendar date, or null if it is not one (2026-02-30 is not). */
+export const plainDateDay = (key: string): number | null => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(key);
+  if (!m) return null;
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const t = Date.UTC(y, mo - 1, d);
+  const back = new Date(t);
+  if (back.getUTCFullYear() !== y || back.getUTCMonth() !== mo - 1 || back.getUTCDate() !== d) return null;
+  return Math.round(t / 86400000);
+};
