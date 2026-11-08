@@ -96,7 +96,10 @@ export async function POST(req: NextRequest) {
   if (!sameOrder) return undo('the saved orders could not be matched to the file rows.');
 
   const { error: itemsErr } = await admin.from('order_items').insert(
-    saved.map((o) => ({ order_id: o.id, product_name: o.product_name, quantity: o.quantity, sizing: null, size_breakdown: null, branding: null, position: 0 }))
+    saved.map((o, i) => ({
+      order_id: o.id, product_name: o.product_name, quantity: o.quantity, sizing: null, size_breakdown: null, branding: null, position: 0,
+      fabric: toSave[i].values.material, safety_standard: toSave[i].values.safety_standard, // the row's spec also goes on its product line
+    }))
   );
   if (itemsErr) return undo(itemsErr.message);
 

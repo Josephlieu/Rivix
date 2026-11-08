@@ -3,6 +3,7 @@
 // Relative imports on purpose: the e2e test loads this file directly.
 import { ORDER_STAGES, type OrderStage } from './order-stages';
 import { plainDateDay } from './format';
+import { normalizeStandard } from './safety-standards';
 
 // The columns the importer accepts, in template order. Keep public/rivix_import_template.csv in step with this list.
 export const IMPORT_COLUMNS = [
@@ -83,7 +84,7 @@ export function checkRow(row: Record<string, unknown>, line: number): RowCheck {
       product_name: product,
       quantity: Number(qtyText),
       material: optional(row, 'material'),
-      safety_standard: optional(row, 'safety_standard'),
+      safety_standard: normalizeStandard(optional(row, 'safety_standard')), // a list value gets the list's exact spelling
       origin: optional(row, 'origin'),
       order_date: dates.order_date,
       ship_date: dates.ship_date,

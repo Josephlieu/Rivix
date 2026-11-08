@@ -19,6 +19,7 @@ import { getMyOrders, getCurrentCustomer } from '@/lib/storage';
 import { supabaseBrowser } from '@/lib/supabase-browser';
 import OrderHeading from '@/components/OrderHeading';
 import SizeBreakdown from '@/components/SizeBreakdown';
+import ItemSpec from '@/components/ItemSpec';
 import DocumentList from '@/components/DocumentList';
 import RequestDocument from './RequestDocument';
 import OrderRequestForm from '@/components/OrderRequestForm';
@@ -149,6 +150,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ batch: s
                   <div key={it.id} className="rounded-2xl border border-slate-100 p-4 text-sm space-y-1">
                     <p className="font-bold text-slate-900">{it.product_name} <span className="text-slate-400 font-semibold">× {it.quantity}</span></p>
                     <SizeBreakdown sizes={it.size_breakdown} fallbackText={it.sizing} />
+                    <ItemSpec fabric={it.fabric} standard={it.safety_standard} />
                     {it.branding && <p className="text-slate-500">Branding: {it.branding}</p>}
                   </div>
                 ))}
@@ -193,15 +195,16 @@ export default function OrderDetailPage({ params }: { params: Promise<{ batch: s
             </div>
             <div className="p-5 sm:p-8 grid grid-cols-1 sm:grid-cols-2 gap-6">
               {[
-                { label: 'Primary Fabric', value: order.material },
-                { label: 'Safety Standard', value: order.safety_standard },
+                // From the products when they have it (newer orders); older orders keep the order-level fields.
+                { label: 'Primary Fabric', value: Array.from(new Set(items.map((it: any) => it.fabric).filter(Boolean))).join('; ') || order.material },
+                { label: 'Safety Standard', value: Array.from(new Set(items.map((it: any) => it.safety_standard).filter(Boolean))).join('; ') || order.safety_standard },
               ].filter(item => item.value).map(item => (
                 <div key={item.label}>
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{item.label}</p>
                   <p className="text-sm font-semibold text-slate-700">{item.value}</p>
                 </div>
               ))}
-              {!order.material && !order.safety_standard && (
+              {!order.material && !order.safety_standard && !items.some((it: any) => it.fabric || it.safety_standard) && (
                 <p className="text-sm text-slate-400 col-span-2">No technical specification on file for this order yet.</p>
               )}
             </div>

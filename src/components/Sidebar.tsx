@@ -36,7 +36,7 @@ const adminLinks = [
   { href: '/admin/replication', label: 'Replication Queue', icon: FileUp },
   { href: '/admin/orders', label: 'Orders', icon: FileText },
   { href: '/admin/requests', label: 'Requests', icon: ClipboardList },
-  { href: '/admin/products', label: 'Products', icon: Package }, // redirects to Catalogs until task 7 (product specifications)
+  { href: '/admin/products', label: 'Product specs', icon: Package },
   { href: '/admin/catalogs', label: 'Catalogs', icon: BookOpen },
   { href: '/admin/hiring', label: 'Sales Hiring', icon: Users },
   { href: '/admin/team', label: 'Team / Reps', icon: Settings },

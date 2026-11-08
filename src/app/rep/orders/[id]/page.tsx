@@ -5,6 +5,7 @@ import { getCurrentRep } from '@/lib/current-rep';
 import { createAdminClient } from '@/lib/supabase-admin';
 import OrderHeading from '@/components/OrderHeading';
 import SizeBreakdown from '@/components/SizeBreakdown';
+import ItemSpec from '@/components/ItemSpec';
 import DocumentList from '@/components/DocumentList';
 import RequestDocument from './RequestDocument';
 import { formatDateTime } from '@/lib/format';
@@ -68,6 +69,7 @@ export default async function RepOrderPage({ params }: { params: Promise<{ id: s
           <div key={it.id} className="rounded-2xl border border-slate-100 p-4 text-sm space-y-1">
             <p className="font-bold text-slate-900">{it.product_name} <span className="text-slate-400 font-semibold">× {it.quantity}</span></p>
             <SizeBreakdown sizes={it.size_breakdown} fallbackText={it.sizing} />
+            <ItemSpec fabric={it.fabric} standard={it.safety_standard} />
             {it.branding && <p className="text-slate-500">Branding: {it.branding}</p>}
           </div>
         ))}

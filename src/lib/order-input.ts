@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
 import { cleanSizeLabel, sizesToText, totalQty as sumSizes, type SizeQty } from '@/lib/sizes';
+import { MAX_FABRIC_LEN, MAX_STANDARD_LEN, normalizeStandard } from '@/lib/safety-standards';
 
 // Checks the body of "create an order" and turns it into clean values. Shared by the sales-rep route and the
 // admin route, so both enforce exactly the same rules.
 export const MAX_ITEMS = 50;
 export const clean = (v: unknown, max: number) => String(v ?? '').trim().slice(0, max);
 
-export type OrderItemInput = { product_name: string; quantity: number; sizing: string; size_breakdown: SizeQty[]; branding: string | null; position: number };
+export type OrderItemInput = { product_name: string; quantity: number; sizing: string; size_breakdown: SizeQty[]; branding: string | null; fabric: string | null; safety_standard: string | null; position: number };
 
 // Checks a list of products with sizes (the same rules for orders and for customer order requests). Returns the
 // clean items, or a plain-language error.
@@ -41,12 +42,19 @@ export function parseOrderItems(rawItemsIn: unknown): { items: OrderItemInput[] 
       sizes.push({ size, qty });
     }
 
+    const fabricText = String(it?.fabric ?? '').trim();
+    if (fabricText.length > MAX_FABRIC_LEN) return { message: `Product ${i + 1}: fabric can be at most ${MAX_FABRIC_LEN} characters.` };
+    const standard = normalizeStandard(it?.safety_standard);
+    if (standard && standard.length > MAX_STANDARD_LEN) return { message: `Product ${i + 1}: safety standard can be at most ${MAX_STANDARD_LEN} characters.` };
+
     items.push({
       product_name: name,
       quantity: sumSizes(sizes),
       sizing: sizesToText(sizes).slice(0, 500),
       size_breakdown: sizes,
       branding: clean(it?.branding, 1000) || null,
+      fabric: fabricText || null,
+      safety_standard: standard,
       position: i,
     });
   }

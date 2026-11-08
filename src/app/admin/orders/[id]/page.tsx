@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ArrowLeft, Loader2, AlertCircle, Check, Truck, MessageSquarePlus, FileText, Upload } from 'lucide-react';
 import OrderHeading from '@/components/OrderHeading';
 import SizeBreakdown from '@/components/SizeBreakdown';
+import ItemSpec from '@/components/ItemSpec';
 import ConfirmModal from '@/components/ConfirmModal';
 import ComboInput from '@/components/ComboInput';
 import DocumentList from '@/components/DocumentList';
@@ -18,7 +19,7 @@ interface Order {
   delivery_location: string | null; po_number: string | null; pricing: string | null;
   special_requirements: string | null; carrier: string | null; tracking_number: string | null;
 }
-interface Item { id: string; product_name: string; quantity: number; sizing: string | null; size_breakdown: { size: string; qty: number }[] | null; branding: string | null }
+interface Item { id: string; product_name: string; quantity: number; sizing: string | null; size_breakdown: { size: string; qty: number }[] | null; branding: string | null; fabric?: string | null; safety_standard?: string | null }
 interface EventRow { id: string; status: string | null; note: string | null; customer_visible: boolean; created_by: string | null; created_at: string }
 interface CustomerInfo { id: string; company_name: string; customer_code: string; contact_email: string | null; rep: { name: string; rep_code?: string | null } | null }
 
@@ -206,6 +207,7 @@ export default function AdminOrderDetail({ params }: { params: Promise<{ id: str
               <div key={it.id} className="rounded-2xl border border-slate-100 p-4 text-sm space-y-1">
                 <p className="font-bold text-slate-900">{it.product_name} <span className="text-slate-400 font-semibold">× {it.quantity}</span></p>
                 <SizeBreakdown sizes={it.size_breakdown} fallbackText={it.sizing} />
+                <ItemSpec fabric={it.fabric} standard={it.safety_standard} />
                 {it.branding && <p className="text-slate-500">Branding: {it.branding}</p>}
               </div>
             ))}

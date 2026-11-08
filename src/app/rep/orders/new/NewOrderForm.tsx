@@ -3,13 +3,23 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Trash2, Loader2, AlertCircle, Check } from 'lucide-react';
+import ComboInput from '@/components/ComboInput';
+import { SAFETY_STANDARDS } from '@/lib/safety-standards';
 import SizeGrid, { SizeGridValue, emptySizeGrid, gridToSizes, gridTotal, sizesToGrid } from '@/components/SizeGrid';
 
 interface CustomerOption { id: string; customer_code: string; company_name: string; rep_id?: string | null; rep_name?: string | null }
 interface RepOption { id: string; name: string }
-interface Item { product_name: string; sizes: SizeGridValue; branding: string }
+interface Item { product_name: string; sizes: SizeGridValue; branding: string; fabric: string; safety_standard: string }
+// A customer's saved product spec, offered as a product suggestion (the server only sends ones this user may see).
+export interface SpecOption { customer_id: string; product_name: string; fabric: string | null; safety_standard: string | null }
 
-const newItem = (): Item => ({ product_name: '', sizes: emptySizeGrid(), branding: '' });
+// The customer's saved spec whose product name matches (trimmed, any capitals), if any.
+export const findSpec = (specs: SpecOption[], customerId: string | undefined, productName: string) => {
+  const name = productName.trim().toLowerCase();
+  return customerId && name ? specs.find((s) => s.customer_id === customerId && s.product_name.trim().toLowerCase() === name) : undefined;
+};
+
+const newItem = (): Item => ({ product_name: '', sizes: emptySizeGrid(), branding: '', fabric: '', safety_standard: '' });
 
 export default function NewOrderForm({
   customers,
@@ -20,6 +30,7 @@ export default function NewOrderForm({
   reps,
   emptyMessage = "You have no customers assigned yet, so there's nobody to create an order for.",
   fromRequest,
+  specs = [],
 }: {
   customers: CustomerOption[];
   initialCustomerId?: string;
@@ -29,6 +40,7 @@ export default function NewOrderForm({
   reps?: RepOption[];                 // admin only: when given, a "Sales rep" dropdown lets the admin pick the rep
   emptyMessage?: string;
   // Pre-filled from a customer's reorder or quote request: the order is linked to it and the customer is fixed.
+  specs?: SpecOption[];               // saved product specs, used as product suggestions for the chosen customer
   fromRequest?: { id: string; label: string; items: { product_name: string; sizes: { size: string; qty: number }[]; branding: string | null }[]; note: string | null };
 }) {
   const router = useRouter();
@@ -38,7 +50,11 @@ export default function NewOrderForm({
   const [repId, setRepId] = useState(''); // '' = keep the customer's current rep
   const [items, setItems] = useState<Item[]>(
     fromRequest?.items.length
-      ? fromRequest.items.map((it) => ({ product_name: it.product_name, sizes: sizesToGrid(it.sizes), branding: it.branding || '' }))
+      ? fromRequest.items.map((it) => {
+          // Fill fabric and standard from the customer's saved spec with the same product name (any capitals).
+          const spec = findSpec(specs, customers.some((c) => c.id === initialCustomerId) ? initialCustomerId : undefined, it.product_name);
+          return { product_name: it.product_name, sizes: sizesToGrid(it.sizes), branding: it.branding || '', fabric: spec?.fabric || '', safety_standard: spec?.safety_standard || '' };
+        })
       : [newItem()]
   );
   const [delivery, setDelivery] = useState('');
@@ -51,9 +67,19 @@ export default function NewOrderForm({
   const setItem = (i: number, patch: Partial<Item>) =>
     setItems((list) => list.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
 
+  // The chosen customer's specs. Typing or picking a spec's exact product name fills its fabric and standard
+  // (still editable).
+  const customerSpecs = specs.filter((s) => s.customer_id === customerId);
+  const setProductName = (i: number, name: string) => {
+    const spec = findSpec(specs, customerId, name);
+    setItem(i, spec ? { product_name: name, fabric: spec.fabric || '', safety_standard: spec.safety_standard || '' } : { product_name: name });
+  };
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    const unnamed = items.findIndex((it) => !it.product_name.trim());
+    if (unnamed !== -1) { setError(`Product ${unnamed + 1}: enter a product name.`); return; }
     const empty = items.findIndex((it) => gridTotal(it.sizes) < 1);
     if (empty !== -1) {
       setError(`Product ${empty + 1}: enter a quantity for at least one size.`);
@@ -67,7 +93,7 @@ export default function NewOrderForm({
         customer_id: customerId,
         ...(reps ? { rep_id: repId } : {}),
         ...(fromRequest ? { request_id: fromRequest.id } : {}),
-        items: items.map((it) => ({ product_name: it.product_name, sizes: gridToSizes(it.sizes), branding: it.branding })),
+        items: items.map((it) => ({ product_name: it.product_name, sizes: gridToSizes(it.sizes), branding: it.branding, fabric: it.fabric, safety_standard: it.safety_standard })),
         delivery_location: delivery,
         po_number: po,
         pricing,
@@ -160,7 +186,21 @@ export default function NewOrderForm({
             <div className="space-y-3">
               <div className="space-y-1.5">
                 <label className={label}>Product *</label>
-                <input required className={input} value={it.product_name} onChange={(e) => setItem(i, { product_name: e.target.value })} placeholder="Hi-vis jacket" />
+                {customerSpecs.length ? (
+                  <ComboInput className={input} value={it.product_name} onChange={(v) => setProductName(i, v)} options={customerSpecs.map((s) => s.product_name)} placeholder="Pick one of the customer's products, or type one" />
+                ) : (
+                  <input required className={input} value={it.product_name} onChange={(e) => setItem(i, { product_name: e.target.value })} placeholder="Hi-vis jacket" />
+                )}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className={label}>Fabric</label>
+                  <input maxLength={300} className={input} value={it.fabric} onChange={(e) => setItem(i, { fabric: e.target.value })} placeholder="65% poly / 35% cotton twill" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className={label}>Safety standard</label>
+                  <ComboInput className={input} value={it.safety_standard} onChange={(v) => setItem(i, { safety_standard: v })} options={[...SAFETY_STANDARDS]} placeholder="Pick one, or type another (Other)" />
+                </div>
               </div>
               <div className="space-y-1.5">
                 <label className={label}>Sizes &amp; quantities *</label>

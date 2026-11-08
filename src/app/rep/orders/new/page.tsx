@@ -4,6 +4,7 @@ import { getCurrentRep } from '@/lib/current-rep';
 import { createAdminClient } from '@/lib/supabase-admin';
 import NewOrderForm from './NewOrderForm';
 import { requestForOrderForm } from '@/lib/order-requests';
+import { specSuggestions } from '@/lib/product-specs';
 
 export default async function NewOrderPage({ searchParams }: { searchParams: Promise<{ customer?: string; request?: string }> }) {
   const { customer, request } = await searchParams;
@@ -23,6 +24,9 @@ export default async function NewOrderPage({ searchParams }: { searchParams: Pro
   const fromReq = await requestForOrderForm(db, request);
   const usable = fromReq && fromReq.customerRepId === rep.id ? fromReq : null;
 
+  // Product suggestions: ONLY specs of this rep's own customers, filtered here on the server.
+  const specs = await specSuggestions(db, rep.id);
+
   const { data: customers } = await db
     .from('customers')
     .select('id, customer_code, company_name')
@@ -39,7 +43,7 @@ export default async function NewOrderPage({ searchParams }: { searchParams: Pro
         <p className="text-slate-500">Enter what your customer asked for. Admin takes it from here.</p>
       </div>
       {request && !usable && <p className="text-sm text-amber-700 bg-amber-50 border border-amber-100 rounded-2xl px-4 py-3">That request is no longer open (or is not one of your customers&apos;), so the form starts empty.</p>}
-      <NewOrderForm customers={customers || []} initialCustomerId={usable ? usable.customerId : customer} fromRequest={usable?.form} />
+      <NewOrderForm customers={customers || []} initialCustomerId={usable ? usable.customerId : customer} fromRequest={usable?.form} specs={specs} />
     </div>
   );
 }

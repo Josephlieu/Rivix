@@ -1,4 +1,4 @@
 batch_number,customer_code,product_name,quantity,material,safety_standard,origin,order_date,ship_date,status
-AS-24-1001,CUST-0001,ArcticShield Coverall,150,65% Poly / 35% Cotton Heavy Twill,CSA Z96-15 Class 3,Bangladesh,2026-04-10,2026-05-02,Shipped
+AS-24-1001,CUST-0001,ArcticShield Coverall,150,65% Poly / 35% Cotton Heavy Twill,CSA Z96:22 Class 3,Bangladesh,2026-04-10,2026-05-02,Shipped
 ,CUST-0002,ArcticShield Parka,300,,,,2026-04-12,,In Production
-RVX-24-1003,CUST-0001,Hi-Vis Standard Vest,500,100% Polyester Mesh,CSA Z96-15 Class 2,,,,
+RVX-24-1003,CUST-0001,Hi-Vis Standard Vest,500,100% Polyester Mesh,CSA Z96:22 Class 2,,,,

@@ -3,12 +3,14 @@ import { ArrowLeft } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase-admin';
 import NewOrderForm from '@/app/rep/orders/new/NewOrderForm';
 import { requestForOrderForm } from '@/lib/order-requests';
+import { specSuggestions } from '@/lib/product-specs';
 
 // Admin enters an order for any customer. (/admin/* is already limited to signed-in admins by proxy.ts.)
 export default async function AdminNewOrderPage({ searchParams }: { searchParams: Promise<{ customer?: string; request?: string }> }) {
   const { customer, request } = await searchParams;
   const db = createAdminClient();
   const fromReq = await requestForOrderForm(db, request); // admins may convert any customer's open request
+  const specs = await specSuggestions(db); // admins see every customer's specs
   const [{ data }, { data: repRows }] = await Promise.all([
     db.from('customers').select('id, customer_code, company_name, rep_id, rep:reps(name)').order('company_name', { ascending: true }),
     db.from('reps').select('id, name').eq('active', true).order('name', { ascending: true }),
@@ -36,6 +38,7 @@ export default async function AdminNewOrderPage({ searchParams }: { searchParams
         customers={customers}
         initialCustomerId={fromReq ? fromReq.customerId : customer}
         fromRequest={fromReq?.form}
+        specs={specs}
         endpoint="/api/admin/orders"
         orderBasePath="/admin/orders"
         cancelPath="/admin/orders"
