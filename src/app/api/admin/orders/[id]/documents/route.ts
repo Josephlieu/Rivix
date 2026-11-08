@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminIdentity } from '@/lib/require-admin';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { logForOrder } from '@/lib/rep-activity';
-import { DOC_TYPES, MAX_DOC_BYTES } from '@/lib/documents';
+import { DOC_TYPES, MAX_DOC_BYTES, parseExpiryDate } from '@/lib/documents';
 import { customerParties, notifyUsers } from '@/lib/notify';
 import { invalidateDashboard } from '@/lib/dashboard-data';
 
@@ -17,6 +17,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const fileName = String(body?.file_name ?? '').slice(0, 200);
   const title = String(body?.title ?? '').trim().slice(0, 200) || fileName;
   const docType = (DOC_TYPES as readonly string[]).includes(body?.doc_type) ? String(body.doc_type) : 'Other';
+  const expiry = parseExpiryDate(body?.expires_on);
 
   const admin = createAdminClient();
   const { data: order } = await admin.from('orders').select('id, batch_number, customer_id').eq('id', id).maybeSingle();
@@ -26,6 +27,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const prefix = `${order.customer_id}/${order.id}/`;
   if (!path.startsWith(prefix) || path.includes('..')) {
     return NextResponse.json({ error: 'Invalid file path.' }, { status: 400 });
+  }
+  if (!expiry.ok) {
+    await admin.storage.from('documents').remove([path]); // don't leave the uploaded file behind
+    return NextResponse.json({ error: 'Use a real expiry date (YYYY-MM-DD), or leave it empty.' }, { status: 400 });
   }
 
   // Confirm the file really arrived, and take its size from storage, not from the browser.
@@ -53,6 +58,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       file_size: size,
       mime_type: mime,
       uploaded_by: who.email,
+      expires_on: expiry.value,
     })
     .select('id')
     .single();

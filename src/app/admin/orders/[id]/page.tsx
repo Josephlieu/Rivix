@@ -9,7 +9,7 @@ import ConfirmModal from '@/components/ConfirmModal';
 import ComboInput from '@/components/ComboInput';
 import DocumentList from '@/components/DocumentList';
 import { supabaseBrowser } from '@/lib/supabase-browser';
-import { DOC_TYPES, DOC_ACCEPT, MAX_DOC_BYTES, ALLOWED_DOC_MIME, DocumentRow } from '@/lib/documents';
+import { DOC_TYPES, DOC_ACCEPT, MAX_DOC_BYTES, ALLOWED_DOC_MIME, DocumentRow, parseExpiryDate } from '@/lib/documents';
 import { ORDER_STAGES, CARRIERS } from '@/lib/order-stages';
 import { formatDate, formatDateTime } from '@/lib/format';
 
@@ -40,6 +40,7 @@ export default function AdminOrderDetail({ params }: { params: Promise<{ id: str
   const [docFile, setDocFile] = useState<File | null>(null);
   const [docTitle, setDocTitle] = useState('');
   const [docType, setDocType] = useState<string>(DOC_TYPES[0]);
+  const [docExpiry, setDocExpiry] = useState('');
   const [docDelete, setDocDelete] = useState<DocumentRow | null>(null);
   const [fileKey, setFileKey] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -94,6 +95,7 @@ export default function AdminOrderDetail({ params }: { params: Promise<{ id: str
     setError(null); setNotice(null);
     if (!(ALLOWED_DOC_MIME as readonly string[]).includes(docFile.type)) { setError('That file type is not allowed. Use PDF, an image, Word or Excel.'); return; }
     if (docFile.size > MAX_DOC_BYTES) { setError('Files must be 20 MB or smaller.'); return; }
+    if (!parseExpiryDate(docExpiry).ok) { setError('Use a real expiry date, or leave it empty.'); return; }
     setBusy('doc');
     try {
       // 1) ask the server for a one-time upload link  2) send the file straight to storage  3) record it
@@ -102,15 +104,26 @@ export default function AdminOrderDetail({ params }: { params: Promise<{ id: str
       if (!r1.ok) throw new Error(d1.error || 'Could not start the upload.');
       const up = await supabaseBrowser.storage.from('documents').uploadToSignedUrl(d1.path, d1.token, docFile, { contentType: docFile.type });
       if (up.error) throw new Error(up.error.message || 'The upload failed.');
-      const r2 = await fetch(`/api/admin/orders/${id}/documents`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: d1.path, file_name: docFile.name, title: docTitle, doc_type: docType }) });
+      const r2 = await fetch(`/api/admin/orders/${id}/documents`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: d1.path, file_name: docFile.name, title: docTitle, doc_type: docType, expires_on: docExpiry || null }) });
       const d2 = await r2.json();
       if (!r2.ok) throw new Error(d2.error || 'Could not save the document.');
-      setNotice('Document uploaded.'); setDocFile(null); setDocTitle(''); setFileKey((k) => k + 1);
+      setNotice('Document uploaded.'); setDocFile(null); setDocTitle(''); setDocExpiry(''); setFileKey((k) => k + 1);
       await load();
     } catch (err: any) {
       setError(err.message || 'Upload failed.');
     }
     setBusy(null);
+  };
+
+  // Set or clear a document's expiry date (from the document list). Returns an error message, or null when saved.
+  const setDocumentExpiry = async (doc: DocumentRow, expiresOn: string | null) => {
+    setNotice(null);
+    const res = await fetch(`/api/admin/documents/${doc.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ expires_on: expiresOn }) });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return data.error || 'Could not save the expiry date.';
+    setNotice(expiresOn ? 'Expiry date saved.' : 'Expiry date removed.');
+    await load();
+    return null;
   };
 
   const deleteDocument = async () => {
@@ -216,9 +229,9 @@ export default function AdminOrderDetail({ params }: { params: Promise<{ id: str
                 <p className="text-[11px] text-amber-700/70">Uploading a document of the same type marks its request as done automatically.</p>
               </div>
             )}
-            <DocumentList documents={docs} onDelete={setDocDelete} empty="No documents uploaded for this order yet." />
+            <DocumentList documents={docs} onDelete={setDocDelete} onSetExpiry={setDocumentExpiry} empty="No documents uploaded for this order yet." />
             <form onSubmit={uploadDocument} className="rounded-2xl border border-dashed border-slate-200 p-4 space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="space-y-1.5">
                   <label className={label}>Type</label>
                   <select className={input} value={docType} onChange={(e) => setDocType(e.target.value)}>
@@ -228,6 +241,10 @@ export default function AdminOrderDetail({ params }: { params: Promise<{ id: str
                 <div className="space-y-1.5">
                   <label className={label}>Title (optional)</label>
                   <input className={input} value={docTitle} onChange={(e) => setDocTitle(e.target.value)} placeholder="Defaults to the file name" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className={label}>Expires on (optional)</label>
+                  <input type="date" className={input} value={docExpiry} onChange={(e) => setDocExpiry(e.target.value)} />
                 </div>
               </div>
               <input key={fileKey} type="file" accept={DOC_ACCEPT} onChange={(e) => setDocFile(e.target.files?.[0] || null)} className="block w-full text-sm text-slate-500 file:mr-3 file:px-4 file:py-2 file:rounded-xl file:border-0 file:bg-slate-100 file:text-slate-700 file:font-bold file:text-xs hover:file:bg-slate-200" />

@@ -28,7 +28,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const [{ data: items }, { data: events }, docs, reqs] = await Promise.all([
     admin.from('order_items').select('*').eq('order_id', id).order('position'),
     admin.from('order_events').select('*').eq('order_id', id).order('created_at', { ascending: false }),
-    admin.from('documents').select('id, title, doc_type, file_name, file_size, mime_type, uploaded_by, created_at').eq('order_id', id).order('created_at', { ascending: false }),
+    admin.from('documents').select('id, title, doc_type, file_name, file_size, mime_type, uploaded_by, expires_on, created_at').eq('order_id', id).order('created_at', { ascending: false }),
     admin.from('document_requests').select('id, doc_type, note, status, created_at, done_at, rep:reps(name)').eq('order_id', id).order('created_at', { ascending: false }),
   ]);
 

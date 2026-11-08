@@ -1,16 +1,33 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { FileText, Download, Eye, Trash2, Loader2, CheckCircle2, AlertCircle, X } from 'lucide-react';
-import { DocumentRow, formatBytes } from '@/lib/documents';
+import { FileText, Download, Eye, Trash2, Loader2, CheckCircle2, AlertCircle, X, CalendarClock } from 'lucide-react';
+import { DocumentRow, documentExpiry, formatBytes } from '@/lib/documents';
 import PdfPages from '@/components/PdfPages';
-import { formatDate } from '@/lib/format';
+import { formatDate, localDateKey } from '@/lib/format';
 
 interface DocumentListProps {
   documents: DocumentRow[];
   onDelete?: (doc: DocumentRow) => void;
   showOrder?: Record<string, string>; // order_id -> order number, for the all-documents list
   empty?: string;
+  // Admin only: set or clear a document's expiry date. Returns an error message, or null when saved.
+  onSetExpiry?: (doc: DocumentRow, expiresOn: string | null) => Promise<string | null>;
+}
+
+// "Expired" (red) or "Expires in N days" (amber). Nothing for far-off dates or documents without a date.
+function ExpiryBadge({ expiresOn, today }: { expiresOn?: string | null; today: string | null }) {
+  const s = today ? documentExpiry(expiresOn, today) : null;
+  if (!s) return null;
+  return (
+    <span
+      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide shrink-0 ${
+        s.kind === 'expired' ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-amber-50 text-amber-700 border border-amber-100'
+      }`}
+    >
+      {s.label}
+    </span>
+  );
 }
 
 // Opens a document through the server: it checks you may see the file, then
@@ -33,7 +50,19 @@ export async function openDocument(id: string, download = false): Promise<string
   return null;
 }
 
-export default function DocumentList({ documents, onDelete, showOrder, empty = 'No documents yet.' }: DocumentListProps) {
+export default function DocumentList({ documents, onDelete, showOrder, empty = 'No documents yet.', onSetExpiry }: DocumentListProps) {
+  // Today in the viewer's own time zone, worked out after the page loads (so server and browser render the same HTML).
+  const [today, setToday] = useState<string | null>(null);
+  useEffect(() => { setToday(localDateKey()); }, []);
+  const [editing, setEditing] = useState<{ id: string; value: string } | null>(null);
+  const [expiryError, setExpiryError] = useState<string | null>(null);
+  const saveExpiry = async (d: DocumentRow, value: string | null) => {
+    if (!onSetExpiry) return;
+    setBusy(d.id); setExpiryError(null);
+    const err = await onSetExpiry(d, value);
+    setBusy(null);
+    if (err) setExpiryError(err); else setEditing(null);
+  };
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
@@ -134,13 +163,39 @@ export default function DocumentList({ documents, onDelete, showOrder, empty = '
         <div key={d.id} className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/50 p-3 sm:p-4">
           <div className="p-2.5 rounded-xl bg-white text-slate-400 shrink-0"><FileText size={18} /></div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-slate-900 truncate">{d.title}</p>
+            <div className="flex items-center gap-2 min-w-0">
+              <p className="text-sm font-bold text-slate-900 truncate">{d.title}</p>
+              <ExpiryBadge expiresOn={d.expires_on} today={today} />
+            </div>
             <p className="text-[11px] text-slate-400 truncate">
               {d.doc_type}
               {showOrder && d.order_id && showOrder[d.order_id] ? ` · ${showOrder[d.order_id]}` : ''}
               {' · '}{formatDate(d.created_at)}
               {d.file_size ? ` · ${formatBytes(d.file_size)}` : ''}
             </p>
+            {onSetExpiry && (editing?.id === d.id ? (
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <input
+                  type="date"
+                  value={editing.value}
+                  onChange={(e) => setEditing({ id: d.id, value: e.target.value })}
+                  aria-label={`Expiry date for ${d.title}`}
+                  className="px-2 py-1 rounded-lg border border-slate-200 bg-white text-xs"
+                />
+                <button onClick={() => saveExpiry(d, editing.value || null)} disabled={busy === d.id} className="px-2.5 py-1 rounded-lg bg-slate-900 text-white text-[11px] font-bold disabled:opacity-50">Save</button>
+                {d.expires_on && <button onClick={() => saveExpiry(d, null)} disabled={busy === d.id} className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-600 text-[11px] font-bold disabled:opacity-50">Remove date</button>}
+                <button onClick={() => { setEditing(null); setExpiryError(null); }} className="px-2.5 py-1 text-slate-400 text-[11px] font-bold hover:text-slate-600">Cancel</button>
+                {expiryError && <span className="text-[11px] font-semibold text-red-500">{expiryError}</span>}
+              </div>
+            ) : (
+              <button
+                onClick={() => { setEditing({ id: d.id, value: d.expires_on || '' }); setExpiryError(null); }}
+                className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-rivix"
+              >
+                <CalendarClock size={12} />
+                {d.expires_on ? `Expires ${formatDate(d.expires_on)} · change` : 'Set expiry date'}
+              </button>
+            ))}
           </div>
           <button
             onClick={() => view(d)}
