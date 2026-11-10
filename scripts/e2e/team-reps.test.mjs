@@ -4,6 +4,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { createRequire } from 'module'; const { createServerClient } = createRequire(import.meta.url)('@supabase/ssr');
 import fs from 'fs';
+import { stepUp } from './mfa.mjs'; // task 8: admin sessions need the two-step sign-in
 const env = Object.fromEntries(fs.readFileSync('.env.local','utf8').split('\n').filter(l=>l.includes('=')&&!l.startsWith('#')).map(l=>[l.slice(0,l.indexOf('=')),l.slice(l.indexOf('=')+1).trim().replace(/^["']|["']$/g,'')]));
 const U=env.NEXT_PUBLIC_SUPABASE_URL,A=env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const a=createClient(U,env.SUPABASE_SERVICE_ROLE_KEY,{auth:{persistSession:false}});
@@ -15,7 +16,7 @@ const {data:c}=await a.from('customers').insert({user_id:cu.id,company_name:'ZZ 
 const mkOrder=async(status)=>(await a.from('orders').insert({customer_id:c.id,rep_id:rep.id,batch_number:'',product_name:'Team test',quantity:1,...(status?{status}:{})}).select().single()).data;
 const done=await mkOrder('Delivered'), open=await mkOrder();
 await a.from('document_requests').insert({order_id:done.id,customer_id:c.id,rep_id:rep.id,doc_type:'Certificate',status:'open'});
-const j=new Map();const sb=createServerClient(U,A,{cookies:{getAll:()=>[...j].map(([name,value])=>({name,value})),setAll:l=>l.forEach(({name,value})=>j.set(name,value))}});await sb.auth.signInWithPassword({email:adm.email,password:pw});
+const j=new Map();const sb=createServerClient(U,A,{cookies:{getAll:()=>[...j].map(([name,value])=>({name,value})),setAll:l=>l.forEach(({name,value})=>j.set(name,value))}});await sb.auth.signInWithPassword({email:adm.email,password:pw});await stepUp(sb);
 const ck=[...j].map(([k,v])=>`${k}=${v}`).join('; ');
 const call=(m,url,body,cookie=ck)=>fetch('http://localhost:10001'+url,{method:m,headers:{'Content-Type':'application/json',...(cookie?{Cookie:cookie}:{})},body:body?JSON.stringify(body):undefined,redirect:'manual'});
 try{

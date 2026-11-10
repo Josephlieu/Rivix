@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { createAdminClient } from '@/lib/supabase-admin';
-import { isAdminUser } from '@/lib/admin-auth';
+import { readAdminSession, TWO_STEP_REQUIRED } from '@/lib/admin-session';
 import { getCurrentRep } from '@/lib/current-rep';
 import { clean } from '@/lib/order-input';
 import { notifyUsers } from '@/lib/notify';
@@ -10,10 +10,12 @@ import { notifyUsers } from '@/lib/notify';
 // customer sees. Body: { action: 'decline', reason }. Turning a request into an order happens in the order routes.
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const sess = await readAdminSession(supabase);
+  const user = sess.user;
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  if (sess.isAdmin && !sess.trusted) return NextResponse.json({ error: TWO_STEP_REQUIRED, code: 'mfa_required' }, { status: 401 });
 
-  const isAdmin = isAdminUser(user);
+  const isAdmin = sess.trusted;
   const rep = isAdmin ? null : await getCurrentRep();
   if (!isAdmin && !rep) return NextResponse.json({ error: 'Only the sales rep or an admin can do this.' }, { status: 403 });
 

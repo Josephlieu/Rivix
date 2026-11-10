@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createSupabaseServerClient } from '@/lib/supabase-server';
-import { isAdminUser } from '@/lib/admin-auth';
+import { isTrustedAdmin } from '@/lib/require-admin';
 import { sendEmail as sendMail } from '@/lib/email';
 import { renderEmailHtml } from '@/lib/email-template';
 
@@ -13,11 +12,8 @@ interface SendBody {
   message: string;
 }
 
-async function isAdminAuthorized(): Promise<boolean> {
-  const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  return isAdminUser(user);
-}
+// An admin who has passed the two-step sign-in (task 8).
+const isAdminAuthorized = isTrustedAdmin;
 
 function emailConfigured(): boolean {
   return Boolean(process.env.RESEND_API_KEY && process.env.HIRING_FROM_EMAIL);

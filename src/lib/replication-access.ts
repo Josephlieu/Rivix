@@ -7,6 +7,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { createSupabaseRouteClient } from '@/lib/supabase-server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { isAdminUser, isRepUser } from '@/lib/admin-auth';
+import { readAdminSession } from '@/lib/admin-session';
 
 export type ReplicationActor =
   | { kind: 'admin'; userId: string; email: string; name: string }
@@ -15,10 +16,13 @@ export type ReplicationActor =
 /** The signed-in admin or active sales rep, worked out from the session cookie (never from the request body). */
 export async function getReplicationActor(): Promise<ReplicationActor | null> {
   const supabase = await createSupabaseRouteClient(); // refreshes an expired sign-in and sends the new one to the browser
-  const { data: { user } } = await supabase.auth.getUser();
+  const s = await readAdminSession(supabase);
+  const user = s.user;
   if (!user) return null;
   const email = user.email || '';
-  if (isAdminUser(user)) return { kind: 'admin', userId: user.id, email, name: email || 'Admin' };
+  // An admin only after the two-step sign-in (aal2). A password-only admin session gets nothing: not admin, and not
+  // treated as a rep either.
+  if (isAdminUser(user)) return s.trusted ? { kind: 'admin', userId: user.id, email, name: email || 'Admin' } : null;
   if (isRepUser(user)) {
     const { data } = await createAdminClient().from('reps').select('id, name, active').eq('user_id', user.id).maybeSingle();
     if (!data || !data.active) return null;

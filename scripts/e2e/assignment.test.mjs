@@ -3,6 +3,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { createRequire } from 'module'; const { createServerClient } = createRequire(import.meta.url)('@supabase/ssr');
 import fs from 'fs';
+import { stepUp } from './mfa.mjs'; // task 8: admin sessions need the two-step sign-in
 const env = Object.fromEntries(fs.readFileSync('.env.local','utf8').split('\n').filter(l=>l.includes('=')&&!l.startsWith('#')).map(l=>[l.slice(0,l.indexOf('=')),l.slice(l.indexOf('=')+1).trim().replace(/^["']|["']$/g,'')]));
 const U=env.NEXT_PUBLIC_SUPABASE_URL,A=env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const a=createClient(U,env.SUPABASE_SERVICE_ROLE_KEY,{auth:{persistSession:false}});
@@ -12,7 +13,7 @@ const adm=await mk(`zz-aa-${t}@yopmail.com`,{role:'admin'}), r1=await mk(`zz-ar1
 const {data:rep1}=await a.from('reps').insert({name:'ZZ A1',email:r1.email,user_id:r1.id}).select().single();
 const {data:rep2}=await a.from('reps').insert({name:'ZZ A2',email:r2.email,user_id:r2.id}).select().single();
 const {data:c}=await a.from('customers').insert({user_id:cu.id,company_name:'ZZ Assign Co',contact_email:cu.email,customer_code:''}).select().single();
-const j=new Map();const sb=createServerClient(U,A,{cookies:{getAll:()=>[...j].map(([name,value])=>({name,value})),setAll:l=>l.forEach(({name,value})=>j.set(name,value))}});await sb.auth.signInWithPassword({email:adm.email,password:pw});
+const j=new Map();const sb=createServerClient(U,A,{cookies:{getAll:()=>[...j].map(([name,value])=>({name,value})),setAll:l=>l.forEach(({name,value})=>j.set(name,value))}});await sb.auth.signInWithPassword({email:adm.email,password:pw});await stepUp(sb);
 const ck=[...j].map(([k,v])=>`${k}=${v}`).join('; ');
 const patch=(rep_id)=>fetch(`http://localhost:10001/api/admin/customers/${c.id}`,{method:'PATCH',headers:{'Content-Type':'application/json',Cookie:ck},body:JSON.stringify({rep_id})});
 const n=async uid=>(await a.from('notifications').select('*').eq('recipient_user_id',uid)).data;

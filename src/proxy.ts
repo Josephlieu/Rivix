@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { isAdminUser, isRepUser } from '@/lib/admin-auth';
+import { readAdminSession, adminNextStep } from '@/lib/admin-session';
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -29,12 +30,21 @@ export async function proxy(request: NextRequest) {
       }
     );
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const s = await readAdminSession(supabase);
 
-    if (!isAdminUser(user)) {
+    if (!s.isAdmin) {
       const loginUrl = new URL('/admin-login', request.url);
       loginUrl.searchParams.set('next', pathname);
       return NextResponse.redirect(loginUrl);
+    }
+
+    // Two-step sign-in (task 8): an admin needs an authenticator app and must enter its code (aal2) before any admin
+    // screen. No authenticator yet -> set it up; set up but password-only session -> enter the code.
+    const step = adminNextStep(s);
+    if (step) {
+      const mfaUrl = new URL('/admin-mfa', request.url);
+      mfaUrl.searchParams.set('next', pathname);
+      return NextResponse.redirect(mfaUrl);
     }
 
     return response;

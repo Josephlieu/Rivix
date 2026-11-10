@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { createAdminClient } from '@/lib/supabase-admin';
-import { isAdminUser } from '@/lib/admin-auth';
+import { readAdminSession, TWO_STEP_REQUIRED } from '@/lib/admin-session';
 import { getCurrentRep } from '@/lib/current-rep';
 
 // Returns a short-lived download link for one document — but only after checking
@@ -13,14 +13,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ docI
   const { docId } = await params;
   const wantDownload = new URL(req.url).searchParams.get('download') === '1';
   const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const s = await readAdminSession(supabase);
+  const user = s.user;
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  // An admin gets any document, but only after the two-step sign-in.
+  if (s.isAdmin && !s.trusted) return NextResponse.json({ error: TWO_STEP_REQUIRED, code: 'mfa_required' }, { status: 401 });
 
   const admin = createAdminClient();
   let filePath: string | null = null;
   let fileName: string | null = null;
 
-  if (isAdminUser(user)) {
+  if (s.trusted) {
     const { data } = await admin.from('documents').select('file_path, file_name').eq('id', docId).maybeSingle();
     filePath = data?.file_path ?? null;
     fileName = data?.file_name ?? null;

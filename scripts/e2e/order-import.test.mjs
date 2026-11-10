@@ -6,6 +6,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { createRequire } from 'module';
 import fs from 'fs';
+import { stepUp } from './mfa.mjs'; // task 8: admin sessions need the two-step sign-in
 const { createServerClient } = createRequire(import.meta.url)('@supabase/ssr');
 const ok=(n,c,x='')=>console.log(c?'PASS':'FAIL',n,x);
 
@@ -48,7 +49,7 @@ const {data:rep}=await a.from('reps').insert({name:'ZZ IM Rep',email:ru.email,us
 const {data:c}=await a.from('customers').insert({user_id:cu.id,company_name:'ZZ Import Co',contact_email:cu.email,customer_code:'',rep_id:rep.id}).select().single();
 const {data:c2}=await a.from('customers').insert({user_id:cu2.id,company_name:'ZZ Import No Rep',contact_email:cu2.email,customer_code:''}).select().single();
 const {data:old}=await a.from('orders').insert({customer_id:c.id,rep_id:rep.id,batch_number:`ZZ-OLD-${t}`,product_name:'Existing',quantity:1}).select().single();
-const cookie=async e=>{const j=new Map();const sb=createServerClient(U,A,{cookies:{getAll:()=>[...j].map(([name,value])=>({name,value})),setAll:l=>l.forEach(({name,value})=>j.set(name,value))}});const x=await sb.auth.signInWithPassword({email:e,password:pw});if(x.error)throw x.error;return [...j].map(([k,v])=>`${k}=${v}`).join('; ')};
+const cookie=async e=>{const j=new Map();const sb=createServerClient(U,A,{cookies:{getAll:()=>[...j].map(([name,value])=>({name,value})),setAll:l=>l.forEach(({name,value})=>j.set(name,value))}});const x=await sb.auth.signInWithPassword({email:e,password:pw});if(x.error)throw x.error;await stepUp(sb);return [...j].map(([k,v])=>`${k}=${v}`).join('; ')};
 const call=(m,url,ck,body)=>fetch('http://localhost:10001'+url,{method:m,headers:{'Content-Type':'application/json',...(ck?{Cookie:ck}:{})},body:body?JSON.stringify(body):undefined,redirect:'manual'});
 const headers=['batch_number','Customer Code','product_name','quantity','material','safety_standard','origin','order_date','ship_date','status','inspector_name'];
 const code=` ${c.customer_code.toLowerCase()} `; // trimmed and any capitals still match

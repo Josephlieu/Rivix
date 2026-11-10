@@ -3,6 +3,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { createRequire } from 'module'; const { createServerClient } = createRequire(import.meta.url)('@supabase/ssr');
 import fs from 'fs';
+import { stepUp } from './mfa.mjs'; // task 8: admin sessions need the two-step sign-in
 const env = Object.fromEntries(fs.readFileSync('.env.local','utf8').split('\n').filter(l=>l.includes('=')&&!l.startsWith('#')).map(l=>[l.slice(0,l.indexOf('=')),l.slice(l.indexOf('=')+1).trim().replace(/^["']|["']$/g,'')]));
 const U=env.NEXT_PUBLIC_SUPABASE_URL,A=env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const a=createClient(U,env.SUPABASE_SERVICE_ROLE_KEY,{auth:{persistSession:false}});
@@ -14,7 +15,7 @@ const {data:c}=await a.from('customers').insert({user_id:cu.id,company_name:'ZZ 
 const {data:c2}=await a.from('customers').insert({user_id:cu2.id,company_name:'ZZ Cust2',contact_email:cu2.email,customer_code:''}).select().single();
 const {data:o}=await a.from('orders').insert({customer_id:c.id,rep_id:rep.id,batch_number:'',product_name:'Coat',quantity:5}).select().single();
 await a.from('order_items').insert({order_id:o.id,product_name:'Coat',quantity:5,size_breakdown:[{size:'M',qty:5}],sizing:'M x5'});
-const cookie=async e=>{const j=new Map();const sb=createServerClient(U,A,{cookies:{getAll:()=>[...j].map(([name,value])=>({name,value})),setAll:l=>l.forEach(({name,value})=>j.set(name,value))}});const r=await sb.auth.signInWithPassword({email:e,password:pw});if(r.error)throw r.error;return [...j].map(([k,v])=>`${k}=${v}`).join('; ')};
+const cookie=async e=>{const j=new Map();const sb=createServerClient(U,A,{cookies:{getAll:()=>[...j].map(([name,value])=>({name,value})),setAll:l=>l.forEach(({name,value})=>j.set(name,value))}});const r=await sb.auth.signInWithPassword({email:e,password:pw});if(r.error)throw r.error;await stepUp(sb);return [...j].map(([k,v])=>`${k}=${v}`).join('; ')};
 const call=(m,url,ck,body)=>fetch('http://localhost:10001'+url,{method:m,headers:{'Content-Type':'application/json',...(ck?{Cookie:ck}:{})},body:body?JSON.stringify(body):undefined,redirect:'manual'});
 try{
   const ac=await cookie(adm.email), rc=await cookie(ru.email), cc=await cookie(cu.email);

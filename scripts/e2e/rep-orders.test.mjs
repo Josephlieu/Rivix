@@ -3,6 +3,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { createRequire } from 'module';
 import fs from 'fs';
+import { stepUp } from './mfa.mjs'; // task 8: admin sessions need the two-step sign-in
 const { createServerClient } = createRequire(import.meta.url)('@supabase/ssr');
 const env = Object.fromEntries(fs.readFileSync('.env.local','utf8').split('\n').filter(l=>l.includes('=')&&!l.startsWith('#')).map(l=>[l.slice(0,l.indexOf('=')),l.slice(l.indexOf('=')+1).trim().replace(/^["']|["']$/g,'')]));
 const U=env.NEXT_PUBLIC_SUPABASE_URL,A=env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -14,7 +15,7 @@ const {data:rep}=await a.from('reps').insert({name:'ZZ Rep',email:repU.email,use
 const {data:rep2}=await a.from('reps').insert({name:'ZZ Rep2',email:rep2U.email,user_id:rep2U.id}).select().single();
 const {data:c1}=await a.from('customers').insert({user_id:custU.id,company_name:'ZZ Mine',contact_email:custU.email,customer_code:'',rep_id:rep.id}).select().single();
 const {data:c2}=await a.from('customers').insert({user_id:cust2U.id,company_name:'ZZ Other',contact_email:cust2U.email,customer_code:'',rep_id:rep2.id}).select().single();
-const cookie=async e=>{const j=new Map();const sb=createServerClient(U,A,{cookies:{getAll:()=>[...j].map(([name,value])=>({name,value})),setAll:l=>l.forEach(({name,value})=>j.set(name,value))}});const r=await sb.auth.signInWithPassword({email:e,password:pw});if(r.error)throw r.error;return [...j].map(([k,v])=>`${k}=${v}`).join('; ')};
+const cookie=async e=>{const j=new Map();const sb=createServerClient(U,A,{cookies:{getAll:()=>[...j].map(([name,value])=>({name,value})),setAll:l=>l.forEach(({name,value})=>j.set(name,value))}});const r=await sb.auth.signInWithPassword({email:e,password:pw});if(r.error)throw r.error;await stepUp(sb);return [...j].map(([k,v])=>`${k}=${v}`).join('; ')};
 const post=(ck,body)=>fetch('http://localhost:10001/api/rep/orders',{method:'POST',headers:{'Content-Type':'application/json',...(ck?{Cookie:ck}:{})},body:JSON.stringify(body)});
 const good={customer_id:c1.id,items:[{product_name:'Hi-vis jacket',sizes:[{size:'M',qty:10},{size:'L',qty:20}],branding:'logo'},{product_name:'Vest',sizes:[{size:'One size',qty:20}]}],delivery_location:'Calgary',po_number:'PO-1',pricing:'$45',special_requirements:'rush'};
 try{

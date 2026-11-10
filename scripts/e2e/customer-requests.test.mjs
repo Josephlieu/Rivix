@@ -3,6 +3,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { createRequire } from 'module'; const { createServerClient } = createRequire(import.meta.url)('@supabase/ssr');
 import fs from 'fs';
+import { stepUp } from './mfa.mjs'; // task 8: admin sessions need the two-step sign-in
 const env = Object.fromEntries(fs.readFileSync('.env.local','utf8').split('\n').filter(l=>l.includes('=')&&!l.startsWith('#')).map(l=>[l.slice(0,l.indexOf('=')),l.slice(l.indexOf('=')+1).trim().replace(/^["']|["']$/g,'')]));
 const U=env.NEXT_PUBLIC_SUPABASE_URL,A=env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const a=createClient(U,env.SUPABASE_SERVICE_ROLE_KEY,{auth:{persistSession:false}});
@@ -16,7 +17,7 @@ const {data:c2}=await a.from('customers').insert({user_id:cu2.id,company_name:'Z
 const {data:c3}=await a.from('customers').insert({user_id:cu3.id,company_name:'ZZ No Rep',contact_email:cu3.email,customer_code:''}).select().single();
 const mkOrder=async(c,rep,status)=>(await a.from('orders').insert({customer_id:c.id,rep_id:rep?.id||null,batch_number:'',product_name:'Req test',quantity:1,...(status?{status}:{})}).select().single()).data;
 const o1=await mkOrder(c1,rep1,'Shipped'), oc=await mkOrder(c1,rep1,'Cancelled'), o3=await mkOrder(c3,null,'Delivered'), oe=await mkOrder(c1,rep1,'In Production');
-const cookie=async e=>{const j=new Map();const sb=createServerClient(U,A,{cookies:{getAll:()=>[...j].map(([name,value])=>({name,value})),setAll:l=>l.forEach(({name,value})=>j.set(name,value))}});const r=await sb.auth.signInWithPassword({email:e,password:pw});if(r.error)throw r.error;return [...j].map(([k,v])=>`${k}=${v}`).join('; ')};
+const cookie=async e=>{const j=new Map();const sb=createServerClient(U,A,{cookies:{getAll:()=>[...j].map(([name,value])=>({name,value})),setAll:l=>l.forEach(({name,value})=>j.set(name,value))}});const r=await sb.auth.signInWithPassword({email:e,password:pw});if(r.error)throw r.error;await stepUp(sb);return [...j].map(([k,v])=>`${k}=${v}`).join('; ')};
 const call=(m,url,ck,body)=>fetch('http://localhost:10001'+url,{method:m,headers:{'Content-Type':'application/json',...(ck?{Cookie:ck}:{})},body:body?JSON.stringify(body):undefined,redirect:'manual'});
 const notifs=async uid=>(await a.from('notifications').select('*').eq('recipient_user_id',uid)).data||[];
 const reqs=async oid=>(await a.from('document_requests').select('*').eq('order_id',oid).order('created_at')).data||[];

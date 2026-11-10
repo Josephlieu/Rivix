@@ -7,6 +7,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { createRequire } from 'module';
 import fs from 'fs';
+import { stepUp } from './mfa.mjs'; // task 8: admin sessions need the two-step sign-in
 const { createServerClient } = createRequire(import.meta.url)('@supabase/ssr');
 const ok=(n,c,x='')=>console.log(c?'PASS':'FAIL',n,x);
 
@@ -42,7 +43,7 @@ const {data:c1}=await a.from('customers').insert({user_id:cu1.id,company_name:'Z
 const {data:c2}=await a.from('customers').insert({user_id:cu2.id,company_name:'ZZ Account Two',contact_email:cu2.email,customer_code:'',rep_id:rep2.id}).select().single();
 const {data:c3}=await a.from('customers').insert({user_id:cu3.id,company_name:'ZZ Account No Rep',contact_email:cu3.email,customer_code:''}).select().single();
 const newEmail=`zz-ac-new-${t}@yopmail.com`;
-const cookie=async e=>{const j=new Map();const sb=createServerClient(U,A,{cookies:{getAll:()=>[...j].map(([name,value])=>({name,value})),setAll:l=>l.forEach(({name,value})=>j.set(name,value))}});const x=await sb.auth.signInWithPassword({email:e,password:pw});if(x.error)throw x.error;return [...j].map(([k,v])=>`${k}=${v}`).join('; ')};
+const cookie=async e=>{const j=new Map();const sb=createServerClient(U,A,{cookies:{getAll:()=>[...j].map(([name,value])=>({name,value})),setAll:l=>l.forEach(({name,value})=>j.set(name,value))}});const x=await sb.auth.signInWithPassword({email:e,password:pw});if(x.error)throw x.error;await stepUp(sb);return [...j].map(([k,v])=>`${k}=${v}`).join('; ')};
 const call=(mt,url,ck,body)=>fetch('http://localhost:10001'+url,{method:mt,headers:{'Content-Type':'application/json',...(ck?{Cookie:ck}:{})},body:body?JSON.stringify(body):undefined,redirect:'manual'});
 const cust=async id=>(await a.from('customers').select('*').eq('id',id).single()).data;
 const notifs=async(uid,kind)=>(await a.from('notifications').select('*').eq('recipient_user_id',uid).eq('kind',kind)).data||[];

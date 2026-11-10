@@ -8,6 +8,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { createRequire } from 'module';
 import fs from 'fs';
+import { stepUp } from './mfa.mjs'; // task 8: admin sessions need the two-step sign-in
 const { createServerClient } = createRequire(import.meta.url)('@supabase/ssr');
 const ok=(n,c,x='')=>console.log(c?'PASS':'FAIL',n,x);
 
@@ -35,7 +36,7 @@ const {data:c3}=await a.from('customers').insert({user_id:cu3.id,company_name:'Z
 const {data:o1}=await a.from('orders').insert({customer_id:c1.id,rep_id:rep1.id,batch_number:'',product_name:'Hi-vis jacket',quantity:15,status:'Delivered'}).select().single();
 await a.from('order_items').insert({order_id:o1.id,product_name:'Hi-vis jacket',quantity:15,size_breakdown:[{size:'M',qty:10},{size:'L',qty:5}],sizing:'M x10, L x5',position:0});
 const {data:o2}=await a.from('orders').insert({customer_id:c2.id,rep_id:rep2.id,batch_number:'',product_name:'Other',quantity:1}).select().single();
-const cookie=async e=>{const j=new Map();const sb=createServerClient(U,A,{cookies:{getAll:()=>[...j].map(([name,value])=>({name,value})),setAll:l=>l.forEach(({name,value})=>j.set(name,value))}});const x=await sb.auth.signInWithPassword({email:e,password:pw});if(x.error)throw x.error;return [...j].map(([k,v])=>`${k}=${v}`).join('; ')};
+const cookie=async e=>{const j=new Map();const sb=createServerClient(U,A,{cookies:{getAll:()=>[...j].map(([name,value])=>({name,value})),setAll:l=>l.forEach(({name,value})=>j.set(name,value))}});const x=await sb.auth.signInWithPassword({email:e,password:pw});if(x.error)throw x.error;await stepUp(sb);return [...j].map(([k,v])=>`${k}=${v}`).join('; ')};
 const call=(mt,url,ck,body)=>fetch('http://localhost:10001'+url,{method:mt,headers:{'Content-Type':'application/json',...(ck?{Cookie:ck}:{})},body:body?JSON.stringify(body):undefined,redirect:'manual'});
 const signIn=async e=>{const s=createClient(U,A,{auth:{persistSession:false}});await s.auth.signInWithPassword({email:e,password:pw});return s;};
 const notifs=async(uid,kind)=>(await a.from('notifications').select('*').eq('recipient_user_id',uid).eq('kind',kind)).data||[];

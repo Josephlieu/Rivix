@@ -46,8 +46,9 @@ function AdminLoginForm() {
       return;
     }
 
+    // Second step (task 8): set up the authenticator app, or enter its 6-digit code, before any admin screen.
     setRedirecting(true);
-    router.push(next);
+    router.push(`/admin-mfa?next=${encodeURIComponent(next)}`);
   };
 
   return (

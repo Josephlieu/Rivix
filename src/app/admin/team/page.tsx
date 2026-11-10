@@ -7,6 +7,7 @@ import Modal from '@/components/Modal';
 import { UserPlus, Mail, Phone, Loader2, AlertCircle, Pencil, Trash2, KeyRound, X, Check, Search, Eye } from 'lucide-react';
 import CredentialsCard, { NewCredentials } from '@/components/CredentialsCard';
 import RepEditModal from '@/components/RepEditModal';
+import AdminAccountsCard from '@/components/AdminAccountsCard';
 
 interface Rep {
   id: string;
@@ -445,6 +446,8 @@ export default function TeamManagement() {
         onConfirm={runConfirmed}
         onCancel={() => setConfirm(null)}
       />
+
+      <AdminAccountsCard />
     </div>
   );
 }
