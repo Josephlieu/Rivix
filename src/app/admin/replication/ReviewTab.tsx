@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import type { PersistedGarmentAIAnalysis } from '@/lib/garmentAiAnalysis';
 import type { ReplicationRequest, ReplicationSpec } from '@/lib/replicationStorage';
 import { suggestedTests, suggestFrenchCare, prefillSpecs, HIVIS_STANDARDS, TAPE_OPTIONS } from '@/lib/techFileStandards';
-import { resolveTemplate, BUILT_IN_CATALOG, type TemplateCatalog } from '@/lib/template-catalog';
+import { resolveTemplate, protectiveText, BUILT_IN_CATALOG, type TemplateCatalog } from '@/lib/template-catalog';
 import { checklistFor, templateMeasurements, outstandingConfirmations } from '@/lib/garmentAiAnalysis';
 import { getGarmentTypes } from '@/lib/replicationStorage';
 
@@ -250,7 +250,8 @@ export default function ReviewTab({ rep, onSave }: Props) {
             </div>
           ))}
         </div>
-        {template.protective && <p className="text-[11px] text-slate-500">Standards to check for this garment: {template.protective.standards.join(', ')}. {template.protective.evidence}</p>}
+        {template.protective && <p className="text-[11px] text-slate-500">{protectiveText(template, 'Standards to check for this garment')}</p>}
+        {template.notes.map(n => <p key={n} className="text-[11px] text-slate-500">Note: {n}</p>)}
       </Section>
 
       <Section title="Basic specification" hint="What the customer’s garment is made of. Shown on the Client Spec Review tab.">

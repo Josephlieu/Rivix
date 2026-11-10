@@ -42,7 +42,7 @@ try{
   r=await call('GET',`${BASE}/garment-types`,null); ok('garment types: signed out is refused',r.status===401||r.status===403);
   r=await call('GET',`${BASE}/garment-types`,cc); ok('garment types: a customer is refused',r.status===401||r.status===403);
   r=await call('GET',`${BASE}/garment-types`,ac); j=await r.json();
-  ok('garment types: 3 categories and 35 types',r.status===200&&j.categories?.length===3&&j.types?.length>=35,JSON.stringify([j.categories?.length,j.types?.length]));
+  ok('garment types: the 9 categories and 83 types (task 27)',r.status===200&&j.categories?.length===9&&j.types?.length>=83,JSON.stringify([j.categories?.length,j.types?.length]));
   ok('garment types: the older keys are still there',['jacket','parka','coat','vest','pants','overalls','hoodie'].every(k=>j.types?.some(x=>x.key===k)));
   r=await call('POST','/api/admin/garment-types',rc,{label:'ZZ Rep Type',category:'outerwear'}); ok('garment types: a sales rep cannot add one',r.status===401||r.status===403);
   r=await call('GET',`${BASE}/garment-types`,ac); j=await r.json();

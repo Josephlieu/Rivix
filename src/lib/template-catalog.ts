@@ -10,11 +10,15 @@
 // (scripts/generate-template-seed.mjs) and the fallback when the database cannot be read.
 // Client-safe (no server imports). Relative imports only (the tests load this file directly).
 import { COMMON_ITEMS, FAMILIES, MODULES, TYPE_TEMPLATES, type ChecklistItem, type Family, type Module, type ProtectiveInfo, type Source, type SizingStructure } from './garment-templates';
+import { ADDED_TEMPLATES, ADDED_TYPE_TEMPLATES, CATEGORY_BASE } from './templates-added';
+import { DEFAULT_GARMENT_CATEGORIES, DEFAULT_GARMENT_TYPES } from './garment-types-data';
 
 // ---- the general template shape ---------------------------------------------------------------------------------------------
 export type CertificationLevel = 'described' | 'needs-test-evidence' | 'certified-equipment';
-export type SizingSystem = SizingStructure['style'] | 'glove' | 'shoe-width' | 'head';
-export type DrawingView = 'front' | 'back' | 'side' | 'palm' | 'back-of-hand' | 'top' | 'sole' | 'inside';
+export type SizingSystem = SizingStructure['style'];
+export type DrawingView = 'front' | 'back' | 'side' | 'palm' | 'back-of-hand' | 'top' | 'sole' | 'inside' | 'outer-side' | 'inner-side';
+// A standard that MAY apply (task 27). Never used as a claim until the RIVIX compliance person confirms it (status 'to-verify').
+export interface StandardCandidate { standard: string; link: string; status: 'to-verify'; appliesTo?: string }
 
 export interface TemplatePoint { code: string; name: string; howToMeasure: string; method: 'flat' | 'length' | 'circumference' | 'along-body' | 'other' }
 export interface TemplateItem { key: string; label: string; section: 'spec' | 'construction'; source: Source; required: boolean }
@@ -26,6 +30,8 @@ export interface TemplateBody {
   protective: ProtectiveInfo | null;     // standards to check and the evidence needed
   certification: CertificationLevel;     // certified equipment: the tech file can describe it but never claim compliance
   composedOf?: string[];                 // a kit: the family templates it is made of
+  notes?: string[];                      // notes shown with the template (scope limits, what not to claim)
+  standardCandidates?: StandardCandidate[]; // standards that may apply, each with a source link, all still to verify
 }
 export interface TemplateRecord { key: string; kind: 'base' | 'family' | 'module'; label: string; description: string; version: number; active: boolean; body: TemplateBody }
 export interface TemplateCatalog {
@@ -52,13 +58,18 @@ export const BUILT_IN_TEMPLATES: TemplateRecord[] = [
     body: { points: f.points.map((p) => ({ code: p.code, name: p.name, howToMeasure: p.definition, method: p.kind })), items: f.construction.map((c) => toItem(c, 'construction')), sizing: { system: f.sizing.style, note: f.sizing.note }, views: f.views, protective: null, certification: 'described', ...(f.composedOf ? { composedOf: f.composedOf } : {}) } })),
   ...MODULES.map((m): TemplateRecord => ({ key: m.key, kind: 'module', label: m.label, description: '', version: 1, active: true,
     body: { points: [], items: m.construction.map((c) => toItem(c)), sizing: null, views: [], protective: m.protective ? { standards: m.protective.standards, evidence: m.protective.evidence } : null, certification: MODULE_CERT[m.key] ?? 'described' } })),
+  // Task 27: gloves, footwear, headwear, hoods, sleeves, back supports, harnesses, accessories and two clothing kits.
+  ...ADDED_TEMPLATES,
 ];
 
 export const BUILT_IN_CATALOG: TemplateCatalog = {
   source: 'built-in',
   templates: BUILT_IN_TEMPLATES,
-  types: Object.fromEntries(Object.entries(TYPE_TEMPLATES).map(([k, v]) => [k, { family: v.family, modules: v.modules ?? [], category: null }])),
-  categories: {},
+  // Every type in the 9 categories (task 27): the 41 older types keep their template, the new ones use theirs.
+  types: Object.fromEntries(Object.entries({ ...TYPE_TEMPLATES, ...ADDED_TYPE_TEMPLATES }).map(([k, v]) => [k, {
+    family: v.family, modules: v.modules ?? [], category: DEFAULT_GARMENT_TYPES.find((g) => g.key === k)?.category ?? null,
+  }])),
+  categories: Object.fromEntries(DEFAULT_GARMENT_CATEGORIES.map((c) => [c.key, { baseTemplate: CATEGORY_BASE[c.key] ?? 'garment-base' }])),
 };
 
 // ---- resolving --------------------------------------------------------------------------------------------------------------
@@ -70,6 +81,8 @@ export interface ResolvedTemplate {
   protective: ProtectiveInfo | null; // merged from the modules; null when the product has no protective claim
   certification: CertificationLevel; // the strictest level of the base, the parts and the modules
   versions: Array<{ key: string; version: number }>; // every template version used: a tech file records these
+  notes: string[]; // task 27: notes from the templates used (scope limits, what not to claim); empty for the older templates
+  standardCandidates: StandardCandidate[]; // task 27: standards that MAY apply, all still to verify (never a claim)
 }
 
 const find = (catalog: TemplateCatalog, key: string | null | undefined, kind: TemplateRecord['kind']) =>
@@ -78,7 +91,7 @@ const find = (catalog: TemplateCatalog, key: string | null | undefined, kind: Te
 // Back to the shapes the screens, the AI prompt and the PDF already use.
 const asFamily = (t: TemplateRecord): Family => ({
   key: t.key, label: t.label, description: t.description,
-  points: t.body.points.map((p) => ({ code: p.code, name: p.name, definition: p.howToMeasure, kind: p.method as 'flat' | 'length' })),
+  points: t.body.points.map((p) => ({ code: p.code, name: p.name, definition: p.howToMeasure, kind: p.method })),
   construction: t.body.items.map((i) => ({ key: i.key, label: i.label, source: i.source, required: i.required })),
   sizing: { style: (t.body.sizing?.system ?? 'custom') as SizingStructure['style'], note: t.body.sizing?.note ?? '' },
   views: t.body.views as Family['views'],
@@ -124,12 +137,38 @@ export function resolveTemplate(typeKey: string, savedFamily: string | null | un
     seen.add(item.key);
     checklist.push(item);
   }
-  const withClaim = moduleTs.filter((t) => t.body.protective);
+  // The family's own claim first (task 27: harness, sleeve), then the modules'. Older families have none, so nothing changes for them.
+  const withClaim = [familyT, ...moduleTs].filter((t) => t.body.protective);
   const protective = withClaim.length
     ? { standards: Array.from(new Set(withClaim.flatMap((t) => t.body.protective!.standards))), evidence: withClaim[0].body.protective!.evidence }
     : null;
   const used = [baseT, familyT, ...(familyT.body.composedOf ? partTs : []), ...moduleTs];
   const certification = used.reduce<CertificationLevel>((lvl, t) => (CERT_RANK[t.body.certification] > CERT_RANK[lvl] ? t.body.certification : lvl), 'described');
   const versions = Array.from(new Map(used.map((t) => [t.key, { key: t.key, version: t.version }])).values());
-  return { family, modules, parts, checklist, protective, certification, versions };
+  const notes = Array.from(new Set(used.flatMap((t) => t.body.notes ?? [])));
+  const standardCandidates = Array.from(new Map(used.flatMap((t) => t.body.standardCandidates ?? []).map((c) => [c.standard, c])).values());
+  return { family, modules, parts, checklist, protective, certification, versions, notes, standardCandidates };
 }
+
+// ---- words for the screens (task 27) ------------------------------------------------------------------------------------------
+const VIEW_WORDS: Record<string, string> = { 'back-of-hand': 'back of hand', 'outer-side': 'outer side', 'inner-side': 'inner side' };
+/** "front and back", "palm and back of hand", "outer side, inner side, top and sole". */
+export function viewsText(views: string[]): string {
+  const w = views.map((v) => VIEW_WORDS[v] ?? v);
+  return w.length <= 2 ? w.join(' and ') : `${w.slice(0, -1).join(', ')} and ${w[w.length - 1]}`;
+}
+const METHOD_WORDS: Record<string, string> = { flat: 'Flat, across', length: 'Length', circumference: 'Around', 'along-body': 'Along the body', other: 'Other' };
+export const methodText = (kind: string) => METHOD_WORDS[kind] ?? 'Length';
+/** The protective line: confirmed standards as before; when there are none yet, the candidates, clearly marked "to verify". */
+/** The older templates read exactly as before (`${prefix}: A, B. evidence`). */
+export function protectiveText(t: Pick<ResolvedTemplate, 'protective' | 'standardCandidates'>, prefix = 'Standards to check'): string {
+  if (!t.protective) return '';
+  if (t.protective.standards.length) return `${prefix}: ${t.protective.standards.join(', ')}. ${t.protective.evidence}`;
+  const cands = t.standardCandidates.map((c) => c.standard.split(' ').slice(0, 2).join(' ').replace(/:$/, ''));
+  return `${cands.length ? `Standards that may apply (to verify, not claims): ${Array.from(new Set(cands)).join(', ')}. ` : ''}${t.protective.evidence}`;
+}
+export const CERTIFICATION_TEXT: Record<CertificationLevel, string> = {
+  described: 'Described (no protective claim)',
+  'needs-test-evidence': 'Needs test evidence before any claim',
+  'certified-equipment': 'Certified equipment: the tech file describes it and never claims compliance',
+};

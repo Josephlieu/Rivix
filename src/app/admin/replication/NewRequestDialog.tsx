@@ -40,7 +40,7 @@ export default function NewRequestDialog({ role, onClose, onCreated }: Props) {
   // Category first, then the garment type inside it. The built-in list shows at once; the saved list replaces it when it arrives.
   const [categories, setCategories] = useState<GarmentCategory[]>(DEFAULT_GARMENT_CATEGORIES);
   const [types, setTypes] = useState<GarmentType[]>(DEFAULT_GARMENT_TYPES);
-  const [category, setCategory] = useState('outerwear');
+  const [category, setCategory] = useState('workwear'); // General Workwear, whose first type is Jacket (task 27)
   const [garmentType, setGarmentType] = useState('jacket');
   useEffect(() => { getGarmentTypes().then(l => { setCategories(l.categories); setTypes(l.types); }).catch(() => {}); }, []);
   const typesInCategory = types.filter(t => t.category === category);

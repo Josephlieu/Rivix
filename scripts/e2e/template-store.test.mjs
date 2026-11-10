@@ -12,12 +12,13 @@ import { stepUp } from './mfa.mjs';
 const { createServerClient } = createRequire(import.meta.url)('@supabase/ssr');
 const ok = (n, c, x = '') => console.log(c ? 'PASS' : 'FAIL', n, x);
 const canon = (v) => JSON.stringify(v, (_k, x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.entries(x).sort(([a], [b]) => a.localeCompare(b))) : x));
-const oldFields = (r) => { const { certification, versions, ...rest } = r; void certification; void versions; return rest; };
+// Fields added after the frozen file (task 26: certification, versions; task 27: notes, standardCandidates, both empty for older types).
+const oldFields = (r) => { const { certification, versions, notes, standardCandidates, ...rest } = r; void certification; void versions; void notes; void standardCandidates; return rest; };
 
 const C = await import('../../src/lib/template-catalog.ts');
 const T = await import('../../src/lib/garment-templates.ts');
 const fx = JSON.parse(fs.readFileSync('scripts/e2e/fixtures/templates-v1.json', 'utf8'));
-const typeKeys = Object.keys(T.TYPE_TEMPLATES);
+const typeKeys = Object.keys(T.TYPE_TEMPLATES); // the 41 older types (task 27 adds 42 more: categories-templates.test.mjs)
 const compareAll = (catalog) => fx.cases.filter((c) => canon(oldFields(C.resolveTemplate(c.typeKey, c.savedFamily, catalog))) !== canon(c.resolved)).map((c) => `${c.typeKey}/${c.savedFamily}`);
 
 // --- old vs new, offline (built-in catalog = the code fallback)
@@ -37,7 +38,8 @@ ok('a resolved template lists the versions it used (base, family, modules)', can
 const body = (k) => C.BUILT_IN_TEMPLATES.find((t) => t.key === k).body;
 ok('every template has all sections (empty where they do not apply)', C.BUILT_IN_TEMPLATES.every((t) => ['points', 'items', 'sizing', 'views', 'protective', 'certification'].every((s) => s in t.body)));
 ok('points carry a "how to measure" note; items say spec or construction, photo or document, required or not', body('jacket').points.every((p) => p.howToMeasure && p.method) && C.BUILT_IN_TEMPLATES.flatMap((t) => t.body.items).every((i) => ['spec', 'construction'].includes(i.section) && ['photo', 'document'].includes(i.source) && typeof i.required === 'boolean'));
-ok('templates are 1 base, 24 families and 11 modules', C.BUILT_IN_TEMPLATES.length === 36 && C.BUILT_IN_TEMPLATES.filter((t) => t.kind === 'family').length === 24 && C.BUILT_IN_TEMPLATES.filter((t) => t.kind === 'module').length === 11);
+ok('templates are 2 bases, 34 families and 20 modules (task 26: 1, 24, 11; task 27 adds 1, 10, 9)', C.BUILT_IN_TEMPLATES.length === 56 && C.BUILT_IN_TEMPLATES.filter((t) => t.kind === 'base').length === 2 && C.BUILT_IN_TEMPLATES.filter((t) => t.kind === 'family').length === 34 && C.BUILT_IN_TEMPLATES.filter((t) => t.kind === 'module').length === 20);
+ok('the older types have no notes and no standard candidates (nothing new on their screens)', typeKeys.every((k) => { const r = C.resolveTemplate(k, null, C.BUILT_IN_CATALOG); return r.notes.length === 0 && r.standardCandidates.length === 0; }));
 
 // --- the cache and the code fallback (a fake database, no network)
 const S = await import('../../src/lib/template-store.ts');
@@ -82,7 +84,7 @@ try {
   // seed = code
   const { data: trows } = await a.from('templates').select('key, kind, label, description, current_version');
   const { data: vrows } = await a.from('template_versions').select('template_key, version, body').eq('version', 1);
-  ok('DEV has the 36 templates at version 1', trows?.length >= 36 && C.BUILT_IN_TEMPLATES.every((x) => trows.some((r) => r.key === x.key && r.kind === x.kind && r.current_version >= 1)));
+  ok('DEV has all the templates at version 1 (36 from task 26, 20 from task 27)', trows?.length >= 36 && C.BUILT_IN_TEMPLATES.every((x) => trows.some((r) => r.key === x.key && r.kind === x.kind && r.current_version >= 1)));
   const mismatch = C.BUILT_IN_TEMPLATES.filter((x) => { const r = vrows.find((y) => y.template_key === x.key); return !r || canon(r.body) !== canon(x.body); }).map((x) => x.key);
   ok('every version 1 body in the database equals the code', mismatch.length === 0, mismatch.join(','));
   const { data: grows } = await a.from('garment_types').select('key, template_family, template_modules');

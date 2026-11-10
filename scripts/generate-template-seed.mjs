@@ -7,7 +7,10 @@ const T = await import('../src/lib/garment-templates.ts');
 
 // The templates in the new shape come from the app itself (BUILT_IN_TEMPLATES), so the seed and the code fallback are the same data.
 const C = await import('../src/lib/template-catalog.ts');
-const templates = C.BUILT_IN_TEMPLATES;
+// Task 26's own 36 templates only (task 27's are in its own SQL file: scripts/generate-task27-seed.mjs).
+const A = await import('../src/lib/templates-added.ts');
+const added = new Set(A.ADDED_TEMPLATES.map((t) => t.key));
+const templates = C.BUILT_IN_TEMPLATES.filter((t) => !added.has(t.key));
 
 // ---- SQL ------------------------------------------------------------------------------------------------------------------
 const lit = (s) => `'${String(s).replace(/'/g, "''")}'`;

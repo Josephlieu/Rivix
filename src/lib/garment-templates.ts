@@ -14,7 +14,9 @@ export interface MeasurementPoint {
   code: string; // letter used on the points-of-measure diagram
   name: string;
   definition: string; // how it is measured, so every factory measures the same way
-  kind: 'flat' | 'length'; // flat = straight across the garment laid flat (half circumference); length = along the garment
+  // flat = straight across the garment laid flat (half circumference); length = along the garment. Task 27 templates also use
+  // circumference (around, e.g. a hat band), along-body and other.
+  kind: 'flat' | 'length' | 'circumference' | 'along-body' | 'other';
 }
 
 export interface ChecklistItem {
@@ -25,7 +27,7 @@ export interface ChecklistItem {
 }
 
 export interface SizingStructure {
-  style: 'alpha' | 'numeric' | 'waist-inseam' | 'height-based' | 'custom' | 'one-size';
+  style: 'alpha' | 'numeric' | 'waist-inseam' | 'height-based' | 'custom' | 'one-size' | 'glove' | 'shoe-width' | 'head'; // the last three: task 27
   note: string; // sizes offered always come from an approved size chart, never assumed (no default XS to 6XL)
 }
 
@@ -41,7 +43,8 @@ export interface Family {
   points: MeasurementPoint[];
   construction: ChecklistItem[];
   sizing: SizingStructure;
-  views: Array<'front' | 'back' | 'side'>; // drawings the tech file needs (the drawings themselves are milestone M4)
+  // drawings the tech file needs (the drawings themselves are milestone M4); gloves, footwear and headwear (task 27) use the others
+  views: Array<'front' | 'back' | 'side' | 'palm' | 'back-of-hand' | 'top' | 'sole' | 'inside' | 'outer-side' | 'inner-side'>;
   composedOf?: string[]; // for kits (scrubs, rain suit...): the families that make up the set
 }
 

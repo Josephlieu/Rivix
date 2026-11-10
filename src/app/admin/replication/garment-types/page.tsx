@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { ArrowLeft, ArrowUp, ArrowDown, Check, ChevronDown, Loader2, Pencil, Plus, X } from 'lucide-react';
 import Toast, { type ToastMessage } from '@/components/Toast';
 import { getGarmentTypes, type GarmentLibraryData } from '@/lib/replicationStorage';
-import { BUILT_IN_CATALOG, familyChoices, familyKeyFor, resolveTemplate, type TemplateCatalog } from '@/lib/template-catalog';
+import { BUILT_IN_CATALOG, CERTIFICATION_TEXT, familyChoices, familyKeyFor, methodText, protectiveText, resolveTemplate, viewsText, type TemplateCatalog } from '@/lib/template-catalog';
 
 const field = 'w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm focus:border-rivix/40 focus:outline-none focus:ring-2 focus:ring-rivix/10';
 
@@ -22,7 +22,7 @@ function TemplatePanel({ typeKey, family, catalog }: { typeKey: string; family: 
             <table className="w-full min-w-[520px] text-left text-[13px]">
               <thead className="bg-slate-50 text-[11px] uppercase tracking-widest text-slate-400"><tr><th className="px-3 py-2">Code</th><th className="px-3 py-2">Point</th><th className="px-3 py-2">Measured</th><th className="px-3 py-2">How</th></tr></thead>
               <tbody className="divide-y divide-slate-100">
-                {part.points.map(pt => <tr key={pt.code}><td className="px-3 py-1.5 font-bold text-slate-700">{pt.code}</td><td className="px-3 py-1.5 font-semibold text-slate-800">{pt.name}</td><td className="px-3 py-1.5 text-slate-500">{pt.kind === 'flat' ? 'Flat, across' : 'Length'}</td><td className="px-3 py-1.5 text-slate-500">{pt.definition}</td></tr>)}
+                {part.points.map(pt => <tr key={pt.code}><td className="px-3 py-1.5 font-bold text-slate-700">{pt.code}</td><td className="px-3 py-1.5 font-semibold text-slate-800">{pt.name}</td><td className="px-3 py-1.5 text-slate-500">{methodText(pt.kind)}</td><td className="px-3 py-1.5 text-slate-500">{pt.definition}</td></tr>)}
               </tbody>
             </table>
           </div>
@@ -42,9 +42,16 @@ function TemplatePanel({ typeKey, family, catalog }: { typeKey: string; family: 
           ))}
         </ul>
       </div>
-      <p className="text-slate-600"><strong className="text-slate-800">Sizing:</strong> {t.family.sizing.note} <strong className="text-slate-800">Drawings needed:</strong> {t.family.views.join(' and ')}.</p>
+      <p className="text-slate-600"><strong className="text-slate-800">Sizing:</strong> {t.family.sizing.note} <strong className="text-slate-800">Drawings needed:</strong> {viewsText(t.family.views)}. <strong className="text-slate-800">Certification:</strong> {CERTIFICATION_TEXT[t.certification]}.</p>
+      {t.notes.map(n => <p key={n} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[13px] text-slate-700"><strong>Note.</strong> {n}</p>)}
       {t.protective && (
-        <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-900"><strong>Protective clothing.</strong> Standards to check: {t.protective.standards.join(', ')}. {t.protective.evidence}</p>
+        <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-900"><strong>Protective {t.versions.some(v => v.key === 'product-base') ? 'product' : 'clothing'}.</strong> {protectiveText(t)}</p>
+      )}
+      {t.standardCandidates.length > 0 && (
+        <div className="text-[13px] text-slate-600">
+          <strong className="text-slate-800">Standards to verify</strong> (candidates only; the compliance person confirms them before any use):
+          <ul className="mt-1 list-disc space-y-0.5 pl-5">{t.standardCandidates.map(c => <li key={c.standard}><a className="text-rivix underline" href={c.link} target="_blank" rel="noopener noreferrer">{c.standard}</a>{c.appliesTo ? ` (${c.appliesTo})` : ''}</li>)}</ul>
+        </div>
       )}
     </div>
   );

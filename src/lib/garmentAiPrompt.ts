@@ -10,6 +10,7 @@ export interface PromptInput {
   flagList: string; // allowed flag paths
   suggestList: string; // paths the AI may suggest for
   searchAvailable?: boolean; // Google Search is on for this scan (off by default: GEMINI_SCAN_SEARCH)
+  templateNotes?: string[]; // task 27: notes from the product type's template (scope limits); none for the older types
 }
 
 export function buildGarmentPrompt(i: PromptInput): string {
@@ -71,7 +72,7 @@ C. PERSON ONLY:
 # CHECKLIST FOR THIS GARMENT TYPE
 One entry per line below: { "key": the key, "value": what the photos show for it, or "not visible", "needsConfirmation": true or false }.
 needsConfirmation is false only when a photo clearly shows everything the line asks for. Lines about standards, ratings, tests or certification: "not visible" and true.
-${i.checklistText}
+${i.checklistText}${i.templateNotes?.length ? `\nNotes for this product type (follow them; they never allow a claim):\n${i.templateNotes.map((n) => `- ${n}`).join('\n')}` : ''}
 
 # FLAGS
 "flags": the path of every value you wrote but are not fully sure of, and of every value you read from printed text. Blank and "not visible" values are flagged for you. Allowed paths: ${i.flagList}.

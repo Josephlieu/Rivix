@@ -1,4 +1,4 @@
-// Checks the garment template data (families, modules, the 35 types) and, when the SQL has been run, the template column on dev.
+// Checks the garment template data (families, modules, all 83 types since task 27) and, when the SQL has been run, the template column on dev.
 // Run: node scripts/e2e/garment-templates.test.mjs   (re-runs itself with the TypeScript loader; needs .env.local only for the last block)
 import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
@@ -16,9 +16,11 @@ const resolveTemplate = (k, f) => C.resolveTemplate(k, f, C.BUILT_IN_CATALOG);
 const familyKeyFor = (k, f) => C.familyKeyFor(k, f, C.BUILT_IN_CATALOG);
 
 const typeKeys = D.DEFAULT_GARMENT_TYPES.map(t => t.key);
-ok("41 garment types (the client's 35 plus 6 from the catalogue) in 3 categories", typeKeys.length === 41 && D.DEFAULT_GARMENT_CATEGORIES.length === 3 && new Set(typeKeys).size === 41 && D.CATALOGUE_TYPES.length === 6);
-ok('every type has a template mapping', typeKeys.every(k => TYPE_TEMPLATES[k]), typeKeys.filter(k => !TYPE_TEMPLATES[k]).join(','));
-ok('no mapping for a type that does not exist', Object.keys(TYPE_TEMPLATES).every(k => typeKeys.includes(k)));
+// Task 27: 83 types in the client's 9 categories = the 41 older ones (the client's 35 + 6 from the catalogue) + 42 new ones.
+const olderKeys = typeKeys.filter(k => !D.ADDED_TYPE_KEYS.includes(k));
+ok("83 product types in 9 categories: the 41 older (client's 35 + 6 from the catalogue) and 42 new", typeKeys.length === 83 && D.DEFAULT_GARMENT_CATEGORIES.length === 9 && new Set(typeKeys).size === 83 && olderKeys.length === 41 && D.ADDED_TYPE_KEYS.length === 42 && D.CATALOGUE_TYPE_KEYS.every(k => olderKeys.includes(k)));
+ok('every older type keeps its task 26 template mapping, and only those', olderKeys.every(k => TYPE_TEMPLATES[k]) && Object.keys(TYPE_TEMPLATES).every(k => olderKeys.includes(k)), olderKeys.filter(k => !TYPE_TEMPLATES[k]).join(','));
+ok('every type (older and new) has a template in the built-in catalog, and no mapping points at a missing type', typeKeys.every(k => C.BUILT_IN_CATALOG.types[k]) && Object.keys(C.BUILT_IN_CATALOG.types).every(k => typeKeys.includes(k)));
 ok('every mapped family and module exists', Object.values(TYPE_TEMPLATES).every(m => familyByKey(m.family) && (m.modules || []).every(x => MODULES.some(mm => mm.key === x))));
 ok('family keys are unique', new Set(FAMILIES.map(f => f.key)).size === FAMILIES.length);
 ok('module keys are unique', new Set(MODULES.map(m => m.key)).size === MODULES.length);
@@ -62,7 +64,8 @@ if (fs.existsSync(sqlPath)) {
 const catPath = 'audit-docs/deliverables/dev-patch-garment-types-catalogue.sql';
 if (fs.existsSync(catPath)) {
   const rows = [...fs.readFileSync(catPath, 'utf8').matchAll(/\('([^']+)', '([^']+)', '([^']+)', (\d+), '([^']+)'\)/g)];
-  ok('the catalogue SQL file matches the code (6 types: key, label, category, sort, family)', rows.length === 6 && rows.every(([, k, l, c, so, f]) => { const t = D.CATALOGUE_TYPES.find(x => x.key === k); return t && t.label === l && t.category === c && t.sort === Number(so) && TYPE_TEMPLATES[k]?.family === f; }));
+  // Category and sort moved in task 27 (task-27-categories-and-templates.sql); key, label and family are unchanged.
+  ok('the catalogue SQL file matches the code (6 types: key, label, family)', rows.length === 6 && rows.every(([, k, l, , , f]) => { const t = D.DEFAULT_GARMENT_TYPES.find(x => x.key === k); return D.CATALOGUE_TYPE_KEYS.includes(k) && t && t.label === l && TYPE_TEMPLATES[k]?.family === f; }));
 }
 
 // The column on dev (after dev-patch-garment-families.sql)

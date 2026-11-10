@@ -127,6 +127,7 @@ export async function POST(req: NextRequest) {
       typeName,
       customerNotes,
       checklistText,
+      templateNotes: template.notes,
       flagList: Object.keys(FLAGGABLE).join(', '),
       suggestList: Array.from(SUGGESTABLE).join(', '),
     });
