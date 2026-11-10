@@ -19,7 +19,8 @@ const files = fs.readdirSync(dir).filter((f) => f.endsWith('.test.mjs')).sort();
 let pass = 0, fail = 0;
 const failed = [];
 for (const f of files) {
-  const r = spawnSync('node', [path.join(dir, f)], { encoding: 'utf8', timeout: 5 * 60 * 1000 });
+  // The loader lets tests import the app's TypeScript source directly (relative imports without extensions).
+  const r = spawnSync('node', ['--experimental-strip-types', '--no-warnings', '--import', path.join(dir, 'ts-resolve.mjs'), path.join(dir, f)], { encoding: 'utf8', timeout: 5 * 60 * 1000 });
   const out = (r.stdout || '') + (r.stderr || '');
   const p = (out.match(/^PASS/gm) || []).length;
   const bad = (out.match(/^FAIL|^ERROR/gm) || []).length + (r.status ? 1 : 0);

@@ -72,7 +72,7 @@ try{
     r=await call('DELETE',`/api/admin/catalogs/${catId}`,ck); ok(`${n} cannot remove a catalog`,r.status===401||r.status>=300);
   }
   for(const [p,ck] of [['/portal/catalogs',cc],['/rep/catalogs',rc],['/admin/catalogs',ac]]){ const pg=await fetch('http://localhost:10001'+p,{headers:{Cookie:ck},redirect:'manual'}); ok(`${p} loads`,pg.status===200,pg.status); }
-  const red=await fetch('http://localhost:10001/admin/products',{headers:{Cookie:ac},redirect:'manual'}); ok('/admin/products redirects to /admin/catalogs',red.status>=300&&red.status<400&&/\/admin\/catalogs/.test(red.headers.get('location')||''),red.status);
+  const red=await fetch('http://localhost:10001/admin/products',{headers:{Cookie:ac},redirect:'manual'}); ok('/admin/products no longer redirects to Catalogs (it is the product specs screen since task 7)',red.status===200&&!/\/admin\/catalogs/.test(red.headers.get('location')||''),red.status);
 
   // edit, replace, remove
   r=await call('PATCH',`/api/admin/catalogs/${catId}`,ac,{title:'ZZ Catalog 2026 (Spring)',description:''}); ok('admin edits the title and clears the description',r.status===200&&(await a.from('catalogs').select('title,description').eq('id',catId).single()).data.title==='ZZ Catalog 2026 (Spring)');
