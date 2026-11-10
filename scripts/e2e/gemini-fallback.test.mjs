@@ -5,7 +5,8 @@
 const ok = (n, c, x = '') => console.log(c ? 'PASS' : 'FAIL', n, x);
 const G = await import('../../src/lib/gemini-model.ts');
 const A = await import('../../src/lib/garmentAiAnalysis.ts');
-const { resolveTemplate } = await import('../../src/lib/garment-templates.ts');
+const C = await import('../../src/lib/template-catalog.ts');
+const resolveTemplate = (k, f) => C.resolveTemplate(k, f, C.BUILT_IN_CATALOG); // task 26: built-in catalog
 
 const quota = () => new Error('{"error":{"code":429,"status":"RESOURCE_EXHAUSTED","message":"quota exceeded"}}');
 const notFound = () => new Error('{"error":{"code":404,"status":"NOT_FOUND"}}');

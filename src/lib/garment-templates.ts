@@ -3,7 +3,9 @@
 // plus optional MODULES (add-ons such as insulation, waterproofing, hi-vis, FR or arc rating that add checklist items and protective notes).
 // Types such as scrubs, rain suit or arc rated clothing are COMPOSED of several families (a top and pants, and so on).
 // This is plain data: nothing here is a measurement value. Target sizes, tolerances and grading come later from approved charts and samples.
-// Client-safe (no server imports) so the screens, the PDF and the AI prompt can all use it. Relative imports only.
+// Client-safe (no server imports). Relative imports only.
+// Since task 26 this is version 1 of the templates: the database is seeded from it, and it is the fallback when the
+// database cannot be read. Changing it does NOT change the database; templates change by adding a version there (task 31).
 
 /** Where a value usually comes from: 'photo' = often readable from a photo (still confirm), 'document' = needs a spec sheet, sample or supplier data. */
 export type Source = 'photo' | 'document';
@@ -590,33 +592,5 @@ export const TYPE_TEMPLATES: Record<string, TypeTemplate> = {
 export const familyByKey = (key: string | null | undefined): Family | undefined => FAMILIES.find((f) => f.key === key);
 export const moduleByKey = (key: string): Module | undefined => MODULES.find((m) => m.key === key);
 
-/** The family key for a garment type: the one saved on the type (admins can set it), else the built-in mapping, else the general one. */
-export function familyKeyFor(typeKey: string, saved?: string | null): string {
-  if (saved && familyByKey(saved)) return saved;
-  return TYPE_TEMPLATES[typeKey]?.family ?? 'generic';
-}
-
-export interface ResolvedTemplate {
-  family: Family;
-  modules: Module[];
-  parts: Family[]; // for a kit, the families it is made of; otherwise just the family itself
-  checklist: ChecklistItem[]; // common items, then each part's items, then the modules' items (no duplicates)
-  protective: ProtectiveInfo | null; // merged from the modules; null when the garment has no protective claim
-}
-
-/** Everything the tech file and the AI need to know about one garment type. */
-export function resolveTemplate(typeKey: string, savedFamily?: string | null): ResolvedTemplate {
-  const family = familyByKey(familyKeyFor(typeKey, savedFamily)) as Family;
-  const modules = (TYPE_TEMPLATES[typeKey]?.modules ?? []).map(moduleByKey).filter((m): m is Module => !!m);
-  const parts = family.composedOf ? family.composedOf.map(familyByKey).filter((f): f is Family => !!f) : [family];
-  const seen = new Set<string>();
-  const checklist: ChecklistItem[] = [];
-  for (const item of [...COMMON_ITEMS, ...parts.flatMap((f) => f.construction), ...modules.flatMap((m) => m.construction)]) {
-    if (seen.has(item.key)) continue;
-    seen.add(item.key);
-    checklist.push(item);
-  }
-  const standards = Array.from(new Set(modules.flatMap((m) => m.protective?.standards ?? [])));
-  const protective = modules.some((m) => m.protective) ? { standards, evidence: WARN } : null;
-  return { family, modules, parts, checklist, protective };
-}
+// resolveTemplate() and familyKeyFor() moved to ./template-catalog.ts (task 26): templates are now read from the database,
+// and this file is the seed (scripts/generate-template-seed.mjs) and the code fallback (BUILT_IN_CATALOG).

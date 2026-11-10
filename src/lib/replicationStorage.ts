@@ -1,5 +1,6 @@
 import type { PersistedGarmentAIAnalysis } from './garmentAiAnalysis';
 import type { GarmentCategory, GarmentType } from './garment-types-data';
+import type { TemplateCatalog } from './template-catalog';
 
 export interface ReplicationSpec {
   fabricWeight: string;
@@ -143,7 +144,7 @@ export const getReplicationLookups = async (): Promise<ReplicationLookups> => {
   return (await res.json()) as ReplicationLookups;
 };
 
-export interface GarmentLibraryData { categories: GarmentCategory[]; types: GarmentType[]; editable: boolean }
+export interface GarmentLibraryData { categories: GarmentCategory[]; types: GarmentType[]; editable: boolean; templates?: TemplateCatalog }
 
 /** The garment categories and types for the new-request form (admins can ask for the inactive ones too). */
 export const getGarmentTypes = async (all = false): Promise<GarmentLibraryData> => {

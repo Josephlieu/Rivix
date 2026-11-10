@@ -7,7 +7,8 @@ if (!process.env.M3_CHILD) {
   process.exit(r.status ?? 1);
 }
 const ok = (n, c, x = '') => console.log(c ? 'PASS' : 'FAIL', n, x);
-const { resolveTemplate } = await import('../../src/lib/garment-templates.ts');
+const C = await import('../../src/lib/template-catalog.ts');
+const resolveTemplate = (k, f) => C.resolveTemplate(k, f, C.BUILT_IN_CATALOG); // task 26: built-in catalog
 const A = await import('../../src/lib/garmentAiAnalysis.ts');
 const S = await import('../../src/lib/techFileStandards.ts');
 

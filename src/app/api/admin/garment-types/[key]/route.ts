@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/require-admin';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { clearGarmentCache, loadGarmentLibrary } from '@/lib/garment-types';
-import { familyByKey } from '@/lib/garment-templates';
+import { getTemplateCatalog, clearTemplateCache } from '@/lib/template-store';
 
 // Rename a type, move it to another category, switch it on or off, or move it up or down inside its category.
 // Types are never deleted: older requests keep their type. Switching one off only hides it from the new-request form.
@@ -34,7 +34,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ke
   if ('active' in body) update.active = Boolean(body.active);
   if ('templateFamily' in body) {
     const family = String(body.templateFamily ?? '');
-    if (family && !familyByKey(family)) return NextResponse.json({ error: 'Choose a template from the list.' }, { status: 400 });
+    if (family && !(await getTemplateCatalog()).templates.some((t) => t.kind === 'family' && t.key === family)) return NextResponse.json({ error: 'Choose a template from the list.' }, { status: 400 });
     update.template_family = family || null;
   }
 
@@ -55,5 +55,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ke
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   }
   clearGarmentCache();
+  clearTemplateCache(); // a type's family or category feeds the template catalog
   return NextResponse.json({ ok: true });
 }

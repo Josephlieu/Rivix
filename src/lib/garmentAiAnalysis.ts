@@ -1,5 +1,5 @@
 /** Serializable AI analysis saved on each replication request */
-import type { ResolvedTemplate } from './garment-templates';
+import type { ResolvedTemplate } from './template-catalog';
 
 /** Set by the server only: a person has checked the draft. Any later edit turns it back into a draft. */
 export interface AnalysisReview {

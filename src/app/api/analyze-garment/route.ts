@@ -4,7 +4,8 @@ import { getReplicationActor, unauthorized, canAccess } from '@/lib/replication-
 import { GoogleGenAI } from '@google/genai';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { isValidReplicationId, REPLICATION_BUCKET } from '@/lib/replication-server';
-import { resolveTemplate } from '@/lib/garment-templates';
+import { resolveTemplate } from '@/lib/template-catalog';
+import { getTemplateCatalog } from '@/lib/template-store';
 import { applyTemplate, FLAGGABLE, SUGGESTABLE, type GivenValues } from '@/lib/garmentAiAnalysis';
 import { buildGarmentPrompt } from '@/lib/garmentAiPrompt';
 import { GARMENT_RESPONSE_SCHEMA } from '@/lib/garmentAiSchema';
@@ -115,7 +116,7 @@ export async function POST(req: NextRequest) {
       const { data: gt } = await createAdminClient().from('garment_types').select('template_family').eq('key', garmentKey).maybeSingle();
       savedFamily = (gt?.template_family as string | null) ?? null;
     }
-    const template = resolveTemplate(garmentKey || 'jacket', savedFamily);
+    const template = resolveTemplate(garmentKey || 'jacket', savedFamily, await getTemplateCatalog());
     const typeName = garmentKey ? garmentTypeLabel(garmentKey) : 'unknown';
     const checklistText = template.checklist.map((i) => `- ${i.key}: ${i.label}${i.required ? ' (required)' : ''}`).join('\n');
 
@@ -173,7 +174,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       status: 'success',
-      analysis: analysisData && typeof analysisData === 'object' ? applyTemplate(analysisData as Record<string, unknown>, template, given) : analysisData,
+      // The template versions this draft was made with are saved with it (task 26): a template change never alters it.
+      analysis: analysisData && typeof analysisData === 'object' ? { ...applyTemplate(analysisData as Record<string, unknown>, template, given), template: { versions: template.versions, certification: template.certification } } : analysisData,
       ...(note ? { note } : {}),
     });
   } catch (error: unknown) {

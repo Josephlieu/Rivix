@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/require-admin';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { clearGarmentCache, loadGarmentLibrary } from '@/lib/garment-types';
-import { familyByKey } from '@/lib/garment-templates';
+import { getTemplateCatalog, clearTemplateCache } from '@/lib/template-store';
 
 const NOT_READY = 'The garment library is not set up on this database yet. Run dev-patch-garment-types.sql in the Supabase SQL Editor first.';
 
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
   for (let n = 2; lib.types.some((t) => t.key === key); n++) key = `${base}-${n}`;
   const sort = Math.max(0, ...lib.types.map((t) => t.sort)) + 10;
   const family = String(body?.templateFamily ?? '');
-  if (family && !familyByKey(family)) return NextResponse.json({ error: 'Choose a template from the list.' }, { status: 400 });
+  if (family && !(await getTemplateCatalog()).templates.some((t) => t.kind === 'family' && t.key === family)) return NextResponse.json({ error: 'Choose a template from the list.' }, { status: 400 });
 
   // template_family exists once dev-patch-garment-families.sql has been run; before that the type is added without it.
   const { data, error } = await admin.from('garment_types').insert({ key, label, category, sort, ...(family ? { template_family: family } : {}) }).select('key, label, category, sort, active').single();
@@ -38,5 +38,6 @@ export async function POST(req: NextRequest) {
   }
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   clearGarmentCache();
+  clearTemplateCache(); // a type's family or category feeds the template catalog
   return NextResponse.json({ type: data }, { status: 201 });
 }

@@ -5,13 +5,13 @@ import Link from 'next/link';
 import { ArrowLeft, ArrowUp, ArrowDown, Check, ChevronDown, Loader2, Pencil, Plus, X } from 'lucide-react';
 import Toast, { type ToastMessage } from '@/components/Toast';
 import { getGarmentTypes, type GarmentLibraryData } from '@/lib/replicationStorage';
-import { FAMILIES, familyKeyFor, resolveTemplate } from '@/lib/garment-templates';
+import { BUILT_IN_CATALOG, familyChoices, familyKeyFor, resolveTemplate, type TemplateCatalog } from '@/lib/template-catalog';
 
 const field = 'w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm focus:border-rivix/40 focus:outline-none focus:ring-2 focus:ring-rivix/10';
 
 // What the tech file will ask for on a garment of this type: the measurement points, the construction checklist, sizing and protective notes.
-function TemplatePanel({ typeKey, family }: { typeKey: string; family: string | null | undefined }) {
-  const t = resolveTemplate(typeKey, family);
+function TemplatePanel({ typeKey, family, catalog }: { typeKey: string; family: string | null | undefined; catalog: TemplateCatalog }) {
+  const t = resolveTemplate(typeKey, family, catalog);
   return (
     <div className="space-y-5 border-t border-slate-100 bg-slate-50/60 px-5 py-5 text-sm">
       <p className="text-slate-600"><strong className="text-slate-800">{t.family.label}</strong>{t.modules.length > 0 && <> + {t.modules.map(m => m.label).join(', ')}</>}. {t.family.description}</p>
@@ -54,6 +54,7 @@ function TemplatePanel({ typeKey, family }: { typeKey: string; family: string | 
 // reorder them, and switch them off (hidden from the new-request form; older requests keep their type).
 export default function GarmentTypesAdmin() {
   const [lib, setLib] = useState<GarmentLibraryData | null>(null);
+  const catalog: TemplateCatalog = lib?.templates ?? BUILT_IN_CATALOG; // templates from the database (task 26)
   const [error, setError] = useState('');
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
@@ -144,7 +145,7 @@ export default function GarmentTypesAdmin() {
           <span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Template</span>
           <select className={field} value={newFamily} onChange={(e) => setNewFamily(e.target.value)} disabled={!lib.editable}>
             <option value="">General garment</option>
-            {FAMILIES.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
+            {familyChoices(catalog).map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
           </select>
         </label>
         <button disabled={!lib.editable || adding || !newLabel.trim()} className="flex h-[42px] items-center justify-center gap-2 rounded-xl bg-rivix px-5 text-sm font-bold text-white shadow-lg shadow-rivix/30 hover:bg-rivix-dark disabled:opacity-40">
@@ -174,8 +175,8 @@ export default function GarmentTypesAdmin() {
                   <select className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs" value={t.category} disabled={!lib.editable || busyKey === t.key} onChange={(e) => change(t.key, { category: e.target.value }, 'Moved.')} aria-label={`Category of ${t.label}`}>
                     {lib.categories.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
                   </select>
-                  <select className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs" value={familyKeyFor(t.key, t.templateFamily)} disabled={!lib.editable || busyKey === t.key} onChange={(e) => change(t.key, { templateFamily: e.target.value }, 'Template changed.')} aria-label={`Template of ${t.label}`}>
-                    {FAMILIES.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
+                  <select className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs" value={familyKeyFor(t.key, t.templateFamily, catalog)} disabled={!lib.editable || busyKey === t.key} onChange={(e) => change(t.key, { templateFamily: e.target.value }, 'Template changed.')} aria-label={`Template of ${t.label}`}>
+                    {familyChoices(catalog).map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
                   </select>
                   <button type="button" onClick={() => setOpenKey(openKey === t.key ? null : t.key)} aria-expanded={openKey === t.key} className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-bold text-slate-500 hover:text-rivix">
                     Template <ChevronDown size={14} className={openKey === t.key ? 'rotate-180' : ''} />
@@ -188,7 +189,7 @@ export default function GarmentTypesAdmin() {
                   <button type="button" disabled={!lib.editable || busyKey === t.key} onClick={() => change(t.key, { active: !t.active }, t.active ? `${t.label} switched off.` : `${t.label} switched on.`)} className={`rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-widest ${t.active ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' : 'bg-slate-200 text-slate-500 hover:bg-slate-300'} disabled:opacity-50`}>
                     {busyKey === t.key ? <Loader2 size={12} className="inline animate-spin" /> : t.active ? 'On' : 'Off'}
                   </button>
-                  {openKey === t.key && <div className="-mx-5 -mb-3 mt-1 w-[calc(100%+2.5rem)]"><TemplatePanel typeKey={t.key} family={t.templateFamily} /></div>}
+                  {openKey === t.key && <div className="-mx-5 -mb-3 mt-1 w-[calc(100%+2.5rem)]"><TemplatePanel typeKey={t.key} family={t.templateFamily} catalog={catalog} /></div>}
                 </li>
               ))}
               {rows.length === 0 && <li className="px-5 py-4 text-sm text-slate-400">No garment types in this category.</li>}

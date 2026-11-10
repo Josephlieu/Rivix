@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import type { PersistedGarmentAIAnalysis } from '@/lib/garmentAiAnalysis';
 import type { ReplicationRequest, ReplicationSpec } from '@/lib/replicationStorage';
 import { suggestedTests, suggestFrenchCare, prefillSpecs, HIVIS_STANDARDS, TAPE_OPTIONS } from '@/lib/techFileStandards';
-import { resolveTemplate } from '@/lib/garment-templates';
+import { resolveTemplate, BUILT_IN_CATALOG, type TemplateCatalog } from '@/lib/template-catalog';
 import { checklistFor, templateMeasurements, outstandingConfirmations } from '@/lib/garmentAiAnalysis';
 import { getGarmentTypes } from '@/lib/replicationStorage';
 
@@ -108,9 +108,11 @@ function ListBox({ name, hint, value, onChange, flagged, onConfirm, suggestion, 
 
 export default function ReviewTab({ rep, onSave }: Props) {
   // The garment type's template (the family an admin set on the type, else the built-in one) pre-fills the checklist and the measurement points.
+  // Templates come from the database (task 26); the built-in ones are used until they have loaded, or if they cannot be.
   const [family, setFamily] = useState<string | null>(null);
-  useEffect(() => { getGarmentTypes().then(l => setFamily(l.types.find(t => t.key === rep.garmentType)?.templateFamily ?? null)).catch(() => {}); }, [rep.garmentType]);
-  const template = resolveTemplate(rep.garmentType, family);
+  const [catalog, setCatalog] = useState<TemplateCatalog>(BUILT_IN_CATALOG);
+  useEffect(() => { getGarmentTypes().then(l => { setFamily(l.types.find(t => t.key === rep.garmentType)?.templateFamily ?? null); if (l.templates) setCatalog(l.templates); }).catch(() => {}); }, [rep.garmentType]);
+  const template = resolveTemplate(rep.garmentType, family, catalog);
   const fromRep = () => {
     const analysis = (rep.aiAnalysis ? structuredClone(rep.aiAnalysis) : emptyAnalysis()) as Analysis;
     if (!analysis.checklist) analysis.checklist = checklistFor(template);

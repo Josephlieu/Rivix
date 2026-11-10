@@ -10,7 +10,10 @@ if (!process.env.GT_CHILD) {
 const ok = (n, c, x = '') => console.log(c ? 'PASS' : 'FAIL', n, x);
 const T = await import('../../src/lib/garment-templates.ts');
 const D = await import('../../src/lib/garment-types-data.ts');
-const { FAMILIES, MODULES, TYPE_TEMPLATES, resolveTemplate, familyKeyFor, familyByKey } = T;
+const { FAMILIES, MODULES, TYPE_TEMPLATES, familyByKey } = T;
+const C = await import('../../src/lib/template-catalog.ts'); // task 26: resolving moved here; these checks use the built-in catalog
+const resolveTemplate = (k, f) => C.resolveTemplate(k, f, C.BUILT_IN_CATALOG);
+const familyKeyFor = (k, f) => C.familyKeyFor(k, f, C.BUILT_IN_CATALOG);
 
 const typeKeys = D.DEFAULT_GARMENT_TYPES.map(t => t.key);
 ok("41 garment types (the client's 35 plus 6 from the catalogue) in 3 categories", typeKeys.length === 41 && D.DEFAULT_GARMENT_CATEGORIES.length === 3 && new Set(typeKeys).size === 41 && D.CATALOGUE_TYPES.length === 6);
