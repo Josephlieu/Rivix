@@ -48,5 +48,5 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     await admin.storage.from(REPLICATION_BUCKET).remove([path]); // don't leave an orphan file
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-  return NextResponse.json({ replication: await rowToReplication(admin, data) });
+  return NextResponse.json({ replication: await rowToReplication(admin, data, actor.kind) });
 }

@@ -17,8 +17,27 @@ const optText = (v: unknown, max: number) => { const t = text(v, max); return t 
 
 type Row = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
-/** Photos are stored as paths; the page gets short-lived private links, in the same order. */
-export async function rowToReplication(admin: SupabaseClient, r: Row, reps?: Map<string, RepInfo>) {
+// Tech files are ADMIN ONLY (task 33). A rep gets the request, its photos, its status and the inbound parcel, but never
+// the AI draft, the measurements or any spec detail (the AI fills spec fields after a scan, so none of them can be shown).
+// These are the only spec keys a rep may receive or change: they are about the parcel, not the garment.
+export const REP_SPEC_KEYS = ['garmentPosted', 'inboundReceivedAt'] as const;
+export type ReplicationViewer = 'admin' | 'rep';
+
+/** Where the tech file is, without any of its content: safe for a rep. */
+export function techFileSummary(analysis: Row | null | undefined): { status: 'none' | 'draft' | 'approved'; revision: number } {
+  if (!analysis || typeof analysis !== 'object') return { status: 'none', revision: 0 };
+  const review = (analysis as Row).review;
+  return { status: review?.status === 'approved' ? 'approved' : 'draft', revision: Number(review?.revision) || 0 };
+}
+
+const repSpecs = (specs: unknown): Row => {
+  const s = specs && typeof specs === 'object' && !Array.isArray(specs) ? (specs as Row) : {};
+  return Object.fromEntries(REP_SPEC_KEYS.filter(k => s[k] !== undefined).map(k => [k, s[k]]));
+};
+
+/** Photos are stored as paths; the page gets short-lived private links, in the same order.
+ *  `viewer` decides what is sent: a rep never receives the AI draft or spec details. */
+export async function rowToReplication(admin: SupabaseClient, r: Row, viewer: ReplicationViewer, reps?: Map<string, RepInfo>) {
   const repMap = reps ?? (await repsByIds(admin, [r.rep_id]));
   const rep = r.rep_id ? repMap.get(r.rep_id as string) : undefined;
   const paths: string[] = Array.isArray(r.images) ? r.images.filter((p: unknown) => typeof p === 'string') : [];
@@ -43,13 +62,14 @@ export async function rowToReplication(admin: SupabaseClient, r: Row, reps?: Map
     submissionDate: r.submission_date || String(r.created_at || '').slice(0, 10),
     images: urls,
     imagePaths: paths,
-    specs: r.specs && typeof r.specs === 'object' ? r.specs : {},
+    specs: viewer === 'admin' ? (r.specs && typeof r.specs === 'object' ? r.specs : {}) : repSpecs(r.specs),
     clientTrackingCarrier: r.client_tracking_carrier ?? undefined,
     clientTrackingNumber: r.client_tracking_number ?? undefined,
     rivixTrackingCarrier: r.rivix_tracking_carrier ?? undefined,
     rivixTrackingNumber: r.rivix_tracking_number ?? undefined,
     messages: [], // the old in-row chat is no longer used: see /api/replications/[id]/messages
-    aiAnalysis: r.ai_analysis ?? null,
+    aiAnalysis: viewer === 'admin' ? r.ai_analysis ?? null : null,
+    techFile: techFileSummary(r.ai_analysis),
   };
 }
 
@@ -116,6 +136,17 @@ export function approvalProblem(analysis: Row | null): string | null {
   const open = outstandingConfirmations(analysis);
   if (open.length) return `${open.length} item${open.length > 1 ? 's' : ''} still need confirmation: ${open.slice(0, 5).join(', ')}${open.length > 5 ? '…' : ''}. Check each against the garment and confirm it.`;
   return null;
+}
+
+/** A rep's save: the AI draft and every spec detail stay exactly as saved; only the parcel keys may change.
+ *  The tracking number changing clears the received date (the parcel is a new one), as the inbound parcel card does. */
+export function repSafeUpdate(row: Row, existing: Row): void {
+  row.ai_analysis = existing.ai_analysis ?? null;
+  const saved = existing.specs && typeof existing.specs === 'object' && !Array.isArray(existing.specs) ? { ...(existing.specs as Row) } : {};
+  const sent = row.specs && typeof row.specs === 'object' ? (row.specs as Row) : {};
+  if (typeof sent.garmentPosted === 'boolean') saved.garmentPosted = sent.garmentPosted;
+  if ((row.client_tracking_number ?? null) !== (existing.client_tracking_number ?? null)) delete saved.inboundReceivedAt;
+  row.specs = saved;
 }
 
 /** The analysis to store, with its review state worked out from the saved copy. */

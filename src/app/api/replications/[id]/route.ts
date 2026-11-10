@@ -3,7 +3,7 @@ import { createAdminClient } from '@/lib/supabase-admin';
 import { logRepActivity } from '@/lib/rep-activity';
 import { allowedGarmentKeys } from '@/lib/garment-types';
 import { getReplicationActor, unauthorized, notFound, canAccess, repsByIds, requestLink } from '@/lib/replication-access';
-import { isValidReplicationId, replicationToRow, rowToReplication, applyReview, approvalProblem, REPLICATION_BUCKET } from '@/lib/replication-server';
+import { isValidReplicationId, replicationToRow, rowToReplication, applyReview, approvalProblem, repSafeUpdate, REPLICATION_BUCKET } from '@/lib/replication-server';
 import { notifyUsers } from '@/lib/notify';
 
 // One request, found by its id or by its readable number (RQ-0001). A rep only gets their own.
@@ -19,11 +19,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const { data, error } = await admin.from('replications').select('*').eq(byCode ? 'request_code' : 'id', byCode ? id.toUpperCase() : id).maybeSingle();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!data || !canAccess(actor, data)) return notFound();
-  return NextResponse.json({ replication: await rowToReplication(admin, data) });
+  return NextResponse.json({ replication: await rowToReplication(admin, data, actor.kind) });
 }
 
-// Save changes. Admin: everything (status, approval, tracking, which rep owns it). Rep: only the photo order, the
-// specification and the scan result of their OWN request; status, approval, dispatch and ownership never change.
+// Save changes. Admin: everything (status, approval, tracking, which rep owns it). Rep (their OWN request only): the
+// names, the photo order and the inbound parcel. The AI draft and spec details are admin only (task 33): whatever a rep
+// sends for them is ignored, and status, approval, dispatch and ownership never change.
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const actor = await getReplicationActor();
   if (!actor) return unauthorized();
@@ -52,6 +53,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   parsed.row.ai_analysis = applyReview(parsed.row.ai_analysis, existing.ai_analysis, approve, actor.email);
 
   if (!isAdmin) {
+    repSafeUpdate(parsed.row, existing); // the AI draft and spec details stay as the admin saved them
     // A rep never moves the request along, changes who owns it, or touches the dispatch details.
     parsed.row.status = existing.status;
     parsed.row.rivix_tracking_carrier = existing.rivix_tracking_carrier ?? null;
@@ -101,7 +103,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     else if (data.status !== existing.status && data.status === 'sample_shipped') await notifyUsers(admin, [repUser], { kind: 'replication_status', title: `${code}: sample shipped`, body: what, link });
   }
 
-  return NextResponse.json({ replication: await rowToReplication(admin, data) });
+  return NextResponse.json({ replication: await rowToReplication(admin, data, actor.kind) });
 }
 
 // Delete a request and its photos (admin only).

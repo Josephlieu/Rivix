@@ -192,7 +192,7 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
     if (typeof window === 'undefined') return 'specs';
     const q = new URLSearchParams(window.location.search).get('tab');
     const found = (Object.keys(TAB_QUERY) as TabId[]).find(k => TAB_QUERY[k] === q) ?? 'specs';
-    return !isAdmin && found === 'review' ? 'specs' : found;
+    return !isAdmin && (found === 'review' || found === 'ai_analysis') ? 'specs' : found; // tech files are admin only
   });
   // The address can change WITHOUT the page reloading (for example when a notification is clicked while this request is
   // open, or when moving here from another screen): follow it, so ?tab=chat always opens the chat.
@@ -200,7 +200,7 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
   const tabParam = searchParams.get('tab');
   useEffect(() => {
     const found = (Object.keys(TAB_QUERY) as TabId[]).find(k => TAB_QUERY[k] === tabParam);
-    if (found && (isAdmin || found !== 'review')) setActiveTabState(found);
+    if (found && (isAdmin || (found !== 'review' && found !== 'ai_analysis'))) setActiveTabState(found);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabParam]);
   const setActiveTab = (t: TabId) => {
@@ -876,11 +876,11 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
                   <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Tech file</p>
                   <div className="mt-2 flex h-10 items-center">
                     <p className="text-sm font-semibold text-slate-800">
-                      {!isAdmin ? 'Admin only' : downloads.length > 0 ? `Downloaded ${downloads.length} time${downloads.length === 1 ? '' : 's'}` : 'Not downloaded yet'}
+                      {!isAdmin ? (selectedRep.techFile?.status === 'approved' ? `Approved${selectedRep.techFile.revision ? ` (revision ${selectedRep.techFile.revision})` : ''}` : selectedRep.techFile?.status === 'draft' ? 'Draft in progress' : 'Not started') : downloads.length > 0 ? `Downloaded ${downloads.length} time${downloads.length === 1 ? '' : 's'}` : 'Not downloaded yet'}
                     </p>
                   </div>
                   <p className="mt-1.5 text-[12px] text-slate-400">
-                    {!isAdmin ? 'Only the admin can download it.' : downloads.length > 0 ? `Last by ${downloads[0].by || 'an admin'} on ${new Date(downloads[0].at).toLocaleDateString()}.` : 'Download it once the spec is approved.'}
+                    {!isAdmin ? 'The tech file is prepared by RIVIX admin.' : downloads.length > 0 ? `Last by ${downloads[0].by || 'an admin'} on ${new Date(downloads[0].at).toLocaleDateString()}.` : 'Download it once the spec is approved.'}
                   </p>
                 </div>
               </div>
@@ -895,8 +895,8 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
                 ];
                 const at = Math.max(0, steps.findIndex(x => x.key === selectedRep.status));
                 const approvedReview = selectedRep.aiAnalysis?.review?.status === 'approved';
-                const repHint = at === 0 && !selectedRep.aiAnalysis ? 'Next: add the photos and run the AI scan (AI Garment Analysis tab). The admin then reviews and approves.'
-                  : at === 0 ? 'The AI draft is ready. The admin reviews and approves it. Use the Team chat to talk to the admin.'
+                const repHint = at === 0 && selectedRep.techFile?.status !== 'draft' ? 'Next: add clear photos of the garment. RIVIX admin runs the scan and prepares the tech file.'
+                  : at === 0 ? 'RIVIX admin is preparing the tech file. Use the Team chat to talk to the admin.'
                   : at === 1 ? 'Approved by the admin. The admin starts sample production.'
                   : at === 2 ? 'The sample is being made. You are notified when it ships.'
                   : 'The sample has shipped.';
@@ -949,6 +949,7 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
               >
                 Client Spec Review
               </button>
+              {isAdmin && (
               <button 
                 onClick={() => setActiveTab('ai_analysis')}
                 className={`pb-4 px-4 text-xs font-bold uppercase tracking-widest border-b-2 transition-all whitespace-nowrap flex items-center gap-1.5 ${
@@ -959,6 +960,7 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
               >
                 <Sparkles size={12} /> AI Garment Analysis
               </button>
+              )}
               {isAdmin && (
               <button 
                 onClick={() => setActiveTab('review')}
@@ -1085,7 +1087,8 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
                     </div>
                   )}
 
-                  {/* Material checklist Table */}
+                  {/* Material checklist Table (admin only: tech files are prepared by RIVIX admin) */}
+                  {isAdmin ? (
                   <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-sm">
                     <div className="bg-slate-50 px-5 py-4 border-b border-slate-100 flex items-center justify-between">
                       <h3 className="text-xs font-bold text-slate-800 uppercase tracking-widest text-slate-500">Apparel Specs</h3>
@@ -1118,6 +1121,18 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
                       </div>
                     </div>
                   </div>
+                  ) : (
+                    <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm space-y-2" role="note">
+                      <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500">Tech file</h3>
+                      <p className="text-sm font-semibold text-slate-800">The tech file is prepared by RIVIX admin.</p>
+                      <p className="text-[13px] leading-relaxed text-slate-500">
+                        {selectedRep.techFile?.status === 'approved'
+                          ? `It has been approved${selectedRep.techFile.revision ? ` (revision ${selectedRep.techFile.revision})` : ''}.`
+                          : selectedRep.techFile?.status === 'draft' ? 'A draft is being checked by the admin.' : 'Add clear photos of the front, back, inside label and close-ups. The admin takes it from there.'}
+                        {' '}Questions or extra details for the admin go in the Team chat.
+                      </p>
+                    </div>
+                  )}
 
                 </div>
 
@@ -1125,7 +1140,7 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
             )}
 
             {/* TAB: AI GARMENT ANALYSIS */}
-            {activeTab === 'ai_analysis' && selectedRep && (() => {
+            {isAdmin && activeTab === 'ai_analysis' && selectedRep && (() => {
               const analysis = getAIAnalysis(selectedRep.id);
               const componentTypeIcon = (type: string) => {
                 switch(type) {

@@ -34,6 +34,8 @@ function parseJsonFromModel(text: string): unknown {
 export async function POST(req: NextRequest) {
   const actor = await getReplicationActor();
   if (!actor) return unauthorized();
+  // Tech files are admin only (task 33): a rep cannot see the result, so a rep cannot start the scan either.
+  if (actor.kind !== 'admin') return NextResponse.json({ error: 'The AI scan is run by RIVIX admin.' }, { status: 403 });
 
   try {
     const body = await req.json();
@@ -53,7 +55,6 @@ export async function POST(req: NextRequest) {
       }
       const admin = createAdminClient();
       const { data: row } = await admin.from('replications').select('*').eq('id', body.replicationId).maybeSingle();
-      // A rep can only scan their own request (the same answer as "not found" for anyone else's).
       if (!row || !canAccess(actor, row)) return NextResponse.json({ error: 'Request not found.' }, { status: 404 });
       garmentKey = row.garment_type ?? garmentKey;
       const sp = (row.specs && typeof row.specs === 'object' ? row.specs : {}) as Record<string, unknown>;

@@ -22,10 +22,11 @@ const STATUS: Record<ReplicationRequest['status'], { label: string; cls: string 
 };
 
 // Where the specification stands: nothing yet, a draft a person has not approved, or approved.
+// Uses the content-free summary, so it works for reps too (they never receive the draft itself).
 function specState(r: ReplicationRequest): { label: string; cls: string } {
-  const review = r.aiAnalysis?.review;
-  if (review?.status === 'approved') return { label: `Approved${review.revision ? ` · Rev ${review.revision}` : ''}`, cls: 'bg-emerald-100 text-emerald-700' };
-  if (r.aiAnalysis) return { label: 'Draft: needs review', cls: 'bg-amber-100 text-amber-700' };
+  const tf = r.techFile ?? { status: r.aiAnalysis?.review?.status === 'approved' ? 'approved' : r.aiAnalysis ? 'draft' : 'none', revision: Number(r.aiAnalysis?.review?.revision) || 0 };
+  if (tf.status === 'approved') return { label: `Approved${tf.revision ? ` · Rev ${tf.revision}` : ''}`, cls: 'bg-emerald-100 text-emerald-700' };
+  if (tf.status === 'draft') return { label: 'Draft: needs review', cls: 'bg-amber-100 text-amber-700' };
   return { label: 'Not analysed', cls: 'bg-slate-100 text-slate-500' };
 }
 
@@ -65,7 +66,7 @@ export default function ReplicationQueue({ role }: { role: 'admin' | 'rep' }) {
   }, [requests]);
 
   const count = (s: ReplicationRequest['status']) => requests.filter(r => r.status === s).length;
-  const needsReview = requests.filter(r => r.aiAnalysis?.review?.status !== 'approved' && r.status === 'received').length;
+  const needsReview = requests.filter(r => r.status === 'received' && (r.techFile?.status ?? (r.aiAnalysis?.review?.status === 'approved' ? 'approved' : 'none')) !== 'approved').length;
   const dash = (n: number) => (loading ? '–' : n);
 
   const stats: Array<{ label: string; value: number | string; hint: string; alert?: boolean }> = [

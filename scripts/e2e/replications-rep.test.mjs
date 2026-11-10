@@ -63,15 +63,17 @@ try{
   r=await call('GET',`${B}/${B1}`,ra); ok("a rep cannot open another rep's request",r.status===404);
   r=await call('GET',`${B}/${D1}`,ra); ok('nor one the admin handles directly',r.status===404);
   r=await call('POST',`${B}/${B1}/photos`,ra,photo(),true); ok("a rep cannot add photos to another rep's request",r.status===404);
-  r=await call('POST','/api/analyze-garment',ra,{replicationId:B1}); ok("a rep cannot scan another rep's request",r.status===404);
+  r=await call('POST','/api/analyze-garment',ra,{replicationId:B1}); ok("a rep cannot scan another rep's request (no rep can scan: 403)",r.status===403);
   r=await call('POST','/api/analyze-garment',ra,{images:['data:image/png;base64,AAAA']}); ok('a rep cannot scan loose images',r.status===403);
+  r=await call('POST','/api/analyze-garment',ra,{replicationId:A1}); ok('a rep cannot scan their own request either (the admin runs the scan)',r.status===403);
 
   // --- what a rep can and cannot change on their own request
   r=await call('POST',`${B}/${A1}/photos`,ra,photo(),true); j=await r.json(); pathsToClean.push(...(j.replication?.imagePaths||[])); ok('a rep adds photos to their own request',r.status===200&&j.replication?.images?.length===1,j.error||'');
   const cur=(await (await call('GET',`${B}/${A1}`,ra)).json()).replication;
   r=await call('PUT',`${B}/${A1}`,ra,{...cur,aiAnalysis:analysis,specs:{...cur.specs,coreMaterial:'Cotton'},status:'sample_shipped',approve:true,repId:repB.id,rivixTrackingCarrier:'DHL',rivixTrackingNumber:'999',clientTrackingNumber:'IN-1',clientTrackingCarrier:'UPS'}); j=await r.json();
-  ok('a rep saves the spec and scan result',r.status===200&&j.replication?.specs?.coreMaterial==='Cotton'&&j.replication?.aiAnalysis?.garmentClass==='coverall',j.error||'');
-  ok('but cannot move the request, approve it, hand it over or set the dispatch',j.replication?.status==='received'&&j.replication?.aiAnalysis?.review?.status==='draft'&&j.replication?.repId===repA.id&&!j.replication?.rivixTrackingNumber,JSON.stringify([j.replication?.status,j.replication?.aiAnalysis?.review?.status,j.replication?.repId,j.replication?.rivixTrackingNumber]));
+  const {data:savedA1}=await a.from('replications').select('ai_analysis,specs').eq('id',A1).single();
+  ok("a rep's AI draft and spec values are ignored (tech files are admin only)",r.status===200&&savedA1.ai_analysis===null&&!savedA1.specs?.coreMaterial&&j.replication?.aiAnalysis===null,j.error||JSON.stringify(savedA1.specs));
+  ok('but cannot move the request, approve it, hand it over or set the dispatch',j.replication?.status==='received'&&j.replication?.techFile?.status==='none'&&j.replication?.repId===repA.id&&!j.replication?.rivixTrackingNumber,JSON.stringify([j.replication?.status,j.replication?.aiAnalysis?.review?.status,j.replication?.repId,j.replication?.rivixTrackingNumber]));
   ok('a rep can log the inbound parcel',j.replication?.clientTrackingNumber==='IN-1');
   r=await call('DELETE',`${B}/${A1}`,ra); ok('a rep cannot delete a request',r.status===403);
 

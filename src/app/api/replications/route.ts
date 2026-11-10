@@ -24,7 +24,7 @@ export async function GET() {
     return NextResponse.json({ error: dbProblem(error) ? (error.code === 'PGRST205' ? 'The replications table has not been created yet. Run dev-schema-replications.sql in Supabase.' : SQL_HINT) : error.message }, { status: 500 });
   }
   const reps = await repsByIds(admin, (data || []).map(r => r.rep_id));
-  return NextResponse.json({ replications: await Promise.all((data || []).map(r => rowToReplication(admin, r, reps))) });
+  return NextResponse.json({ replications: await Promise.all((data || []).map(r => rowToReplication(admin, r, actor.kind, reps))) });
 }
 
 // Create a request. A rep's request belongs to that rep; an admin may give it to a rep or keep it ("handled directly").
@@ -71,5 +71,5 @@ export async function POST(req: NextRequest) {
     });
   }
   await logRepActivity(admin, { repId, kind: 'replication', by: actor.name, summary: `Replication request ${code} created: ${what}`, link: requestLink('admin', code) });
-  return NextResponse.json({ replication: await rowToReplication(admin, data, reps) });
+  return NextResponse.json({ replication: await rowToReplication(admin, data, actor.kind, reps) });
 }

@@ -55,7 +55,9 @@ export interface ReplicationRequest {
     timestamp: string;
   }>;
   /** Saved Gemini tech pack — persists across refresh */
-  aiAnalysis?: PersistedGarmentAIAnalysis | null;
+  aiAnalysis?: PersistedGarmentAIAnalysis | null; // admin only: always null for a sales rep
+  /** Where the tech file is, without its content (sent to reps and admins). */
+  techFile?: { status: 'none' | 'draft' | 'approved'; revision: number };
 }
 
 // Requests live in the database and are reached only through the server routes, which check the signed-in role
