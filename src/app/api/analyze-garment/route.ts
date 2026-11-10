@@ -1,4 +1,4 @@
-import { GEMINI_FALLBACK_MODEL, GEMINI_VISION_MODEL, scanSearchEnabled, askWithFallback, isQuotaError, isTimeoutError, isBusyError, callSignal, OutOfTimeError, scanNote } from '@/lib/gemini-model';
+import { GEMINI_FALLBACK_MODEL, GEMINI_VISION_MODEL, scanSearchEnabled, askWithFallback, isQuotaError, isTimeoutError, isBusyError, noModelAnsweredMessage, callSignal, OutOfTimeError, scanNote } from '@/lib/gemini-model';
 import { NextRequest, NextResponse } from 'next/server';
 import { getReplicationActor, unauthorized, canAccess } from '@/lib/replication-access';
 import { GoogleGenAI } from '@google/genai';
@@ -182,7 +182,9 @@ export async function POST(req: NextRequest) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('Error analyzing garment:', error);
     // Say what actually went wrong in words the admin can act on (the raw Google message goes in `details`).
-    const friendly = isQuotaError(error)
+    // When models were tried, say what happened to each one (e.g. "gemini-3.8-flash did not answer in time; gemini-2.5-flash is
+    // no longer available to this key"); otherwise the general messages below.
+    const friendly = noModelAnsweredMessage(error) ?? (isQuotaError(error)
       ? 'The AI service has reached its usage limit (Google Gemini quota). Wait a while and try again, or check the plan and billing of the Gemini key.'
       : isTimeoutError(error)
         ? 'The AI did not answer in time. Try again in a few minutes.'
@@ -192,7 +194,7 @@ export async function POST(req: NextRequest) {
         ? 'The Gemini API key was refused. Check GEMINI_API_KEY.'
         : /NOT_FOUND|"code":404/i.test(message)
           ? 'The AI model name was not found. Check GEMINI_VISION_MODEL and GEMINI_FALLBACK_MODEL.'
-          : 'Failed to process garment analysis';
+          : 'Failed to process garment analysis');
     return NextResponse.json({ error: friendly, details: message.slice(0, 500) }, { status: isQuotaError(error) ? 429 : isTimeoutError(error) ? 504 : isBusyError(error) ? 503 : 500 });
   }
 }

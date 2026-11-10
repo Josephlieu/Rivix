@@ -1,4 +1,4 @@
-import { GEMINI_MODEL } from '@/lib/gemini-model';
+import { askHiringModels, hiringModels, hiringNote, noModelAnsweredMessage, isQuotaError, isTimeoutError, isBusyError, HIRING_BUDGET_MS } from '@/lib/gemini-model';
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/require-admin';
 import { GoogleGenAI } from '@google/genai';
@@ -10,7 +10,7 @@ import { backgroundBlock, DEFAULT_COMPANY_CONTEXT, DEFAULT_SCORING_GUIDE } from 
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 export const runtime = 'nodejs'; // force Node runtime for heavy parsers
-export const maxDuration = 60; // reading a resume with the AI can take a while; don't let the host cut it off early
+export const maxDuration = 120; // the main model, then the fallback, each with a time limit (gemini-model.ts); needs Fluid compute on Vercel
 
 // The instruction is built from the scoring categories the admin has set (see the Hiring page),
 // so the AI scores what RIVIX is actually looking for in this hire.
@@ -45,6 +45,7 @@ If a piece of contact info or data is missing, leave it as an empty string (or f
 `;
 
 export async function POST(req: Request) {
+  const deadline = Date.now() + HIRING_BUDGET_MS; // all AI calls of this request end before maxDuration
   const denied = await requireAdmin();
   if (denied) return denied;
 
@@ -83,16 +84,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unsupported file type. Use PDF, DOCX, or TXT.' }, { status: 400 });
     }
 
-    const response = await ai.models.generateContent({
-      model: GEMINI_MODEL,
+    // GEMINI_MODEL first, then the fallback model when it is busy, out of quota, retired or too slow (task 11).
+    const models = hiringModels();
+    const { response, model: usedModel } = await askHiringModels((model, signal) => ai.models.generateContent({
+      model,
       contents: [
         { role: 'user', parts }
       ],
       config: {
         systemInstruction: buildPrompt(settings.criteria, settings.hiringFor, backgroundBlock(settings)),
         responseMimeType: 'application/json',
+        abortSignal: signal,
       }
-    });
+    }), deadline, models);
+    const note = hiringNote(models, usedModel);
+    if (note) console.warn('resume reader:', note);
 
     let text = response.text || '{}';
     // Clean up markdown JSON wrappers if Gemini returned them
@@ -109,10 +115,13 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       ...parsed,
-      rawText: extractedText
+      rawText: extractedText,
+      ...(note ? { note } : {}),
     });
   } catch (error: any) {
     console.error('Resume analysis error:', error);
-    return NextResponse.json({ error: error.message || 'Failed to process resume' }, { status: 500 });
+    // Say what happened to each model when none answered; otherwise the plain error.
+    const friendly = noModelAnsweredMessage(error, 'read the resume') ?? (isQuotaError(error) ? 'The AI service has reached its usage limit. Try again later.' : isTimeoutError(error) ? 'The AI did not answer in time. Try again in a few minutes.' : isBusyError(error) ? 'The AI service is busy right now. Try again in a few minutes.' : error.message || 'Failed to process resume');
+    return NextResponse.json({ error: friendly }, { status: isQuotaError(error) ? 429 : isTimeoutError(error) ? 504 : isBusyError(error) ? 503 : 500 });
   }
 }

@@ -3,13 +3,13 @@ import { GoogleGenAI } from '@google/genai';
 import { requireAdmin } from '@/lib/require-admin';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { isValidCandidateId, RESUME_BUCKET } from '@/lib/hiring-server';
-import { GEMINI_MODEL } from '@/lib/gemini-model';
+import { askHiringModels, hiringModels, hiringNote, noModelAnsweredMessage, isTimeoutError, HIRING_BUDGET_MS } from '@/lib/gemini-model';
 import { DEFAULT_CRITERIA, DEFAULT_HIRING_FOR } from '@/lib/hiring-criteria';
 import { getHiringSettingsServer } from '@/lib/hiring-settings-server';
 import { backgroundBlock, DEFAULT_COMPANY_CONTEXT, DEFAULT_SCORING_GUIDE } from '@/lib/hiring-prompts';
 
 export const runtime = 'nodejs';
-export const maxDuration = 60;
+export const maxDuration = 120; // the main model, then the fallback, each with a time limit (gemini-model.ts); needs Fluid compute on Vercel
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 
@@ -51,6 +51,7 @@ function toQuestions(parsed: unknown): Q[] {
 
 // Write interview questions for ONE candidate, from their resume and scores, and save them on the candidate.
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const deadline = Date.now() + HIRING_BUDGET_MS; // all AI calls of this request end before maxDuration
   const denied = await requireAdmin();
   if (denied) return denied;
 
@@ -111,22 +112,28 @@ ${clip(c.resume_text, 7000) || '(no extracted text; see the attached resume file
 
   let questions: Q[] = [];
   let lastError = 'The AI did not return questions in the expected format.';
-  // Ask up to twice: an odd answer from the AI is usually fixed by simply asking again.
+  let note = '';
+  // GEMINI_MODEL first, then the fallback model when it is busy, out of quota, retired or too slow (task 11). Ask up to
+  // twice: an odd answer from the AI is usually fixed by simply asking again (within the same time budget).
+  const models = hiringModels();
   for (let attempt = 0; attempt < 2 && questions.length < 3; attempt++) {
     try {
-      const response = await ai.models.generateContent({
-        model: GEMINI_MODEL,
+      const { response, model: usedModel } = await askHiringModels((model, signal) => ai.models.generateContent({
+        model,
         contents: [{ role: 'user', parts }],
-        config: { systemInstruction: system, responseMimeType: 'application/json' },
-      });
+        config: { systemInstruction: system, responseMimeType: 'application/json', abortSignal: signal },
+      }), deadline, models);
+      note = hiringNote(models, usedModel);
       questions = toQuestions(parseJson(response.text || '{}'));
       if (questions.length < 3) lastError = 'The AI returned too few questions. Please try again.';
     } catch (e) {
-      lastError = e instanceof Error ? e.message : lastError;
+      lastError = noModelAnsweredMessage(e, 'write the interview questions') ?? (e instanceof Error ? e.message : lastError);
       questions = [];
+      if (noModelAnsweredMessage(e) || isTimeoutError(e)) break; // no model can answer now: asking again would not help
     }
   }
   if (questions.length < 3) return NextResponse.json({ error: lastError }, { status: 502 });
+  if (note) console.warn('interview questions:', note);
 
   // Save them so they are still there next time. If the column is missing (SQL not run yet), still return them.
   const generatedAt = new Date().toISOString();
@@ -137,6 +144,7 @@ ${clip(c.resume_text, 7000) || '(no extracted text; see the attached resume file
   return NextResponse.json({
     questions,
     generatedAt,
+    ...(note ? { note } : {}),
     notSaved: error ? 'The questions could not be saved (run the latest dev-schema-hiring.sql). They will disappear when you leave this page.' : undefined,
   });
 }

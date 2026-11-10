@@ -8,10 +8,11 @@ export const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
 // If it is out of quota, busy or does not answer in time, the scan falls back to GEMINI_FALLBACK_MODEL and says so.
 export const GEMINI_VISION_MODEL = process.env.GEMINI_VISION_MODEL || 'gemini-3.8-flash';
 
-// The garment scan's fallback when the vision model is busy (task 11: gemini-3.8-flash answered "high demand"). A
-// different model on purpose, so there is something else to try. Only the scan uses it; GEMINI_MODEL stays the main
-// model of the hiring tools (resume reader, interview questions).
-export const GEMINI_FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL || 'gemini-2.5-flash';
+// The fallback when the first model is busy, out of quota, retired or too slow (task 11: gemini-3.8-flash answered "high
+// demand" for days). Used by the garment scan AND the hiring tools (resume reader, interview questions). A different model on
+// purpose, so there is something else to try. gemini-3.1-flash-lite was chosen after a real image call answered (2026-11-11);
+// gemini-2.5-flash, the first choice, is retired by Google for new keys. Only choose a model that answers a real call.
+export const GEMINI_FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL || 'gemini-3.1-flash-lite';
 
 // Google Search in the garment scan: OFF unless GEMINI_SCAN_SEARCH=1 (task 11). It was only used to check a brand and
 // model printed on the garment; for a copy that adds nothing, it costs a separate quota, it is the likeliest cause of a
@@ -33,10 +34,10 @@ export const AI_CALL_LIMIT_MS = 120_000;
 export const AI_MIN_CALL_MS = 20_000; // not worth starting a call with less time than this left
 
 /** An abort signal for the next call: the per-call limit, or what is left of the budget if that is less. Null = no time left. */
-export function callSignal(deadline: number): AbortSignal | null {
+export function callSignal(deadline: number, perCallMs: number = AI_CALL_LIMIT_MS): AbortSignal | null {
   const left = deadline - Date.now() - 5_000; // keep a few seconds to answer the browser
   if (left < AI_MIN_CALL_MS) return null;
-  return AbortSignal.timeout(Math.min(AI_CALL_LIMIT_MS, left));
+  return AbortSignal.timeout(Math.min(perCallMs, left));
 }
 export class OutOfTimeError extends Error { constructor() { super('timed out: no time left for another AI call'); this.name = 'TimeoutError'; } }
 
@@ -47,6 +48,7 @@ export class OutOfTimeError extends Error { constructor() { super('timed out: no
  */
 export async function askWithFallback<T>(models: string[], ask: (model: string, withSearch: boolean) => Promise<T>, opts: { search?: boolean } = {}) {
   const search = opts.search ?? true;
+  const attempts: ModelAttempt[] = []; // what happened to each model, for a clear message when none of them answered
   for (const [i, model] of models.entries()) {
     try {
       if (!search) return { response: await ask(model, false), model, searchSkipped: false as const }; // search turned off: one call per model
@@ -57,10 +59,45 @@ export async function askWithFallback<T>(models: string[], ask: (model: string, 
         return { response: await ask(model, false), model, searchSkipped: (isQuotaError(e) ? 'quota' : 'timeout') as 'quota' | 'timeout' };
       }
     } catch (e) {
-      if (i === models.length - 1 || !(isQuotaError(e) || isUnavailable(e))) throw e;
+      attempts.push({ model, outcome: attemptOutcome(e) });
+      if (i === models.length - 1 || !(isQuotaError(e) || isUnavailable(e))) throw Object.assign(e instanceof Error ? e : new Error(String(e)), { attempts });
     }
   }
   throw new Error('No AI model to ask');
+}
+
+// ---- telling the admin what went wrong when no model answered (task 11: "model name not found" hid a timeout) --------------
+export type AttemptOutcome = 'timeout' | 'busy' | 'quota' | 'retired' | 'not-found' | 'key' | 'error';
+export interface ModelAttempt { model: string; outcome: AttemptOutcome }
+export const attemptOutcome = (e: unknown): AttemptOutcome => {
+  const t = errText(e);
+  if (isQuotaError(e)) return 'quota';
+  if (isTimeoutError(e)) return 'timeout';
+  if (isBusyError(e)) return 'busy';
+  if (/no longer available/i.test(t)) return 'retired';
+  if (/NOT_FOUND|"code":\s*404/i.test(t)) return 'not-found';
+  if (/API key|PERMISSION_DENIED|"code":\s*40[13]/i.test(t)) return 'key';
+  return 'error';
+};
+const OUTCOME_TEXT: Record<AttemptOutcome, string> = {
+  timeout: 'did not answer in time',
+  busy: 'is busy (Google reports high demand)',
+  quota: 'is out of quota on this key',
+  retired: 'is no longer available to this key (retired by Google)',
+  'not-found': 'was not found (check the model name)',
+  key: 'refused the API key',
+  error: 'gave an error',
+};
+
+/** One plain message for the admin listing what happened to each model, or null when there is nothing model-specific to say. */
+export function noModelAnsweredMessage(e: unknown, task = 'do the scan'): string | null {
+  const attempts = (e as { attempts?: ModelAttempt[] } | null)?.attempts;
+  if (!attempts?.length) return null;
+  const what = attempts.map((x) => `${x.model} ${OUTCOME_TEXT[x.outcome]}`).join('; ');
+  const fix = attempts.some((x) => x.outcome === 'retired' || x.outcome === 'not-found')
+    ? ' Set the model settings (GEMINI_VISION_MODEL, GEMINI_MODEL or GEMINI_FALLBACK_MODEL) to a model that runs.'
+    : attempts.some((x) => x.outcome === 'key') ? ' Check GEMINI_API_KEY.' : ' Try again in a few minutes.';
+  return `The AI could not ${task}: ${what}.${fix}`;
 }
 
 /** The note shown to the admin above a scan result when it did not come from the first choice (empty = nothing to say). */
@@ -71,3 +108,23 @@ export function scanNote(models: string[], usedModel: string, searchSkipped: fal
     searchSkipped === 'timeout' ? 'The first try (with Google Search) did not answer in time, so this analysis was made again from the photos only (no retail product lookup).' : '',
   ].filter(Boolean).join(' ');
 }
+
+// ---- the hiring tools (resume reader, interview questions) -----------------------------------------------------------------
+// Same fallback as the scan: GEMINI_MODEL first, then GEMINI_FALLBACK_MODEL, no Google Search, every call time-limited.
+// Their routes allow 120 s (maxDuration): each call gets at most 55 s, all inside a 110 s budget, so both models can be tried.
+export const HIRING_BUDGET_MS = 110_000;
+export const HIRING_CALL_LIMIT_MS = 55_000;
+export const hiringModels = () => Array.from(new Set([GEMINI_MODEL, GEMINI_FALLBACK_MODEL]));
+
+/** Asks the hiring models in turn (busy, quota, retired, not found or too slow: the next one). `call` gets the model and a time limit. */
+export async function askHiringModels<T>(call: (model: string, signal: AbortSignal) => Promise<T>, deadline: number, models: string[] = hiringModels()) {
+  return askWithFallback(models, (model) => {
+    const signal = callSignal(deadline, HIRING_CALL_LIMIT_MS);
+    if (!signal) throw new OutOfTimeError();
+    return call(model, signal);
+  }, { search: false });
+}
+
+/** The note for the admin when the answer came from the fallback model (empty = the first model answered). */
+export const hiringNote = (models: string[], usedModel: string) =>
+  usedModel !== models[0] ? `The main AI model (${models[0]}) was not available, so ${usedModel} was used and the result may be less detailed.` : '';
