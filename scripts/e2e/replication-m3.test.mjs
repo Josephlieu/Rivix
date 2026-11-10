@@ -93,7 +93,7 @@ let r = await G.askWithFallback(['best', 'std'], f.ask);
 ok('no quota on the best model (no billing): falls back to the standard model, with search', r.model === 'std' && r.searchSkipped === false && f.calls.join() === 'best+search,best,std+search');
 f = fake({ 'best+search': quota });
 r = await G.askWithFallback(['best', 'std'], f.ask);
-ok('only Google Search out of quota: same model, photos only', r.model === 'best' && r.searchSkipped === true);
+ok('only Google Search out of quota: same model, photos only', r.model === 'best' && r.searchSkipped === 'quota');
 f = fake({ best: '{"error":{"code":503,"status":"UNAVAILABLE"}}' });
 r = await G.askWithFallback(['best', 'std'], f.ask);
 ok('best model busy: falls back', r.model === 'std');

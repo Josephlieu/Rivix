@@ -1,4 +1,4 @@
-import { GEMINI_MODEL, GEMINI_VISION_MODEL, askWithFallback, isQuotaError } from '@/lib/gemini-model';
+import { GEMINI_FALLBACK_MODEL, GEMINI_VISION_MODEL, scanSearchEnabled, askWithFallback, isQuotaError, isTimeoutError, isBusyError, callSignal, OutOfTimeError, scanNote } from '@/lib/gemini-model';
 import { NextRequest, NextResponse } from 'next/server';
 import { getReplicationActor, unauthorized, canAccess } from '@/lib/replication-access';
 import { GoogleGenAI } from '@google/genai';
@@ -11,6 +11,12 @@ import { GARMENT_RESPONSE_SCHEMA } from '@/lib/garmentAiSchema';
 import { garmentTypeLabel } from '@/lib/garment-types-data';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
+
+// Time (task 11). The host stops this route after maxDuration seconds; every AI call has its own limit (gemini-model.ts),
+// and all calls together stay inside SCAN_BUDGET_MS, so the admin always gets an answer before the host cuts the route off.
+// Needs a Vercel plan/setting that allows 300 s (Fluid compute, on by default for new projects; see audit-docs/31-scan-check.md).
+export const maxDuration = 300;
+const SCAN_BUDGET_MS = 270_000;
 
 /** The reply is JSON, but older models (or the old way of asking) may wrap it in text or a code fence: read it tolerantly. */
 function parseJsonFromModel(text: string): unknown {
@@ -32,6 +38,7 @@ function parseJsonFromModel(text: string): unknown {
 }
 
 export async function POST(req: NextRequest) {
+  const deadline = Date.now() + SCAN_BUDGET_MS;
   const actor = await getReplicationActor();
   if (!actor) return unauthorized();
   // Tech files are admin only (task 33): a rep cannot see the result, so a rep cannot start the scan either.
@@ -112,7 +119,9 @@ export async function POST(req: NextRequest) {
     const typeName = garmentKey ? garmentTypeLabel(garmentKey) : 'unknown';
     const checklistText = template.checklist.map((i) => `- ${i.key}: ${i.label}${i.required ? ' (required)' : ''}`).join('\n');
 
+    const useSearch = scanSearchEnabled();
     const prompt = buildGarmentPrompt({
+      searchAvailable: useSearch,
       photoCount: imageArray.length,
       typeName,
       customerNotes,
@@ -125,25 +134,25 @@ export async function POST(req: NextRequest) {
     // Google Search, but that is a preview; if the model refuses the combination (400), ask again the old way. The reply is
     // read by the same tolerant parser either way.
     const isBadRequest = (e: unknown) => /INVALID_ARGUMENT|"code":\s*400/i.test(e instanceof Error ? e.message : String(e));
+    // Every call gets a time limit (and none starts without enough of the budget left).
+    const signal = () => { const sg = callSignal(deadline); if (!sg) throw new OutOfTimeError(); return sg; };
     const ask = async (model: string, withSearch: boolean) => {
       const contents = [{ role: 'user', parts: [{ text: prompt }, ...imageParts] }];
       const tools = withSearch ? { tools: [{ googleSearch: {} }] } : {};
       try {
-        return await ai.models.generateContent({ model, contents, config: { ...tools, responseMimeType: 'application/json', responseJsonSchema: GARMENT_RESPONSE_SCHEMA } });
+        return await ai.models.generateContent({ model, contents, config: { ...tools, responseMimeType: 'application/json', responseJsonSchema: GARMENT_RESPONSE_SCHEMA, abortSignal: signal() } });
       } catch (e) {
         if (!isBadRequest(e)) throw e;
-        return ai.models.generateContent({ model, contents, config: tools });
+        return ai.models.generateContent({ model, contents, config: { ...tools, abortSignal: signal() } });
       }
     };
 
     // The best image model first, then the standard one. Google Search (used to recognise known retail products) has its
     // own quota; when that is used up, the photos are still analysed without it rather than failing the whole scan.
-    const models = Array.from(new Set([GEMINI_VISION_MODEL, GEMINI_MODEL]));
-    const { response, model: usedModel, searchSkipped } = await askWithFallback(models, ask);
-    const note = [
-      usedModel !== models[0] ? `The main image model (${models[0]}) was not available (no quota or billing on the Gemini key, or busy), so this scan used ${usedModel} and may be less accurate.` : '',
-      searchSkipped ? 'Google Search was out of quota, so this analysis uses the photos only (no retail product lookup).' : '',
-    ].filter(Boolean).join(' ');
+    // Google Search is off unless GEMINI_SCAN_SEARCH=1 (task 11): then each model is asked once, from the photos only.
+    const models = Array.from(new Set([GEMINI_VISION_MODEL, GEMINI_FALLBACK_MODEL]));
+    const { response, model: usedModel, searchSkipped } = await askWithFallback(models, ask, { search: useSearch });
+    const note = scanNote(models, usedModel, searchSkipped);
 
     const responseText = response.text;
     if (!responseText) {
@@ -173,11 +182,15 @@ export async function POST(req: NextRequest) {
     // Say what actually went wrong in words the admin can act on (the raw Google message goes in `details`).
     const friendly = isQuotaError(error)
       ? 'The AI service has reached its usage limit (Google Gemini quota). Wait a while and try again, or check the plan and billing of the Gemini key.'
+      : isTimeoutError(error)
+        ? 'The AI did not answer in time. Try again in a few minutes.'
+        : isBusyError(error)
+          ? 'The AI service is busy right now (Google reports high demand). This is usually temporary: try again in a few minutes.'
       : /API key|PERMISSION_DENIED|"code":40[13]/i.test(message)
         ? 'The Gemini API key was refused. Check GEMINI_API_KEY.'
         : /NOT_FOUND|"code":404/i.test(message)
-          ? 'The AI model name was not found. Check GEMINI_VISION_MODEL and GEMINI_MODEL.'
+          ? 'The AI model name was not found. Check GEMINI_VISION_MODEL and GEMINI_FALLBACK_MODEL.'
           : 'Failed to process garment analysis';
-    return NextResponse.json({ error: friendly, details: message.slice(0, 500) }, { status: isQuotaError(error) ? 429 : 500 });
+    return NextResponse.json({ error: friendly, details: message.slice(0, 500) }, { status: isQuotaError(error) ? 429 : isTimeoutError(error) ? 504 : isBusyError(error) ? 503 : 500 });
   }
 }

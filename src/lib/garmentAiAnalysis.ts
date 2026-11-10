@@ -228,9 +228,21 @@ export function applyTemplate(aiData: Row, template: ResolvedTemplate, given: Gi
   out.washCare = { ...(out.washCare || {}), specialNotes: '', instructions: (out.washCare as Row).instructions };
   out.season = '';
   out.checklist = checklistFor(template, aiData.checklist);
+  // Google Search matched a retail product: anything the AI wrote may come from that web page, not the photo, so nothing it
+  // wrote stands as fact. Every value and every checklist item waits for a person (task 11).
+  if (fromWeb(aiData)) {
+    for (const path of Object.keys(FLAGGABLE)) flags.add(path);
+    out.checklist = (out.checklist as ChecklistEntry[]).map((c) => ({ ...c, needsConfirmation: true }));
+  }
   out.flags = Array.from(flags);
   return out;
 }
+
+/** True when the AI says it identified the exact product on the web (Google Search), not from the photos alone. */
+export const fromWeb = (aiData: Row | null | undefined): boolean => {
+  const p = aiData?.productIdentification as Row | undefined;
+  return p?.mode === 'retail' || (typeof p?.source === 'string' && /^https?:\/\//i.test(p.source));
+};
 
 /** Everything still waiting for a person to confirm. An optional checklist item never blocks approval. */
 export function outstandingConfirmations(a: Row | null | undefined): string[] {

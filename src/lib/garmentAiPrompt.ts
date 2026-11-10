@@ -9,6 +9,7 @@ export interface PromptInput {
   checklistText: string; // one line per checklist item of the garment type
   flagList: string; // allowed flag paths
   suggestList: string; // paths the AI may suggest for
+  searchAvailable?: boolean; // Google Search is on for this scan (off by default: GEMINI_SCAN_SEARCH)
 }
 
 export function buildGarmentPrompt(i: PromptInput): string {
@@ -38,8 +39,10 @@ Not sure it is SEEN? Then it is not SEEN: write "not visible" (and a suggestion 
 
 - garmentClass: the visible shape in plain words: length, hood, one or two pieces, base type. Examples: "Hooded Thigh-Length Coat", "One-Piece Coverall", "Bib Overall", "Hip-Length Jacket", "Sleeveless Vest". Not a marketing or brand name. If it does not look like the submitted type, still describe what you see.
 - hasHood: true only if a photo shows a hood; otherwise false.
-- productIdentification: brand = a brand name or logo shown in a photo, else null. model = a model name printed in a photo, else null. Use Google Search only to check a printed brand and model, never to fill other fields. mode "retail" only when that search finds that exact product (source = its web address); a look-alike is not a match. Otherwise mode "visual" and source "photos".
-- A retail match's published specifications are suggestions only, starting "Listed for <brand model>: ...".
+${i.searchAvailable
+  ? `- productIdentification: brand = a brand name or logo shown in a photo, else null. model = a model name printed in a photo, else null. Use Google Search only to check a printed brand and model, never to fill other fields. mode "retail" only when that search finds that exact product (source = its web address); a look-alike is not a match. Otherwise mode "visual" and source "photos".
+- A retail match's published specifications are suggestions only, starting "Listed for <brand model>: ...".`
+  : `- productIdentification: brand = a brand name or logo shown in a photo, else null. model = a model name printed in a photo, else null. You have no web search: mode is always "visual" and source "photos". Never add anything you know about a product from elsewhere.`}
 
 # STEP 2: FIELD BY FIELD
 
