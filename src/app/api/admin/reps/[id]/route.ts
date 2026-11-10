@@ -136,6 +136,12 @@ export async function PATCH(
     });
   }
 
+  // A rep who joined through an invite link and is switched on here counts as approved (who and when are recorded).
+  if (update.active === true) {
+    await admin.from('rep_invites').update({ approved_at: new Date().toISOString(), approved_by: who.email })
+      .eq('rep_id', id).not('used_at', 'is', null).is('approved_at', null);
+  }
+
   return NextResponse.json({ rep: data });
 }
 

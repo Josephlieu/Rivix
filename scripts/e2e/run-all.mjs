@@ -23,9 +23,15 @@ for (const f of files) {
   const r = spawnSync('node', ['--experimental-strip-types', '--no-warnings', '--import', path.join(dir, 'ts-resolve.mjs'), path.join(dir, f)], { encoding: 'utf8', timeout: 5 * 60 * 1000 });
   const out = (r.stdout || '') + (r.stderr || '');
   const p = (out.match(/^PASS/gm) || []).length;
-  const bad = (out.match(/^FAIL|^ERROR/gm) || []).length + (r.status ? 1 : 0);
+  // A test that was killed (5-minute limit or a signal), could not start, or exited non-zero is a failure. Node gives
+  // no exit code (status null) when the time limit kills it, so that must be checked on its own: a stall fails, it is
+  // never counted as a pass.
+  const timedOut = r.error?.code === 'ETIMEDOUT' || r.signal === 'SIGTERM';
+  const crashed = !timedOut && (r.status !== 0 || r.signal || r.error);
+  const bad = (out.match(/^FAIL|^ERROR/gm) || []).length + (timedOut || crashed ? 1 : 0);
   pass += p; fail += bad;
-  console.log(`${bad ? '✗' : '✓'} ${f}  (${p} passed${bad ? `, ${bad} FAILED` : ''})`);
+  const note = timedOut ? ', TIMED OUT after 5 min (cleanup did not run; check DEV for leftover zz- data)' : crashed ? `, stopped (${r.signal || r.error?.message || `exit ${r.status}`})` : '';
+  console.log(`${bad ? '✗' : '✓'} ${f}  (${p} passed${bad ? `, ${bad} FAILED` : ''}${note})`);
   if (bad) { failed.push(f); console.log(out.split('\n').filter((l) => /^FAIL|^ERROR/.test(l)).join('\n')); }
 }
 console.log(`\n${pass} checks passed, ${fail} failed across ${files.length} files.`);

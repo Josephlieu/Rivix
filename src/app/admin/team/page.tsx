@@ -8,6 +8,7 @@ import { UserPlus, Mail, Phone, Loader2, AlertCircle, Pencil, Trash2, KeyRound, 
 import CredentialsCard, { NewCredentials } from '@/components/CredentialsCard';
 import RepEditModal from '@/components/RepEditModal';
 import AdminAccountsCard from '@/components/AdminAccountsCard';
+import RepInvitesCard from '@/components/RepInvitesCard';
 
 interface Rep {
   id: string;
@@ -446,6 +447,8 @@ export default function TeamManagement() {
         onConfirm={runConfirmed}
         onCancel={() => setConfirm(null)}
       />
+
+      <RepInvitesCard />
 
       <AdminAccountsCard />
     </div>
