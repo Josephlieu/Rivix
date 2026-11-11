@@ -7,6 +7,8 @@ import { suggestedTests, suggestFrenchCare, prefillSpecs, HIVIS_STANDARDS, TAPE_
 import { resolveTemplate, protectiveText, BUILT_IN_CATALOG, type TemplateCatalog } from '@/lib/template-catalog';
 import { checklistFor, templateMeasurements, outstandingConfirmations, missingInformation } from '@/lib/garmentAiAnalysis';
 import { garmentTypeLabel } from '@/lib/garment-types-data';
+import { drawingFor, rowNumbers } from '@/lib/drawings';
+import FlatDrawing, { DrawingPlaceholder } from '@/components/FlatDrawing';
 import { getGarmentTypes } from '@/lib/replicationStorage';
 
 type Analysis = PersistedGarmentAIAnalysis;
@@ -171,6 +173,11 @@ export default function ReviewTab({ rep, onSave }: Props) {
   if ((a.checklist || []).some(c => c.required && c.needsConfirmation)) askList.push('Photos from the back and the sides, if only the front was sent');
   const approved = review?.status === 'approved';
   const missing = missingInformation(a);
+  // Task 29: the template's flat drawing (a draft: the current one; approved: the one it was approved with; approved before
+  // drawings existed: none, so it looks as it did). Number N on the drawing = row "No." N in the measurement table.
+  const drawing = drawingFor(rep.aiAnalysis, template);
+  const numbers = rowNumbers(template);
+  const showNo = drawing.show !== 'none';
   const markings = a.markings || [];
 
   const rowInput = (v: string | number, on: (s: string) => void, cls = '') => (
@@ -328,12 +335,24 @@ export default function ReviewTab({ rep, onSave }: Props) {
         </div>
       </Section>
 
+      {drawing.show !== 'none' && (
+        <Section title="Technical drawing" hint="A template drawing for this product type, the same for every request of this type. It is not traced from the customer's photos.">
+          {drawing.parts.map((p, i) => (
+            <div key={i} className="space-y-2">
+              {p.label && <h4 className="text-xs font-black uppercase tracking-widest text-slate-500">{p.label}</h4>}
+              {/* The AI's details are placed on a single garment; a kit's parts list them on the AI tab instead. */}
+              {p.def ? <FlatDrawing def={p.def} numbers={p.numbers} points={p.points} components={drawing.parts.length === 1 ? a.components : []} /> : <DrawingPlaceholder text={p.placeholder} />}
+            </div>
+          ))}
+        </Section>
+      )}
+
       <Section title="Measurements (inches, flat on the half)" hint="The AI cannot take real measurements from a photo: measure the physical garment and correct these.">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-xs">
             <thead>
               <tr className="text-left text-[10px] uppercase tracking-widest text-slate-400">
-                <th className="w-16 pb-2">Point</th><th className="pb-2">Description</th>
+                {showNo && <th className="w-10 pb-2 text-center">No.</th>}<th className="w-16 pb-2">Point</th><th className="pb-2">Description</th>
                 {['XS', 'S', 'M', 'L', 'XL'].map(s => <th key={s} className="w-16 pb-2 text-center">{s}</th>)}
                 <th className="w-20 pb-2 text-center">Tol. ±</th><th className="w-8" /><th />
               </tr>
@@ -341,6 +360,7 @@ export default function ReviewTab({ rep, onSave }: Props) {
             <tbody>
               {a.measurements.map((m: Measurement, i) => (
                 <tr key={i}>
+                  {showNo && <td className="pb-1.5 pr-1 text-center text-xs font-black text-rivix">{numbers.get(m.pom.trim()) ?? '–'}</td>}
                   <td className="pr-1 pb-1.5">{rowInput(m.pom, v => updateRow('measurements', i, { pom: v }))}</td>
                   <td className="pr-1 pb-1.5">{rowInput(m.description, v => updateRow('measurements', i, { description: v }))}</td>
                   {(['xs', 's', 'm', 'l', 'xl'] as const).map(k => <td key={k} className="pr-1 pb-1.5">{rowInput(m[k], v => updateRow('measurements', i, { [k]: v }), 'text-center')}</td>)}

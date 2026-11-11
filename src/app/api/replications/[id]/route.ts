@@ -5,6 +5,9 @@ import { allowedGarmentKeys } from '@/lib/garment-types';
 import { getReplicationActor, unauthorized, notFound, canAccess, repsByIds, requestLink } from '@/lib/replication-access';
 import { isValidReplicationId, replicationToRow, rowToReplication, applyReview, approvalProblem, repSafeUpdate, keepTypeCheck, REPLICATION_BUCKET } from '@/lib/replication-server';
 import { notifyUsers } from '@/lib/notify';
+import { resolveTemplate } from '@/lib/template-catalog';
+import { getTemplateCatalog } from '@/lib/template-store';
+import { drawingStamp } from '@/lib/drawings';
 
 // One request, found by its id or by its readable number (RQ-0001). A rep only gets their own.
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -51,7 +54,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const problem = approvalProblem(parsed.row.ai_analysis);
     if (problem) return NextResponse.json({ error: problem }, { status: 400 });
   }
-  parsed.row.ai_analysis = applyReview(parsed.row.ai_analysis, existing.ai_analysis, approve, actor.email);
+  // Task 29: an approved tech file records the drawing of its template family (version null = no drawing yet for that template).
+  let stamp = null;
+  if (approve) {
+    const { data: gt } = await admin.from('garment_types').select('template_family').eq('key', parsed.row.garment_type).maybeSingle();
+    stamp = drawingStamp(resolveTemplate(parsed.row.garment_type as string, (gt?.template_family as string | null) ?? null, await getTemplateCatalog(admin)));
+  }
+  parsed.row.ai_analysis = applyReview(parsed.row.ai_analysis, existing.ai_analysis, approve, actor.email, stamp);
 
   if (!isAdmin) {
     repSafeUpdate(parsed.row, existing); // the AI draft and spec details stay as the admin saved them

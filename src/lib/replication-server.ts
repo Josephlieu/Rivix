@@ -128,7 +128,8 @@ const stable = (v: unknown): string =>
       ? Object.fromEntries(Object.entries(val as Row).sort(([a], [b]) => a.localeCompare(b)))
       : val
   );
-const withoutReview = (a: Row | null) => { if (!a) return null; const { review: _r, ...rest } = a; return rest; }; // eslint-disable-line @typescript-eslint/no-unused-vars
+// The review and the drawing stamp (task 29) are the server's: whatever the browser sends for them is dropped.
+const withoutReview = (a: Row | null) => { if (!a) return null; const { review: _r, drawing: _d, ...rest } = a; return rest; }; // eslint-disable-line @typescript-eslint/no-unused-vars
 
 /** Why a draft cannot be approved yet, or null when it can. */
 export function approvalProblem(analysis: Row | null): string | null {
@@ -158,13 +159,14 @@ export function repSafeUpdate(row: Row, existing: Row): void {
   row.specs = saved;
 }
 
-/** The analysis to store, with its review state worked out from the saved copy. */
-export function applyReview(next: Row | null, saved: Row | null, approve: boolean, email: string): Row | null {
+/** The analysis to store, with its review state worked out from the saved copy. On approval, `drawing` is the drawing the tech
+ *  file is approved with (task 29); an approved copy that is saved unchanged keeps the one it has. */
+export function applyReview(next: Row | null, saved: Row | null, approve: boolean, email: string, drawing?: Row | null): Row | null {
   if (!next) return null;
   const clean = withoutReview(next) as Row;
   const revision = Number(saved?.review?.revision) || 0;
-  if (approve) return { ...clean, review: { status: 'approved', approvedAt: new Date().toISOString(), approvedBy: email, revision: revision + 1 } };
+  if (approve) return { ...clean, ...(drawing ? { drawing } : {}), review: { status: 'approved', approvedAt: new Date().toISOString(), approvedBy: email, revision: revision + 1 } };
   const savedReview = saved?.review;
-  if (savedReview?.status === 'approved' && stable(withoutReview(saved)) === stable(clean)) return { ...clean, review: savedReview };
+  if (savedReview?.status === 'approved' && stable(withoutReview(saved)) === stable(clean)) return { ...clean, ...(saved?.drawing ? { drawing: saved.drawing } : {}), review: savedReview };
   return { ...clean, review: { status: 'draft', revision } };
 }

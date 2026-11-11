@@ -1,6 +1,7 @@
 /** Serializable AI analysis saved on each replication request */
 import type { ResolvedTemplate } from './template-catalog';
 import { MARKING_KINDS } from './garmentAiSchema';
+import type { DrawingStamp } from './drawings';
 
 /** Clothing uses the full garment scan; gloves, footwear and other PPE (the product base template) a shorter one (task 28). */
 export type ScanKind = 'garment' | 'product';
@@ -129,6 +130,8 @@ export interface PersistedGarmentAIAnalysis {
   markings?: Marking[];
   /** The template this draft was made with (task 26 versions; task 28 type and kind). */
   template?: { typeKey?: string; kind?: ScanKind; versions?: Array<{ key: string; version: number }>; certification?: string };
+  /** Task 29: the drawing this tech file was approved with. Set by the server at approval only. */
+  drawing?: DrawingStamp;
 }
 
 export interface ChecklistEntry {

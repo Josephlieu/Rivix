@@ -36,6 +36,19 @@ async function logoData(): Promise<string | undefined> {
   }
 }
 
+// Task 29: the request's template (for the drawings and the "No." column), from the saved templates. If they cannot be
+// loaded, the PDF is made without a drawing rather than failing.
+async function templateOf(rep: ReplicationRequest) {
+  try {
+    const [{ getGarmentTypes }, { resolveTemplate, BUILT_IN_CATALOG }] = await Promise.all([import('@/lib/replicationStorage'), import('@/lib/template-catalog')]);
+    const lib = await getGarmentTypes();
+    const t = resolveTemplate(rep.garmentType, lib.types.find(x => x.key === rep.garmentType)?.templateFamily ?? null, lib.templates ?? BUILT_IN_CATALOG);
+    return { family: { key: t.family.key }, parts: t.parts.map(p => ({ key: p.key, label: p.label, points: p.points.map(x => ({ code: x.code, name: x.name })) })) };
+  } catch {
+    return null;
+  }
+}
+
 const slug = (v: string) => v.replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'garment';
 
 /** Builds the tech file PDF for a request and saves it through the browser. Throws a readable Error on failure. */
@@ -45,7 +58,7 @@ export async function downloadTechFile(rep: ReplicationRequest): Promise<void> {
     import('@/lib/TechPackPDF'),
   ]);
   const photos = (await Promise.all(rep.images.slice(0, 7).map(photoData))).filter((p): p is string => !!p);
-  const data = buildTechFileData(rep, photos, await logoData());
+  const data = buildTechFileData(rep, photos, await logoData(), await templateOf(rep));
   const blob = await pdf(TechPackPDF({ d: data })).toBlob();
 
   const status = data.approved ? `rev${data.revision}` : 'DRAFT';

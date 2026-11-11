@@ -9,7 +9,8 @@
 import { garmentTypeLabel } from './garment-types-data';
 import { missingInformation } from './garmentAiAnalysis';
 import React from 'react';
-import { Document, Page, Text, View, StyleSheet, Image, Font } from '@react-pdf/renderer';
+import { Document, Page, Text, View, StyleSheet, Image, Font, Svg, Path, Circle } from '@react-pdf/renderer';
+import { drawingFor, drawingPrimitives, placeMarkers, rowNumbers, DRAWING_NOTE, type DrawingDef, type DrawingTemplate } from './drawings';
 import { formatDate } from '@/lib/format';
 import type { ReplicationRequest } from '@/lib/replicationStorage';
 import type { PersistedGarmentAIAnalysis } from '@/lib/garmentAiAnalysis';
@@ -87,9 +88,11 @@ export interface TechFileData {
   logo?: string;
   /** The sales rep who owns the request (internal only). */
   repName?: string | null;
+  /** Task 29: the template (its family and parts with their measurement points), for the drawings and the "No." column. */
+  template?: DrawingTemplate | null;
 }
 
-export function buildTechFileData(rep: ReplicationRequest, photos: string[], logo?: string): TechFileData {
+export function buildTechFileData(rep: ReplicationRequest, photos: string[], logo?: string, template?: TechFileData['template']): TechFileData {
   const analysis = (rep.aiAnalysis ?? {}) as A;
   const review = analysis.review;
   return {
@@ -114,7 +117,32 @@ export function buildTechFileData(rep: ReplicationRequest, photos: string[], log
     photos,
     logo,
     repName: rep.repName || null,
+    template: template ?? null,
   };
+}
+
+/** Task 29: the flat drawing in the PDF, from the same data as the screen (vector, so it prints sharp). Text is plain text. */
+function PdfDrawing({ def, numbers, components, title }: { def: DrawingDef; numbers: Map<string, number>; components: A['components']; title?: string }) {
+  const { placed, unplaced } = placeMarkers(def, components || []);
+  const prims = drawingPrimitives(def, { numbers, markers: placed, note: false });
+  // Fit the landscape page: at most 760 wide and 330 high (the notes and the legend need the rest).
+  const width = Math.min(760, (330 * def.size[0]) / def.size[1]);
+  return (
+    <View wrap={false}>
+      {title ? <Text style={s.h2}>{title}</Text> : null}
+      <Text style={s.none}>{DRAWING_NOTE} Number N on the drawing is row N (No.) in the table.</Text>
+      <Svg width={width} height={(width * def.size[1]) / def.size[0]} viewBox={`0 0 ${def.size[0]} ${def.size[1]}`}>
+        {prims.map((p, i) => {
+          if (p.t === 'path') return <Path key={i} d={p.d} fill={p.fill ?? 'none'} stroke={p.stroke} strokeWidth={p.width} strokeDasharray={p.dash} strokeLinejoin="round" strokeLinecap="round" />;
+          if (p.t === 'circle') return <Circle key={i} cx={p.cx} cy={p.cy} r={p.r} fill={p.fill} stroke={p.stroke} strokeWidth={p.width} />;
+          return <Text key={i} x={p.x} y={p.y} fill={p.fill} textAnchor={p.anchor} style={{ fontSize: p.size, fontFamily: p.bold ? 'Helvetica-Bold' : 'Helvetica' } as never}>{p.text}</Text>;
+        })}
+      </Svg>
+      {placed.length + unplaced.length > 0 && (
+        <Text style={s.none}>Details the AI found: {[...placed.map(m => `${m.letter} ${m.label}`), ...unplaced.map(m => `${m.letter} ${m.label} (not placed)`)].join(';  ')}</Text>
+      )}
+    </View>
+  );
 }
 
 const has = (v?: string | null) => !!v && v.trim() !== '';
@@ -198,6 +226,10 @@ export const TechPackPDF = ({ d }: { d: TechFileData }) => {
   const tests = a.testing || [];
   const extra = d.photos.slice(1);
   const missing = missingInformation(a);
+  // Task 29: the drawing (none for a file approved before drawings existed, so it prints exactly as before).
+  const drawing = d.template ? drawingFor(a, d.template) : { show: 'none' as const };
+  const numbers = d.template ? rowNumbers(d.template) : new Map<string, number>();
+  const showNo = drawing.show !== 'none';
 
   return (
     <Document title={`${d.requestCode} ${d.productName} tech file`} author="RIVIX">
@@ -349,11 +381,24 @@ export const TechPackPDF = ({ d }: { d: TechFileData }) => {
 
       {/* 8 — Measurements (wide page) */}
       <Sheet d={d} no={8} title="Measurement specification (inches, flat on the half)" landscape>
-        <Table
-          cols={[{ h: 'POM', w: '8%' }, { h: 'Description', w: '34%' }, { h: 'XS', w: '10%', center: true }, { h: 'S', w: '10%', center: true }, { h: 'M', w: '10%', center: true }, { h: 'L', w: '10%', center: true }, { h: 'XL', w: '10%', center: true }, { h: 'Tol. ±', w: '8%', center: true }]}
-          rows={(a.measurements || []).map(m => flagRow([m.pom, m.description, m.xs, m.s, m.m, m.l, m.xl, m.tolerance], m.needsConfirmation))}
-          empty="No measurements entered."
-        />
+        {drawing.show === 'parts' && drawing.parts.map((p, i) => (p.def
+          ? <PdfDrawing key={i} def={p.def} numbers={p.numbers} components={drawing.parts.length === 1 ? a.components : []} title={p.label} />
+          : <Text key={i} style={s.warn}>{p.label ? `${p.label}: ` : ''}{p.placeholder}</Text>))}
+        {showNo ? (
+          <View break={drawing.show === 'parts' && drawing.parts.some(p => p.def)}>
+          <Table
+            cols={[{ h: 'No.', w: '5%', center: true }, { h: 'POM', w: '7%' }, { h: 'Description', w: '32%' }, { h: 'XS', w: '9.5%', center: true }, { h: 'S', w: '9.5%', center: true }, { h: 'M', w: '9.5%', center: true }, { h: 'L', w: '9.5%', center: true }, { h: 'XL', w: '9.5%', center: true }, { h: 'Tol. ±', w: '8.5%', center: true }]}
+            rows={(a.measurements || []).map(m => flagRow([String(numbers.get(m.pom.trim()) ?? '–'), m.pom, m.description, m.xs, m.s, m.m, m.l, m.xl, m.tolerance], m.needsConfirmation, 2))}
+            empty="No measurements entered."
+          />
+          </View>
+        ) : (
+          <Table
+            cols={[{ h: 'POM', w: '8%' }, { h: 'Description', w: '34%' }, { h: 'XS', w: '10%', center: true }, { h: 'S', w: '10%', center: true }, { h: 'M', w: '10%', center: true }, { h: 'L', w: '10%', center: true }, { h: 'XL', w: '10%', center: true }, { h: 'Tol. ±', w: '8%', center: true }]}
+            rows={(a.measurements || []).map(m => flagRow([m.pom, m.description, m.xs, m.s, m.m, m.l, m.xl, m.tolerance], m.needsConfirmation))}
+            empty="No measurements entered."
+          />
+        )}
         {!d.approved && <Text style={s.warn}>Measurements are estimates until approved. Measure the physical garment.</Text>}
       </Sheet>
 
