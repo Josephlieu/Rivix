@@ -3,7 +3,7 @@ import { createAdminClient } from '@/lib/supabase-admin';
 import { logRepActivity } from '@/lib/rep-activity';
 import { allowedGarmentKeys } from '@/lib/garment-types';
 import { getReplicationActor, unauthorized, notFound, canAccess, repsByIds, requestLink } from '@/lib/replication-access';
-import { isValidReplicationId, replicationToRow, rowToReplication, applyReview, approvalProblem, repSafeUpdate, REPLICATION_BUCKET } from '@/lib/replication-server';
+import { isValidReplicationId, replicationToRow, rowToReplication, applyReview, approvalProblem, repSafeUpdate, keepTypeCheck, REPLICATION_BUCKET } from '@/lib/replication-server';
 import { notifyUsers } from '@/lib/notify';
 
 // One request, found by its id or by its readable number (RQ-0001). A rep only gets their own.
@@ -42,6 +42,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     currentType: existing.garment_type as string | undefined,
   });
   if ('error' in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 });
+  keepTypeCheck(parsed.row, existing); // the product type confirmation is the server's (task 28)
 
   const isAdmin = actor.kind === 'admin';
   // Approval: only an admin can ask for it; the server checks the draft and records who and when.

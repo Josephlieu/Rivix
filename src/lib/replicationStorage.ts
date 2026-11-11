@@ -107,6 +107,21 @@ export const saveReplication = async (replication: ReplicationRequest, opts: { a
   return (await res.json()).replication as ReplicationRequest;
 };
 
+/** Task 28: ask the AI to suggest the product type from the photos (admin only). Saves the suggestion; the type does not change. */
+export const suggestReplicationType = async (id: string): Promise<{ replication: ReplicationRequest; note?: string }> => {
+  const res = await fetch('/api/analyze-garment/detect', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ replicationId: id }) });
+  if (!res.ok) await fail(res, 'Could not suggest a product type.');
+  const j = await res.json();
+  return { replication: j.replication as ReplicationRequest, note: j.note };
+};
+
+/** Task 28: confirm the request's product type (admin only). The AI scan needs this first. */
+export const confirmReplicationType = async (id: string, typeKey: string): Promise<ReplicationRequest> => {
+  const res = await fetch(`${API}/${encodeURIComponent(id)}/type`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ typeKey }) });
+  if (!res.ok) await fail(res, 'Could not confirm the product type.');
+  return (await res.json()).replication as ReplicationRequest;
+};
+
 export const uploadReplicationPhoto = async (id: string, file: File): Promise<ReplicationRequest> => {
   const form = new FormData();
   form.append('photo', file);

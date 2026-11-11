@@ -4,6 +4,8 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import ReviewTab from './ReviewTab';
+import TypeCheckPanel from './TypeCheckPanel';
+import { isTypeConfirmed } from '@/lib/type-check';
 import { prepare as preparePhoto, MAX_PHOTOS, MAX_BYTES, OK_TYPES } from './NewRequestDialog';
 import { outstandingConfirmations } from '@/lib/garmentAiAnalysis';
 import ChatPanel from './ChatPanel';
@@ -1190,7 +1192,9 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
                       {analysis.status === 'idle' && (
                         <button
                           onClick={() => handleStartAIAnalysis(selectedRep.id, selectedRep.garmentType)}
-                          className="bg-violet-600 text-white px-5 py-3 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-violet-700 transition-all flex items-center gap-2 shrink-0 active:scale-95 shadow-lg shadow-violet-200"
+                          disabled={!isTypeConfirmed(selectedRep)}
+                          title={isTypeConfirmed(selectedRep) ? undefined : 'Confirm the product type first (below).'}
+                          className="disabled:cursor-not-allowed disabled:opacity-50 bg-violet-600 text-white px-5 py-3 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-violet-700 transition-all flex items-center gap-2 shrink-0 active:scale-95 shadow-lg shadow-violet-200"
                         >
                           <Zap size={14} /> Run AI Scan
                         </button>
@@ -1202,7 +1206,8 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
                           </div>
                           <button
                             onClick={() => handleStartAIAnalysis(selectedRep.id, selectedRep.garmentType)}
-                            className="flex items-center gap-1.5 rounded-lg border border-violet-200 bg-white px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-50 active:scale-95"
+                            disabled={!isTypeConfirmed(selectedRep)}
+                            className="disabled:cursor-not-allowed disabled:opacity-50 flex items-center gap-1.5 rounded-lg border border-violet-200 bg-white px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-50 active:scale-95"
                             title="Scan the photos again. This replaces the current draft and any corrections."
                           >
                             <Zap size={13} /> Run again
@@ -1210,6 +1215,15 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
                         </div>
                       )}
                     </div>
+
+                    {/* Task 28, step 1: the product type is confirmed before the scan (the form's type is only a starting guess). */}
+                    {analysis.status !== 'scanning' && (
+                      <TypeCheckPanel
+                        rep={selectedRep}
+                        onNote={setError}
+                        onUpdated={(saved) => { setReplications(prev => prev.map(r => (r.id === saved.id ? saved : r))); setSelectedRep(cur => (cur && cur.id === saved.id ? saved : cur)); }}
+                      />
+                    )}
 
                     {/* Scanning Progress — Visual Garment Scan */}
                     {analysis.status === 'scanning' && (

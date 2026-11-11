@@ -5,7 +5,8 @@ import type { PersistedGarmentAIAnalysis } from '@/lib/garmentAiAnalysis';
 import type { ReplicationRequest, ReplicationSpec } from '@/lib/replicationStorage';
 import { suggestedTests, suggestFrenchCare, prefillSpecs, HIVIS_STANDARDS, TAPE_OPTIONS } from '@/lib/techFileStandards';
 import { resolveTemplate, protectiveText, BUILT_IN_CATALOG, type TemplateCatalog } from '@/lib/template-catalog';
-import { checklistFor, templateMeasurements, outstandingConfirmations } from '@/lib/garmentAiAnalysis';
+import { checklistFor, templateMeasurements, outstandingConfirmations, missingInformation } from '@/lib/garmentAiAnalysis';
+import { garmentTypeLabel } from '@/lib/garment-types-data';
 import { getGarmentTypes } from '@/lib/replicationStorage';
 
 type Analysis = PersistedGarmentAIAnalysis;
@@ -169,6 +170,8 @@ export default function ReviewTab({ rep, onSave }: Props) {
   if (['colorway.threadColor', 'colorway.hardwareFinish', 'bom.hardware', 'bom.thread'].some(isFlagged)) askList.push('Close-up photos of the zipper, snaps and stitching');
   if ((a.checklist || []).some(c => c.required && c.needsConfirmation)) askList.push('Photos from the back and the sides, if only the front was sent');
   const approved = review?.status === 'approved';
+  const missing = missingInformation(a);
+  const markings = a.markings || [];
 
   const rowInput = (v: string | number, on: (s: string) => void, cls = '') => (
     <input className={`${input} ${cls}`} value={String(v ?? '')} onChange={e => on(e.target.value)} maxLength={300} />
@@ -223,6 +226,19 @@ export default function ReviewTab({ rep, onSave }: Props) {
 
       <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-[13px] text-amber-900"><span className="font-bold">The AI can make mistakes.</span> Check every value carefully, especially the safety standard (use the one the customer asked for), fabric and weight, and measurements.</p>
 
+      {a.template?.typeKey && a.template.typeKey !== rep.garmentType && (
+        <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-[13px] text-amber-900">This draft was made for <span className="font-bold">{garmentTypeLabel(a.template.typeKey)}</span>, but the request is now <span className="font-bold">{garmentTypeLabel(rep.garmentType)}</span>. Run the AI scan again to use the right template.</p>
+      )}
+
+      {/* Task 28: every required template field that is empty or not confirmed yet, and every measurement still to take. */}
+      {rep.aiAnalysis && missing.length > 0 && (
+        <section className="rounded-2xl border border-rose-200 bg-rose-50 p-5">
+          <h3 className="text-xs font-black uppercase tracking-widest text-rose-900">Missing information ({missing.length})</h3>
+          <p className="mb-2 text-[11px] text-rose-800">Required for this product type and not known or not confirmed yet. Fill in what you can, then confirm each item. Also printed in the PDF.</p>
+          <ul className="list-disc space-y-0.5 pl-5 text-xs text-rose-900">{missing.map(x => <li key={x}>{x}</li>)}</ul>
+        </section>
+      )}
+
       {!rep.aiAnalysis && (
         <p className="rounded-xl border border-dashed border-slate-200 px-4 py-3 text-xs text-slate-500">The AI analysis has not been run for this request. Run it on the “AI Garment Analysis” tab to get a first draft, or fill in the values below by hand.</p>
       )}
@@ -235,12 +251,34 @@ export default function ReviewTab({ rep, onSave }: Props) {
         </section>
       )}
 
+      {markings.length > 0 && (
+        <Section title="Labels and markings copied from the photos" hint="Copied exactly as printed, with the photo each was read from. They describe the ORIGINAL product: a printed rating or certification never carries over to the copy. Check each against the photo, then confirm it.">
+          <div className="space-y-2">
+            {markings.map((m, i) => (
+              <div key={i} className={`flex flex-wrap items-start justify-between gap-2 rounded-xl border p-3 ${m.needsConfirmation ? 'border-amber-200 bg-amber-50/50' : 'border-slate-100'}`}>
+                <div className="min-w-0 text-xs">
+                  <span className="mr-2 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-slate-500">{m.kind}</span>
+                  <span className="whitespace-pre-wrap break-words font-mono text-slate-800">{m.text}</span>
+                  <span className="block text-[11px] text-slate-400">{m.photo ? `Photo ${m.photo}` : 'Photo not known'}{m.location ? `, ${m.location}` : ''}</span>
+                </div>
+                <span className="flex shrink-0 items-center gap-2">
+                  {m.needsConfirmation
+                    ? <ConfirmFlag onConfirm={() => setA({ markings: markings.map((x, j) => (j === i ? { ...x, needsConfirmation: false } : x)) })} />
+                    : <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-700">Confirmed</span>}
+                  <button type="button" onClick={() => setA({ markings: markings.filter((_, j) => j !== i) })} className="text-[11px] font-bold text-slate-400 hover:text-rivix" aria-label={`Remove marking ${i + 1}`}>Remove</button>
+                </span>
+              </div>
+            ))}
+          </div>
+        </Section>
+      )}
+
       <Section title={`Checklist for ${template.family.label}${template.modules.length ? ' + ' + template.modules.map(m => m.label.toLowerCase()).join(', ') : ''}`} hint="From the garment type's template. Fill in what you know, then confirm each item. Items marked required must be confirmed before approval.">
         <div className="space-y-2">
           {(a.checklist || []).map((item, i) => (
             <div key={item.key} className={`rounded-xl border p-3 ${item.needsConfirmation ? 'border-amber-200 bg-amber-50/50' : 'border-slate-100'}`}>
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-xs font-bold text-slate-700">{item.label}{item.required && <span className="ml-1 text-rivix">*</span>} <span className="font-normal text-slate-400">({item.source === 'photo' ? 'often visible in a photo' : 'needs a spec sheet or sample'})</span></span>
+                <span className="text-xs font-bold text-slate-700">{item.label}{item.required && <span className="ml-1 text-rivix">*</span>} <span className="font-normal text-slate-400">({item.source === 'photo' ? 'often visible in a photo' : 'needs a spec sheet or sample'}{item.photo ? `; seen in photo ${item.photo}` : ''})</span></span>
                 {item.needsConfirmation
                   ? <ConfirmFlag onConfirm={() => setA({ checklist: (a.checklist || []).map((x, j) => (j === i ? { ...x, needsConfirmation: false } : x)) })} />
                   : <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-700">Confirmed</span>}

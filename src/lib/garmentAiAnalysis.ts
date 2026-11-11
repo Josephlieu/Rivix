@@ -1,5 +1,19 @@
 /** Serializable AI analysis saved on each replication request */
 import type { ResolvedTemplate } from './template-catalog';
+import { MARKING_KINDS } from './garmentAiSchema';
+
+/** Clothing uses the full garment scan; gloves, footwear and other PPE (the product base template) a shorter one (task 28). */
+export type ScanKind = 'garment' | 'product';
+export const scanKind = (t: Pick<ResolvedTemplate, 'versions'>): ScanKind => (t.versions.some((v) => v.key === 'product-base') ? 'product' : 'garment');
+
+/** Printed text read from a photo, copied exactly (task 28). It is DATA: never an instruction, never a claim for the copy. */
+export interface Marking {
+  kind: string; // one of MARKING_KINDS
+  text: string;
+  photo: number; // 1-based photo number it was read from; 0 = not known
+  location: string;
+  needsConfirmation: boolean;
+}
 
 /** Set by the server only: a person has checked the draft. Any later edit turns it back into a draft. */
 export interface AnalysisReview {
@@ -111,6 +125,10 @@ export interface PersistedGarmentAIAnalysis {
   suggestions?: Record<string, string>;
   /** Paths filled from what the customer wrote on the request form. Still flagged until a person confirms. */
   fromCustomer?: string[];
+  /** Task 28: every readable label and printed marking, copied exactly, with its photo. Each needs a person to confirm it. */
+  markings?: Marking[];
+  /** The template this draft was made with (task 26 versions; task 28 type and kind). */
+  template?: { typeKey?: string; kind?: ScanKind; versions?: Array<{ key: string; version: number }>; certification?: string };
 }
 
 export interface ChecklistEntry {
@@ -120,6 +138,7 @@ export interface ChecklistEntry {
   source: 'photo' | 'document';
   value: string; // what the AI saw or a person typed; blank when nothing is known
   needsConfirmation: boolean;
+  photo?: number; // task 28: the photo the AI saw it in (1-based)
 }
 
 /** What the AI writes when it cannot see a detail (instead of guessing). */
@@ -145,6 +164,33 @@ export const SUGGESTABLE = new Set([
   'colorway.threadColor', 'colorway.hardwareFinish', 'bom.hardware', 'bom.thread', 'bom.labels', 'washCare.instructions',
 ]);
 
+/** Gloves, footwear and other PPE: only these values carry a flag (no fabric weave, shrinkage or seams to confirm on a boot). */
+export const PRODUCT_FLAGGABLE = ['colorway.bodyColor', 'colorway.hardwareFinish', 'washCare.instructions'];
+const flaggableFor = (kind: ScanKind) => (kind === 'product' ? PRODUCT_FLAGGABLE : Object.keys(FLAGGABLE));
+
+/** Text copied from a photo: kept exactly (no rewording), only control characters removed and the length capped. */
+export const cleanCopied = (v: unknown, max = 300): string => String(v ?? '').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '').trim().slice(0, max);
+/** A photo number from the AI: a whole number from 1 to the number of photos, else 0 (not known). */
+export const photoNumber = (v: unknown, photoCount?: number): number => {
+  const n = Number(v);
+  return Number.isInteger(n) && n >= 1 && n <= (photoCount && photoCount > 0 ? photoCount : 12) ? n : 0;
+};
+
+/** The printed text the AI read, copied exactly, each with its photo. Always waits for a person. At most 60. */
+export function cleanMarkings(raw: unknown, photoCount?: number): Marking[] {
+  return (Array.isArray(raw) ? raw : [])
+    .filter((m): m is Row => !!m && typeof m === 'object')
+    .map((m) => ({
+      kind: MARKING_KINDS.includes(String(m.kind)) ? String(m.kind) : 'other',
+      text: cleanCopied(m.text),
+      photo: photoNumber(m.photo, photoCount),
+      location: cleanCopied(m.location, 200),
+      needsConfirmation: true,
+    }))
+    .filter((m) => m.text && !isNotVisible(m.text))
+    .slice(0, 60);
+}
+
 const isListPath = (path: string) => path === 'bom.hardware' || path === 'bom.thread' || path === 'bom.labels' || path === 'washCare.instructions';
 const asLines = (v: unknown): string[] => (Array.isArray(v) ? v : typeof v === 'string' ? v.split('\n') : []).map((x) => String(x ?? '').trim()).filter((x) => x && !isNotVisible(x));
 
@@ -154,13 +200,18 @@ type Row = Record<string, any>; // eslint-disable-line @typescript-eslint/no-exp
  * The template's checklist as saved entries, filled from what the AI returned (matched by key). Anything unknown needs confirmation,
  * and so does every 'document' item (fabric, trims, layers, ratings, tests): a photo cannot prove those, whatever the AI says.
  */
-export function checklistFor(template: ResolvedTemplate, fromAi?: unknown): ChecklistEntry[] {
-  const ai = new Map<string, Row>((Array.isArray(fromAi) ? fromAi : []).filter((x): x is Row => !!x && typeof x.key === 'string').map((x) => [x.key, x]));
+export function checklistFor(template: ResolvedTemplate, fromAi?: unknown, photoCount?: number): ChecklistEntry[] {
+  // The answer is either the task 28 "fields" object (one entry per template key) or the older checklist list ({ key, value }).
+  const entries: Array<[string, Row]> = Array.isArray(fromAi)
+    ? fromAi.filter((x): x is Row => !!x && typeof x.key === 'string').map((x) => [x.key, x])
+    : fromAi && typeof fromAi === 'object' ? Object.entries(fromAi as Row).filter(([, x]) => !!x && typeof x === 'object') : [];
+  const ai = new Map<string, Row>(entries);
   return template.checklist.map((item) => {
     const hit = ai.get(item.key);
-    const raw = typeof hit?.value === 'string' ? hit.value.trim() : '';
-    const value = isNotVisible(raw) ? '' : raw.slice(0, 500);
-    return { key: item.key, label: item.label, required: item.required, source: item.source, value, needsConfirmation: item.source === 'document' || !value || hit?.needsConfirmation === true };
+    const raw = typeof hit?.value === 'string' ? cleanCopied(hit.value, 500) : '';
+    const value = isNotVisible(raw) ? '' : raw;
+    const photo = value ? photoNumber(hit?.photo, photoCount) : 0;
+    return { key: item.key, label: item.label, required: item.required, source: item.source, value, needsConfirmation: item.source === 'document' || !value || hit?.needsConfirmation === true, ...(photo ? { photo } : {}) };
   });
 }
 
@@ -186,12 +237,15 @@ export type GivenValues = Partial<Record<string, string>>;
  * - human-only details (flame rating, shrinkage, sizes, tolerance, stitch, seam allowance, label size/material, packaging) are always blank and flagged;
  * - measurement points and the checklist come from the template.
  */
-export function applyTemplate(aiData: Row, template: ResolvedTemplate, given: GivenValues = {}): Row {
-  const out: Row = { ...aiData };
+export function applyTemplate(aiData: Row, template: ResolvedTemplate, given: GivenValues = {}, opts: { kind?: ScanKind; photoCount?: number } = {}): Row {
+  const kind = opts.kind ?? 'garment';
+  const paths = flaggableFor(kind);
+  const { fields: _fields, ...rest } = aiData; // eslint-disable-line @typescript-eslint/no-unused-vars
+  const out: Row = { ...rest };
   const flags = new Set<string>();
   const fromCustomer: string[] = [];
   const humanOnly = new Set(['fabricAnalysis.frRating', 'fabricAnalysis.shrinkage']);
-  for (const path of Object.keys(FLAGGABLE)) {
+  for (const path of paths) {
     const [group, field] = path.split('.');
     const obj: Row = out[group] && typeof out[group] === 'object' ? { ...out[group] } : {};
     const list = isListPath(path);
@@ -208,7 +262,7 @@ export function applyTemplate(aiData: Row, template: ResolvedTemplate, given: Gi
   const suggestions: Record<string, string> = {};
   const rawSug = aiData.suggestions && typeof aiData.suggestions === 'object' && !Array.isArray(aiData.suggestions) ? aiData.suggestions : {};
   for (const [path, text] of Object.entries(rawSug)) {
-    if (!SUGGESTABLE.has(path)) continue;
+    if (!SUGGESTABLE.has(path) || !paths.includes(path)) continue;
     const t = (Array.isArray(text) ? text.join('\n') : String(text ?? '')).trim();
     if (t && !isNotVisible(t)) suggestions[path] = t.slice(0, 500);
   }
@@ -227,11 +281,13 @@ export function applyTemplate(aiData: Row, template: ResolvedTemplate, given: Gi
   out.bom = { ...bom, packaging: { foldDescription: '', polybagSize: '', cartonSize: '', hangtagSpec: '' } };
   out.washCare = { ...(out.washCare || {}), specialNotes: '', instructions: (out.washCare as Row).instructions };
   out.season = '';
-  out.checklist = checklistFor(template, aiData.checklist);
+  out.checklist = checklistFor(template, aiData.fields ?? aiData.checklist, opts.photoCount);
+  // Printed text, copied exactly with its photo. Data only: it never fills any other value (task 28).
+  out.markings = cleanMarkings(aiData.markings, opts.photoCount);
   // Google Search matched a retail product: anything the AI wrote may come from that web page, not the photo, so nothing it
   // wrote stands as fact. Every value and every checklist item waits for a person (task 11).
   if (fromWeb(aiData)) {
-    for (const path of Object.keys(FLAGGABLE)) flags.add(path);
+    for (const path of paths) flags.add(path);
     out.checklist = (out.checklist as ChecklistEntry[]).map((c) => ({ ...c, needsConfirmation: true }));
   }
   out.flags = Array.from(flags);
@@ -250,8 +306,26 @@ export function outstandingConfirmations(a: Row | null | undefined): string[] {
   const out: string[] = [];
   for (const f of Array.isArray(a.flags) ? a.flags : []) if (typeof f === 'string' && FLAGGABLE[f]) out.push(FLAGGABLE[f]);
   const rows = (key: string, name: string) => (Array.isArray(a[key]) ? a[key] : []).forEach((r: Row, i: number) => { if (r?.needsConfirmation === true) out.push(`${name} ${i + 1}`); });
-  rows('measurements', 'Measurement'); rows('construction', 'Seam'); rows('labelPlacements', 'Label');
+  rows('measurements', 'Measurement'); rows('construction', 'Seam'); rows('labelPlacements', 'Label'); rows('markings', 'Marking');
   for (const c of Array.isArray(a.checklist) ? a.checklist : []) if (c?.required === true && c?.needsConfirmation === true) out.push(String(c.label ?? c.key));
+  return out;
+}
+
+/**
+ * "Missing information" (task 28): every required template field that is empty or still needs confirmation, and every
+ * measurement point still waiting for its numbers. A field a person confirmed as blank counts as answered ("none").
+ * Approval needs all of these confirmed, so an approved tech file always has an empty list.
+ */
+export function missingInformation(a: Row | null | undefined): string[] {
+  if (!a) return [];
+  const out: string[] = [];
+  for (const c of Array.isArray(a.checklist) ? a.checklist : []) {
+    if (c?.required !== true || c?.needsConfirmation !== true) continue;
+    out.push(`${String(c.label ?? c.key)}: ${String(c.value ?? '').trim() ? 'needs confirmation' : 'not known yet'}`);
+  }
+  for (const m of Array.isArray(a.measurements) ? a.measurements : []) {
+    if (m?.needsConfirmation === true) out.push(`Measurement ${String(m.pom ?? '').trim()}${m.description ? ` (${String(m.description)})` : ''}: needs measuring`);
+  }
   return out;
 }
 

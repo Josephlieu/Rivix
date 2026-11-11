@@ -83,7 +83,11 @@ try{
   ok('the admin still gets the full draft and spec',j.replication?.aiAnalysis?.measurements?.[0]?.description===SECRET_MEASURE&&j.replication?.specs?.zippers===SECRET_ZIP&&leaks(atxt).length===4);
   r=await call('POST',`${B}/${id}/downloads`,ad,{revision:1,approved:true}); ok('the admin can download (log) the tech file',r.status===200);
   r=await call('POST',B,ad,{clientName:'ZZ TF Client',productName:'ZZ TF Empty',garmentType:'parka'}); j=await r.json(); ids.push(j.replication?.id);
-  r=await call('POST','/api/analyze-garment',ad,{replicationId:j.replication?.id}); j=await r.json();
+  const emptyId=j.replication?.id;
+  r=await call('POST','/api/analyze-garment',ad,{replicationId:emptyId}); j=await r.json();
+  ok('the admin scan waits for the product type to be confirmed (task 28), before any AI call',r.status===409&&j.code==='type-not-confirmed',String(r.status)+' '+(j.error||''));
+  r=await call('POST',`${B}/${emptyId}/type`,ad,{typeKey:'parka'}); ok('the admin confirms the type',r.status===200);
+  r=await call('POST','/api/analyze-garment',ad,{replicationId:emptyId}); j=await r.json();
   ok('the admin passes the scan check (a request with no photos stops before any AI call)',r.status===400&&/no images/i.test(j.error||''),String(r.status)+' '+(j.error||''));
 }catch(e){console.log('ERROR',e)}finally{
   for(const i of ids) if(i) await a.from('replications').delete().eq('id',i);

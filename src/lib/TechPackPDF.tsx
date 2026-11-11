@@ -7,6 +7,7 @@
 // changes between garments. A file that has not been approved is stamped DRAFT on every page.
 
 import { garmentTypeLabel } from './garment-types-data';
+import { missingInformation } from './garmentAiAnalysis';
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Image, Font } from '@react-pdf/renderer';
 import { formatDate } from '@/lib/format';
@@ -196,6 +197,7 @@ export const TechPackPDF = ({ d }: { d: TechFileData }) => {
   const isCanada = /^canada$/i.test(origin);
   const tests = a.testing || [];
   const extra = d.photos.slice(1);
+  const missing = missingInformation(a);
 
   return (
     <Document title={`${d.requestCode} ${d.productName} tech file`} author="RIVIX">
@@ -276,6 +278,25 @@ export const TechPackPDF = ({ d }: { d: TechFileData }) => {
               rows={(a.checklist || []).map(c => [c.label + (c.required ? ' *' : ''), c.needsConfirmation ? NEEDS : 'Confirmed', c.value])}
               empty=""
             />
+          </>
+        )}
+        {/* Task 28: printed text copied from the photos (plain text, exactly as read) and what is still missing. Only shown when
+            there is something to show, so older and approved tech files print as before. */}
+        {(a.markings || []).length > 0 && (
+          <>
+            <Text style={s.h2}>Labels and markings on the original (copied from the photos)</Text>
+            <Table
+              cols={[{ h: 'Kind', w: '14%' }, { h: 'Text as printed', w: '46%' }, { h: 'Photo', w: '10%', center: true }, { h: 'Where', w: '30%' }]}
+              rows={(a.markings || []).map(m => flagRow([m.kind, m.text, m.photo ? String(m.photo) : '', m.location], m.needsConfirmation))}
+              empty=""
+            />
+            <Text style={s.none}>These describe the original product. A printed rating or certification never carries over to the copy.</Text>
+          </>
+        )}
+        {missing.length > 0 && (
+          <>
+            <Text style={s.h2}>Missing information</Text>
+            {missing.map((m, i) => <Text key={i} style={s.value}>• {m}</Text>)}
           </>
         )}
         {extra.length > 0 && (

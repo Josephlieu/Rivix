@@ -93,7 +93,10 @@ export function replicationToRow(
   if (sent && !garment.allowed.includes(sent)) return { error: 'Choose a garment type from the list.' };
   const garmentType = sent ?? garment.currentType ?? 'jacket';
   const status = REPLICATION_STATUSES.includes(body?.status) ? body.status : 'received';
-  const specs = body?.specs && typeof body.specs === 'object' && !Array.isArray(body.specs) ? body.specs : {};
+  const sentSpecs: Row = body?.specs && typeof body.specs === 'object' && !Array.isArray(body.specs) ? body.specs : {};
+  // The product type confirmation (task 28) is set by the server only: whatever the browser sends for it is dropped here,
+  // and an update puts back the saved one (keepTypeCheck).
+  const { typeCheck: _typeCheck, ...specs } = sentSpecs; // eslint-disable-line @typescript-eslint/no-unused-vars
   if (JSON.stringify(specs).length > 500_000) return { error: 'The specification is too large.' };
   const analysis = body?.aiAnalysis && typeof body.aiAnalysis === 'object' ? body.aiAnalysis : null;
   if (analysis && JSON.stringify(analysis).length > 1_000_000) return { error: 'The AI analysis is too large.' };
@@ -136,6 +139,12 @@ export function approvalProblem(analysis: Row | null): string | null {
   const open = outstandingConfirmations(analysis);
   if (open.length) return `${open.length} item${open.length > 1 ? 's' : ''} still need confirmation: ${open.slice(0, 5).join(', ')}${open.length > 5 ? '…' : ''}. Check each against the garment and confirm it.`;
   return null;
+}
+
+/** An update keeps the product type confirmation exactly as the server saved it (task 28). */
+export function keepTypeCheck(row: Row, existing: Row): void {
+  const saved = existing.specs && typeof existing.specs === 'object' ? (existing.specs as Row).typeCheck : undefined;
+  if (saved !== undefined && row.specs && typeof row.specs === 'object') row.specs = { ...(row.specs as Row), typeCheck: saved };
 }
 
 /** A rep's save: the AI draft and every spec detail stay exactly as saved; only the parcel keys may change.
