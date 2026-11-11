@@ -1,4 +1,4 @@
-// Task 11: the AI fallback (gemini-3.1-flash-lite when gemini-3.8-flash is busy; also for the hiring tools), Google Search off by default, time limits
+// Task 11: the AI fallback (gemini-3.1-flash-lite when the main model, gemini-3-flash-preview, is busy; also for the hiring tools), Google Search off by default, time limits
 // and the "web means needs confirmation" rule. No database, no server, no AI call:
 // the model is a fake function, so this uses no Gemini quota.
 //   node --experimental-strip-types --no-warnings --import ./scripts/e2e/ts-resolve.mjs scripts/e2e/gemini-fallback.test.mjs
@@ -77,6 +77,14 @@ ok('search off and gemini-3.8-flash busy: gemini-3.1-flash-lite answers', r.mode
 f = fake({ 'vision-model': hung });
 r = await G.askWithFallback(models, f.ask, { search: false });
 ok('search off and the vision model hangs: the fallback model answers', r.model === 'standard-model' && f.calls.join() === 'vision-model,standard-model');
+// the code defaults (2026-11-12: gemini-3.8-flash did not answer, so both main models moved to gemini-3-flash-preview)
+const gsrc = (await import('node:fs')).readFileSync(new URL('../../src/lib/gemini-model.ts', import.meta.url), 'utf8');
+ok('code defaults: scan and hiring tools start with gemini-3-flash-preview, the fallback is gemini-3.1-flash-lite',
+  /GEMINI_MODEL = process\.env\.GEMINI_MODEL \|\| 'gemini-3-flash-preview'/.test(gsrc)
+  && /GEMINI_VISION_MODEL = process\.env\.GEMINI_VISION_MODEL \|\| 'gemini-3-flash-preview'/.test(gsrc)
+  && /GEMINI_FALLBACK_MODEL = process\.env\.GEMINI_FALLBACK_MODEL \|\| 'gemini-3\.1-flash-lite'/.test(gsrc)
+  && !/\|\| 'gemini-3\.8-flash'/.test(gsrc));
+ok('without the env vars the main models are gemini-3-flash-preview', G.GEMINI_MODEL === (process.env.GEMINI_MODEL || 'gemini-3-flash-preview') && G.GEMINI_VISION_MODEL === (process.env.GEMINI_VISION_MODEL || 'gemini-3-flash-preview'));
 ok('the fallback is gemini-3.1-flash-lite by default (gemini-2.5-flash is retired), a different model from the vision model', G.GEMINI_FALLBACK_MODEL === (process.env.GEMINI_FALLBACK_MODEL || 'gemini-3.1-flash-lite') && G.GEMINI_FALLBACK_MODEL !== G.GEMINI_VISION_MODEL);
 const P = await import('../../src/lib/garmentAiPrompt.ts');
 const base = { photoCount: 1, typeName: 'High Visibility Vest', customerNotes: '', checklistText: '- x', flagList: '', suggestList: '' };

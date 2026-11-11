@@ -100,7 +100,7 @@ r = await G.askWithFallback(['best', 'std'], f.ask);
 ok('best model busy: falls back', r.model === 'std');
 const throws = async (fn) => { try { await fn(); return false; } catch { return true; } };
 ok('a real error (bad request) is not hidden by a fallback, and the last model failing is reported', await throws(() => G.askWithFallback(['best', 'std'], fake({ best: '{"error":{"code":400}}' }).ask)) && await throws(() => G.askWithFallback(['best', 'std'], fake({ best: quota, std: quota }).ask)));
-ok('the garment scan defaults to a free model (paid model only when GEMINI_VISION_MODEL is set)', G.GEMINI_VISION_MODEL === (process.env.GEMINI_VISION_MODEL || 'gemini-3.8-flash'));
+ok('the garment scan defaults to gemini-3-flash-preview (another model only when GEMINI_VISION_MODEL is set)', G.GEMINI_VISION_MODEL === (process.env.GEMINI_VISION_MODEL || 'gemini-3-flash-preview'));
 
 // ---- strict answer format ----
 const SC = await import('../../src/lib/garmentAiSchema.ts');

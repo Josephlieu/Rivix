@@ -31,6 +31,8 @@ export interface TemplateBody {
   certification: CertificationLevel;     // certified equipment: the tech file can describe it but never claim compliance
   composedOf?: string[];                 // a kit: the family templates it is made of
   notes?: string[];                      // notes shown with the template (scope limits, what not to claim)
+  label?: string;                        // task 31: the template's name and description when this version was published
+  description?: string;
   standardCandidates?: StandardCandidate[]; // standards that may apply, each with a source link, all still to verify
 }
 export interface TemplateRecord { key: string; kind: 'base' | 'family' | 'module'; label: string; description: string; version: number; active: boolean; body: TemplateBody }
@@ -39,6 +41,8 @@ export interface TemplateCatalog {
   templates: TemplateRecord[];                                                   // current version of each template
   types: Record<string, { family: string | null; modules: string[]; category: string | null }>;
   categories: Record<string, { baseTemplate: string }>;
+  /** Task 31: every version of every template (key -> version -> record), so a tech file keeps the versions it was made with. */
+  history?: Record<string, Record<number, TemplateRecord>>;
 }
 
 const CERT_RANK: Record<CertificationLevel, number> = { described: 0, 'needs-test-evidence': 1, 'certified-equipment': 2 };
@@ -70,6 +74,7 @@ export const BUILT_IN_CATALOG: TemplateCatalog = {
     family: v.family, modules: v.modules ?? [], category: DEFAULT_GARMENT_TYPES.find((g) => g.key === k)?.category ?? null,
   }])),
   categories: Object.fromEntries(DEFAULT_GARMENT_CATEGORIES.map((c) => [c.key, { baseTemplate: CATEGORY_BASE[c.key] ?? 'garment-base' }])),
+  history: Object.fromEntries(BUILT_IN_TEMPLATES.map((t) => [t.key, { 1: t }])),
 };
 
 // ---- resolving --------------------------------------------------------------------------------------------------------------
@@ -119,13 +124,58 @@ export function familyChoices(catalog: TemplateCatalog): Array<{ key: string; la
     .map((t) => ({ key: t.key, label: t.label }));
 }
 
-/** Everything the tech file and the AI need to know about one product type. */
-export function resolveTemplate(typeKey: string, savedFamily: string | null | undefined, catalog: TemplateCatalog): ResolvedTemplate {
+export type PinnedVersions = Array<{ key: string; version: number }> | null | undefined;
+/** The exact template versions a tech file was made with, when the catalog still has every one of them; else null. */
+function pinnedRecords(catalog: TemplateCatalog, pinned: PinnedVersions): TemplateRecord[] | null {
+  if (!pinned?.length) return null;
+  const recs = pinned.map((p) => catalog.history?.[p.key]?.[p.version]);
+  return recs.every(Boolean) && recs.some((r) => r!.kind === 'family') && recs.some((r) => r!.kind === 'base') ? (recs as TemplateRecord[]) : null;
+}
+
+/**
+ * Everything the tech file and the AI need to know about one product type. With `pinned` (the template versions a tech file
+ * recorded, task 26), it resolves exactly those versions, even if the type's template, the category's base or a template has
+ * changed since (task 31): an existing tech file keeps its template. Without it (or when a pinned version is not in the
+ * catalog), the current templates for the type.
+ */
+export function resolveTemplate(typeKey: string, savedFamily: string | null | undefined, catalog: TemplateCatalog, pinned?: PinnedVersions): ResolvedTemplate {
+  const recs = pinnedRecords(catalog, pinned);
+  if (recs) {
+    const familyT = recs.find((r) => r.kind === 'family')!;
+    const partTs = familyT.body.composedOf ? familyT.body.composedOf.map((k) => recs.find((r) => r.key === k && r.kind === 'family')).filter((t): t is TemplateRecord => !!t) : [familyT];
+    return assemble(recs.find((r) => r.kind === 'base')!, familyT, partTs, recs.filter((r) => r.kind === 'module'));
+  }
   const familyT = find(catalog, familyKeyFor(typeKey, savedFamily, catalog), 'family') ?? find(BUILT_IN_CATALOG, 'generic', 'family')!;
   const moduleTs = (catalog.types[typeKey]?.modules ?? []).map((k) => find(catalog, k, 'module')).filter((t): t is TemplateRecord => !!t);
   const partTs = familyT.body.composedOf ? familyT.body.composedOf.map((k) => find(catalog, k, 'family')).filter((t): t is TemplateRecord => !!t) : [familyT];
   const category = catalog.types[typeKey]?.category;
   const baseT = find(catalog, (category && catalog.categories[category]?.baseTemplate) || 'garment-base', 'base') ?? find(BUILT_IN_CATALOG, 'garment-base', 'base')!;
+  return assemble(baseT, familyT, partTs, moduleTs);
+}
+
+/** Task 31: the templates could not be read and this product type needs one the built-in templates do not have. */
+export class TemplateUnavailableError extends Error {
+  constructor() { super('The templates could not be read and this product type uses a template created by an admin. Nothing was filled in with a different template. Try again in a minute.'); }
+}
+/**
+ * resolveTemplate, but it never quietly falls back to a different template: when the catalog is the built-in one (the
+ * database could not be read) and the type, its saved template or the tech file's recorded versions are not built in, it throws.
+ */
+export function resolveTemplateChecked(typeKey: string, savedFamily: string | null | undefined, catalog: TemplateCatalog, pinned?: PinnedVersions,
+  dbType?: { family: string | null; modules: string[] | null } | null): ResolvedTemplate {
+  if (catalog.source === 'built-in') {
+    const builtIn = BUILT_IN_CATALOG.types[typeKey];
+    const notBuiltIn = (savedFamily && !find(BUILT_IN_CATALOG, savedFamily, 'family'))
+      || !builtIn
+      || (pinned?.length && !pinnedRecords(BUILT_IN_CATALOG, pinned))
+      // The type's own settings were read but differ from the built-in ones (an admin changed its template or add-ons).
+      || (dbType && ((dbType.family ?? builtIn.family) !== builtIn.family || (dbType.modules && dbType.modules.join() !== builtIn.modules.join())));
+    if (notBuiltIn) throw new TemplateUnavailableError();
+  }
+  return resolveTemplate(typeKey, savedFamily, catalog, pinned);
+}
+
+function assemble(baseT: TemplateRecord, familyT: TemplateRecord, partTs: TemplateRecord[], moduleTs: TemplateRecord[]): ResolvedTemplate {
 
   const family = asFamily(familyT);
   const modules = moduleTs.map(asModule);

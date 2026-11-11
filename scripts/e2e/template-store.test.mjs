@@ -9,6 +9,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createRequire } from 'module';
 import fs from 'fs';
 import { stepUp } from './mfa.mjs';
+import { deleteTestCatalogChanges } from './cleanup.mjs';
 const { createServerClient } = createRequire(import.meta.url)('@supabase/ssr');
 const ok = (n, c, x = '') => console.log(c ? 'PASS' : 'FAIL', n, x);
 const canon = (v) => JSON.stringify(v, (_k, x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.entries(x).sort(([a], [b]) => a.localeCompare(b))) : x));
@@ -144,5 +145,6 @@ try {
   await a.from('garment_types').delete().ilike('label', `ZZ Bad ${t}%`);
   await a.from('customers').delete().eq('id', c.id); await a.from('reps').delete().in('id', [rep.id, repOff.id]);
   for (const u of [adm, ru, roff, cu]) await a.auth.admin.deleteUser(u.id);
+  await deleteTestCatalogChanges(a); // task 31: the test's garment type change is recorded
   console.log('cleaned');
 }

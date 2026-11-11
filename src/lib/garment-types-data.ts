@@ -3,7 +3,8 @@
 // tech file PDF, and (3) as the seed in audit-docs/deliverables/dev-patch-garment-types.sql. Safe to import in the browser.
 // The first seven keys are the ones older requests already use (pants = Work Pants, overalls = Bib Overalls): do not rename them.
 
-export interface GarmentCategory { key: string; label: string; sort: number }
+export interface GarmentCategory { key: string; label: string; sort: number; active?: boolean; baseTemplate?: string } // active false = switched off (task 31)
+
 export interface GarmentType { key: string; label: string; category: string; sort: number; active: boolean; templateFamily?: string | null }
 
 // Task 27: the client's 9 categories, in the client's words. Category keys of the 3 older categories are unchanged

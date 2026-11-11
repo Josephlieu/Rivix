@@ -5,7 +5,7 @@ import { allowedGarmentKeys } from '@/lib/garment-types';
 import { getReplicationActor, unauthorized, notFound, canAccess, repsByIds, requestLink } from '@/lib/replication-access';
 import { isValidReplicationId, replicationToRow, rowToReplication, applyReview, approvalProblem, repSafeUpdate, keepTypeCheck, REPLICATION_BUCKET } from '@/lib/replication-server';
 import { notifyUsers } from '@/lib/notify';
-import { resolveTemplate } from '@/lib/template-catalog';
+import { resolveTemplateChecked, TemplateUnavailableError } from '@/lib/template-catalog';
 import { getTemplateCatalog } from '@/lib/template-store';
 import { drawingStamp } from '@/lib/drawings';
 import { techFileSnapshot, contentKey } from '@/lib/revisions';
@@ -72,8 +72,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   // Task 29: an approved tech file records the drawing of its template family (version null = no drawing yet for that template).
   let stamp = null;
   if (approve) {
-    const { data: gt } = await admin.from('garment_types').select('template_family').eq('key', parsed.row.garment_type).maybeSingle();
-    stamp = drawingStamp(resolveTemplate(parsed.row.garment_type as string, (gt?.template_family as string | null) ?? null, await getTemplateCatalog(admin)));
+    const { data: gt } = await admin.from('garment_types').select('template_family, template_modules').eq('key', parsed.row.garment_type).maybeSingle();
+    try {
+      // The drawing of the template versions this tech file was made with (task 31); never a different template.
+      stamp = drawingStamp(resolveTemplateChecked(parsed.row.garment_type as string, (gt?.template_family as string | null) ?? null, await getTemplateCatalog(admin), parsed.row.ai_analysis?.template?.versions, gt ? { family: gt.template_family ?? null, modules: gt.template_modules ?? null } : null));
+    } catch (e) {
+      if (e instanceof TemplateUnavailableError) return NextResponse.json({ error: `${e.message} The tech file was not approved.`, code: 'template-unavailable' }, { status: 503 });
+      throw e;
+    }
   }
   parsed.row.ai_analysis = applyReview(parsed.row.ai_analysis, existing.ai_analysis, approve, actor.email, stamp);
   // "Start a new draft" from an approved tech file: it is a draft now, even before anything is changed.

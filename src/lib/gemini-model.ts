@@ -1,15 +1,16 @@
-// The Gemini model used by the AI routes (resume reader, garment analyzer). Google retires older
+// The Gemini model used by the hiring tools (resume reader, interview questions). Google retires older
 // models for new keys (gemini-2.5-flash already is), so this lives in one place and can be changed
-// without a code edit by setting GEMINI_MODEL in the environment.
-export const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
+// without a code edit by setting GEMINI_MODEL in the environment. Default gemini-3-flash-preview (2026-11-12):
+// gemini-3.8-flash did not answer a one-word call in 45 s, so every call waited for the time limit before the fallback.
+export const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3-flash-preview';
 
-// The model that reads garment photos (Replication Queue). Free tier by default (user's decision, 2026-10-31); set
-// GEMINI_VISION_MODEL=gemini-4-argon (Google's best image reader, paid only) once the client turns on billing.
+// The model that reads garment photos (Replication Queue). Default gemini-3-flash-preview (2026-11-12: a real scan of a
+// hi-vis vest answered in 21 s; gemini-3.8-flash never answered). Set GEMINI_VISION_MODEL to change it without a code edit.
 // If it is out of quota, busy or does not answer in time, the scan falls back to GEMINI_FALLBACK_MODEL and says so.
-export const GEMINI_VISION_MODEL = process.env.GEMINI_VISION_MODEL || 'gemini-3.8-flash';
+export const GEMINI_VISION_MODEL = process.env.GEMINI_VISION_MODEL || 'gemini-3-flash-preview';
 
-// The fallback when the first model is busy, out of quota, retired or too slow (task 11: gemini-3.8-flash answered "high
-// demand" for days). Used by the garment scan AND the hiring tools (resume reader, interview questions). A different model on
+// The fallback when the first model is busy, out of quota, retired or too slow (task 11: gemini-3.8-flash, the old
+// default, answered "high demand" for days, then not at all). Used by the garment scan AND the hiring tools (resume reader, interview questions). A different model on
 // purpose, so there is something else to try. gemini-3.1-flash-lite was chosen after a real image call answered (2026-11-11);
 // gemini-2.5-flash, the first choice, is retired by Google for new keys. Only choose a model that answers a real call.
 export const GEMINI_FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL || 'gemini-3.1-flash-lite';

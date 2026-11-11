@@ -4,7 +4,7 @@
 // and the save still works.
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { techFileSnapshot, contentKey, describeChanges, type TechFileSnapshot } from '@/lib/revisions';
-import { resolveTemplate } from '@/lib/template-catalog';
+import { resolveTemplateChecked, TemplateUnavailableError } from '@/lib/template-catalog';
 import { getTemplateCatalog } from '@/lib/template-store';
 import { drawingStamp } from '@/lib/drawings';
 import { renderRevisionPdf, storeRevisionPdf } from '@/lib/tech-file-pdf-server';
@@ -22,12 +22,16 @@ export async function latestRevision(admin: SupabaseClient, replicationId: strin
 
 /** The template versions and the drawing a revision used: the ones the draft was made with, else today's for its type. */
 async function versionsFor(admin: SupabaseClient, snap: TechFileSnapshot) {
-  const { data: gt } = await admin.from('garment_types').select('template_family').eq('key', snap.garmentType).maybeSingle();
-  const t = resolveTemplate(snap.garmentType, (gt?.template_family as string | null) ?? null, await getTemplateCatalog(admin));
-  return {
-    templateVersions: Array.isArray(snap.analysis?.template?.versions) ? snap.analysis!.template.versions : t.versions,
-    drawing: snap.analysis?.drawing ?? drawingStamp(t),
-  };
+  const pinned = Array.isArray(snap.analysis?.template?.versions) ? snap.analysis!.template.versions : null;
+  try {
+    const { data: gt } = await admin.from('garment_types').select('template_family, template_modules').eq('key', snap.garmentType).maybeSingle();
+    const t = resolveTemplateChecked(snap.garmentType, (gt?.template_family as string | null) ?? null, await getTemplateCatalog(admin), pinned, gt ? { family: gt.template_family ?? null, modules: gt.template_modules ?? null } : null);
+    return { templateVersions: pinned ?? t.versions, drawing: snap.analysis?.drawing ?? drawingStamp(t) };
+  } catch (e) {
+    // The templates could not be read (task 31: never a different template): record what the draft itself says, nothing more.
+    if (e instanceof TemplateUnavailableError) return { templateVersions: pinned, drawing: snap.analysis?.drawing ?? null };
+    throw e;
+  }
 }
 
 /**

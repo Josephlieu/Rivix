@@ -5,15 +5,33 @@ import Link from 'next/link';
 import { ArrowLeft, ArrowUp, ArrowDown, Check, ChevronDown, Loader2, Pencil, Plus, X } from 'lucide-react';
 import Toast, { type ToastMessage } from '@/components/Toast';
 import { getGarmentTypes, type GarmentLibraryData } from '@/lib/replicationStorage';
-import { BUILT_IN_CATALOG, CERTIFICATION_TEXT, familyChoices, familyKeyFor, methodText, protectiveText, resolveTemplate, viewsText, type TemplateCatalog } from '@/lib/template-catalog';
+import { BUILT_IN_CATALOG, CERTIFICATION_TEXT, familyChoices, familyKeyFor, methodText, protectiveText, resolveTemplateChecked, viewsText, type TemplateCatalog } from '@/lib/template-catalog';
 
 const field = 'w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm focus:border-rivix/40 focus:outline-none focus:ring-2 focus:ring-rivix/10';
 
 // What the tech file will ask for on a garment of this type: the measurement points, the construction checklist, sizing and protective notes.
-function TemplatePanel({ typeKey, family, catalog }: { typeKey: string; family: string | null | undefined; catalog: TemplateCatalog }) {
-  const t = resolveTemplate(typeKey, family, catalog);
+function TemplatePanel({ typeKey, family, catalog, onModules, busy }: { typeKey: string; family: string | null | undefined; catalog: TemplateCatalog; onModules?: (modules: string[]) => void; busy?: boolean }) {
+  let t;
+  try { t = resolveTemplateChecked(typeKey, family, catalog); }
+  catch (e) { return <p role="alert" className="border-t border-slate-100 bg-red-50 px-5 py-4 text-sm text-red-800">{e instanceof Error ? e.message : 'The template could not be read.'}</p>; }
+  const current = catalog.types[typeKey]?.modules ?? [];
+  const addOns = catalog.templates.filter((x) => x.kind === 'module' && (x.active || current.includes(x.key)));
   return (
     <div className="space-y-5 border-t border-slate-100 bg-slate-50/60 px-5 py-5 text-sm">
+      {onModules && (
+        <div>
+          <h4 className="mb-2 text-xs font-black uppercase tracking-widest text-slate-500">Add-ons for this type</h4>
+          <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+            {addOns.map((m) => (
+              <label key={m.key} className="flex items-center gap-1.5 text-[13px] text-slate-700">
+                <input type="checkbox" className="accent-[#c61213]" disabled={busy} checked={current.includes(m.key)} onChange={(e) => onModules(e.target.checked ? [...current, m.key] : current.filter((k) => k !== m.key))} />
+                {m.label}{!m.active && <span className="text-[10px] font-bold uppercase text-slate-400">(off)</span>}
+              </label>
+            ))}
+          </div>
+          <p className="mt-1 text-[11px] text-slate-400">A change applies to new tech files; existing ones keep the template versions they were made with.</p>
+        </div>
+      )}
       <p className="text-slate-600"><strong className="text-slate-800">{t.family.label}</strong>{t.modules.length > 0 && <> + {t.modules.map(m => m.label).join(', ')}</>}. {t.family.description}</p>
       {t.parts.map((part) => (
         <div key={part.key}>
@@ -54,6 +72,51 @@ function TemplatePanel({ typeKey, family, catalog }: { typeKey: string; family: 
         </div>
       )}
     </div>
+  );
+}
+
+// Task 31: categories: add, rename, choose the base template, switch off or on (never deleted). Every change is recorded.
+function CategoriesSection({ categories, catalog, editable, onDone, onError }: { categories: GarmentLibraryData['categories']; catalog: TemplateCatalog; editable: boolean; onDone: (msg?: string) => Promise<void>; onError: (msg: string) => void }) {
+  const [label, setLabel] = useState('');
+  const [base, setBase] = useState('garment-base');
+  const [busy, setBusy] = useState('');
+  const [renaming, setRenaming] = useState<{ key: string; label: string } | null>(null);
+  const bases = catalog.templates.filter((t) => t.kind === 'base');
+  const send = async (url: string, method: 'POST' | 'PATCH', body: unknown, done: string, id: string) => {
+    setBusy(id);
+    const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const data = await res.json().catch(() => ({}));
+    setBusy('');
+    if (!res.ok) { onError(data.error || 'Something went wrong.'); return false; }
+    await onDone(data.warning || done);
+    return true;
+  };
+  return (
+    <section className="space-y-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+      <h2 className="text-xs font-black uppercase tracking-widest text-slate-500">Categories</h2>
+      <ul className="divide-y divide-slate-100 text-sm">
+        {categories.map((c) => (
+          <li key={c.key} className={`flex flex-wrap items-center gap-3 py-2 ${c.active === false ? 'text-slate-400' : ''}`}>
+            <span className="min-w-0 flex-1">
+              {renaming?.key === c.key
+                ? <span className="flex items-center gap-2"><input className={field} value={renaming.label} maxLength={80} onChange={(e) => setRenaming({ key: c.key, label: e.target.value })} /><button type="button" className="rounded-lg p-2 text-emerald-600 hover:bg-emerald-50" aria-label="Save name" onClick={async () => { if (await send(`/api/admin/garment-categories/${encodeURIComponent(c.key)}`, 'PATCH', { label: renaming.label }, 'Category renamed.', c.key)) setRenaming(null); }}><Check size={16} /></button><button type="button" className="rounded-lg p-2 text-slate-400" aria-label="Cancel" onClick={() => setRenaming(null)}><X size={16} /></button></span>
+                : <span className="font-semibold">{c.label}{c.active === false && <span className="ml-2 text-[11px] font-bold uppercase tracking-widest">Off</span>}</span>}
+            </span>
+            <select className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs" aria-label={`Base template of ${c.label}`} value={c.baseTemplate ?? 'garment-base'} disabled={!editable || busy === c.key} onChange={(e) => send(`/api/admin/garment-categories/${encodeURIComponent(c.key)}`, 'PATCH', { baseTemplate: e.target.value }, 'Base template changed (new tech files only).', c.key)}>
+              {bases.map((b) => <option key={b.key} value={b.key}>{b.label}</option>)}
+            </select>
+            <button type="button" disabled={!editable} onClick={() => setRenaming({ key: c.key, label: c.label })} className="rounded-lg p-2 text-slate-400 hover:text-rivix disabled:opacity-30" aria-label={`Rename ${c.label}`}><Pencil size={15} /></button>
+            <button type="button" disabled={!editable || busy === c.key} onClick={() => send(`/api/admin/garment-categories/${encodeURIComponent(c.key)}`, 'PATCH', { active: c.active === false }, c.active === false ? `${c.label} switched on.` : `${c.label} switched off.`, c.key)} className={`rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-widest ${c.active === false ? 'bg-slate-200 text-slate-500' : 'bg-emerald-50 text-emerald-600'} disabled:opacity-50`}>{c.active === false ? 'Off' : 'On'}</button>
+          </li>
+        ))}
+      </ul>
+      <form className="flex flex-col gap-2 sm:flex-row sm:items-end" onSubmit={async (e) => { e.preventDefault(); if (label.trim() && await send('/api/admin/garment-categories', 'POST', { label, baseTemplate: base }, `${label.trim()} added.`, 'new')) setLabel(''); }}>
+        <label className="block flex-1 space-y-1"><span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">New category</span><input className={field} value={label} maxLength={80} onChange={(e) => setLabel(e.target.value)} disabled={!editable} placeholder="e.g. Rain gear" /></label>
+        <label className="block space-y-1 sm:w-64"><span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Base template</span><select className={field} value={base} onChange={(e) => setBase(e.target.value)} disabled={!editable}>{bases.map((b) => <option key={b.key} value={b.key}>{b.label}</option>)}</select></label>
+        <button disabled={!editable || busy === 'new' || !label.trim()} className="flex h-[42px] items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 text-sm font-bold text-white disabled:opacity-40"><Plus size={16} /> Add</button>
+      </form>
+      <p className="text-[11px] text-slate-400">Categories are never deleted. One that is off is not offered for new requests; its types and requests keep working.</p>
+    </section>
   );
 }
 
@@ -131,6 +194,12 @@ export default function GarmentTypesAdmin() {
         <p className="mt-1 text-sm text-slate-500">The list people choose from when they create a replication request: a category, then a garment type. Add new types as your range grows. A type you switch off is hidden from the form, and older requests keep their type.</p>
       </div>
 
+      <div className="flex flex-wrap gap-3 text-sm">
+        <Link href="/admin/replication/templates" className="font-bold text-rivix hover:underline">Templates and change log →</Link>
+      </div>
+
+      <CategoriesSection categories={lib.categories} catalog={catalog} editable={lib.editable} onDone={async (msg) => { if (msg) setToast({ text: msg, type: 'success' }); await load(); }} onError={(msg) => setToast({ text: msg, type: 'error' })} />
+
       {!lib.editable && (
         <p role="alert" className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           This is the built-in list. To add or change types, run <strong>dev-patch-garment-types.sql</strong> once in the Supabase SQL Editor, then refresh this page.
@@ -196,7 +265,7 @@ export default function GarmentTypesAdmin() {
                   <button type="button" disabled={!lib.editable || busyKey === t.key} onClick={() => change(t.key, { active: !t.active }, t.active ? `${t.label} switched off.` : `${t.label} switched on.`)} className={`rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-widest ${t.active ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' : 'bg-slate-200 text-slate-500 hover:bg-slate-300'} disabled:opacity-50`}>
                     {busyKey === t.key ? <Loader2 size={12} className="inline animate-spin" /> : t.active ? 'On' : 'Off'}
                   </button>
-                  {openKey === t.key && <div className="-mx-5 -mb-3 mt-1 w-[calc(100%+2.5rem)]"><TemplatePanel typeKey={t.key} family={t.templateFamily} catalog={catalog} /></div>}
+                  {openKey === t.key && <div className="-mx-5 -mb-3 mt-1 w-[calc(100%+2.5rem)]"><TemplatePanel typeKey={t.key} family={t.templateFamily} catalog={catalog} busy={busyKey === t.key} onModules={lib.editable ? (modules) => change(t.key, { templateModules: modules }, 'Add-ons saved.') : undefined} /></div>}
                 </li>
               ))}
               {rows.length === 0 && <li className="px-5 py-4 text-sm text-slate-400">No garment types in this category.</li>}

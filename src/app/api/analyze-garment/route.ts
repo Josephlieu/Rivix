@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getReplicationActor, unauthorized, canAccess } from '@/lib/replication-access';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { isValidReplicationId } from '@/lib/replication-server';
-import { resolveTemplate } from '@/lib/template-catalog';
+import { resolveTemplateChecked, TemplateUnavailableError } from '@/lib/template-catalog';
 import { getTemplateCatalog } from '@/lib/template-store';
 import { type GivenValues } from '@/lib/garmentAiAnalysis';
 import { garmentTypeLabel } from '@/lib/garment-types-data';
@@ -68,8 +68,17 @@ export async function POST(req: NextRequest) {
     if (!imageParts) return NextResponse.json({ error: 'Invalid image format. Expected base64 data URL.' }, { status: 400 });
 
     // The confirmed type's template: its fields, points and notes build the instructions and the answer format.
-    const { data: gt } = await admin.from('garment_types').select('template_family').eq('key', garmentKey).maybeSingle();
-    const template = resolveTemplate(garmentKey!, (gt?.template_family as string | null) ?? null, await getTemplateCatalog());
+    // Task 31: never quietly a different template. If the templates (or this type's settings) cannot be read and the type
+    // needs more than the built-in templates, stop with a clear message.
+    const { data: gt, error: gtErr } = await admin.from('garment_types').select('template_family, template_modules').eq('key', garmentKey).maybeSingle();
+    let template;
+    try {
+      if (gtErr) throw new TemplateUnavailableError();
+      template = resolveTemplateChecked(garmentKey!, (gt?.template_family as string | null) ?? null, await getTemplateCatalog(), null, gt ? { family: gt.template_family ?? null, modules: gt.template_modules ?? null } : null);
+    } catch (e) {
+      if (e instanceof TemplateUnavailableError) return NextResponse.json({ error: e.message, code: 'template-unavailable' }, { status: 503 });
+      throw e;
+    }
     const useSearch = scanSearchEnabled();
     const gemini = geminiAsker(imageParts, deadline, useSearch);
     let result;

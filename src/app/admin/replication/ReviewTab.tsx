@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import type { PersistedGarmentAIAnalysis } from '@/lib/garmentAiAnalysis';
 import type { ReplicationRequest, ReplicationSpec } from '@/lib/replicationStorage';
 import { suggestedTests, suggestFrenchCare, prefillSpecs, HIVIS_STANDARDS, TAPE_OPTIONS } from '@/lib/techFileStandards';
-import { resolveTemplate, protectiveText, BUILT_IN_CATALOG, type TemplateCatalog } from '@/lib/template-catalog';
+import { resolveTemplate, resolveTemplateChecked, protectiveText, BUILT_IN_CATALOG, type TemplateCatalog, type ResolvedTemplate } from '@/lib/template-catalog';
 import { checklistFor, templateMeasurements, outstandingConfirmations, missingInformation } from '@/lib/garmentAiAnalysis';
 import { garmentTypeLabel } from '@/lib/garment-types-data';
 import { drawingFor, rowNumbers } from '@/lib/drawings';
@@ -116,8 +116,14 @@ export default function ReviewTab({ rep, onSave }: Props) {
   // Templates come from the database (task 26); the built-in ones are used until they have loaded, or if they cannot be.
   const [family, setFamily] = useState<string | null>(null);
   const [catalog, setCatalog] = useState<TemplateCatalog>(BUILT_IN_CATALOG);
-  useEffect(() => { getGarmentTypes().then(l => { setFamily(l.types.find(t => t.key === rep.garmentType)?.templateFamily ?? null); if (l.templates) setCatalog(l.templates); }).catch(() => {}); }, [rep.garmentType]);
-  const template = resolveTemplate(rep.garmentType, family, catalog);
+  const [loaded, setLoaded] = useState(false);
+  useEffect(() => { getGarmentTypes().then(l => { setFamily(l.types.find(t => t.key === rep.garmentType)?.templateFamily ?? null); if (l.templates) setCatalog(l.templates); setLoaded(true); }).catch(() => setLoaded(true)); }, [rep.garmentType]);
+  // Task 31: the template versions this tech file was made with (it keeps them when a template changes later), and never
+  // quietly a different template: if the templates cannot be read and this type needs an admin-made one, say so instead.
+  let template: ResolvedTemplate;
+  let templateProblem = '';
+  try { template = resolveTemplateChecked(rep.garmentType, family, catalog, rep.aiAnalysis?.template?.versions); }
+  catch (e) { templateProblem = e instanceof Error ? e.message : 'The template could not be read.'; template = resolveTemplate('', null, BUILT_IN_CATALOG); }
   const fromRep = () => {
     const analysis = (rep.aiAnalysis ? structuredClone(rep.aiAnalysis) : emptyAnalysis()) as Analysis;
     if (!analysis.checklist) analysis.checklist = checklistFor(template);
@@ -226,6 +232,9 @@ export default function ReviewTab({ rep, onSave }: Props) {
   ];
 
   const revNo = Number(review?.revision) || 0;
+  if (templateProblem) {
+    return <p role="alert" className={`rounded-2xl border px-5 py-4 text-sm ${loaded ? 'border-red-200 bg-red-50 text-red-800' : 'border-slate-200 bg-slate-50 text-slate-500'}`}>{loaded ? templateProblem : 'Loading the template…'}</p>;
+  }
   return (
     <div className="space-y-5">
       {/* status bar */}

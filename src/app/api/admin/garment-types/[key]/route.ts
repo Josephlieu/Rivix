@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/require-admin';
+import { getAdminIdentity } from '@/lib/require-admin';
+import { recordCatalogChange, NOT_RECORDED } from '@/lib/catalog-log';
+import { cleanText } from '@/lib/template-admin';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { clearGarmentCache, loadGarmentLibrary } from '@/lib/garment-types';
 import { getTemplateCatalog, clearTemplateCache } from '@/lib/template-store';
 
 // Rename a type, move it to another category, switch it on or off, or move it up or down inside its category.
 // Types are never deleted: older requests keep their type. Switching one off only hides it from the new-request form.
+// Task 31: two-step admins only; add-ons (templateModules) can be changed too; every change is recorded. A change of template
+// applies to new tech files; existing ones keep the template versions they were made with.
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ key: string }> }) {
-  const denied = await requireAdmin();
-  if (denied) return denied;
+  const who = await getAdminIdentity();
+  if ('denied' in who) return who.denied;
 
   const { key } = await params;
   const body = await req.json().catch(() => null);
@@ -21,21 +25,29 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ke
   if (!type) return NextResponse.json({ error: 'Garment type not found.' }, { status: 404 });
 
   const update: Record<string, unknown> = {};
+  const changes: string[] = [];
+  const catalog = await getTemplateCatalog(admin);
   if ('label' in body) {
-    const label = String(body.label ?? '').trim().slice(0, 80);
+    const label = cleanText(body.label, 80);
     if (!label) return NextResponse.json({ error: 'The name cannot be empty.' }, { status: 400 });
     if (lib.types.some((t) => t.key !== key && t.label.toLowerCase() === label.toLowerCase())) return NextResponse.json({ error: 'There is already a garment type with that name.' }, { status: 409 });
-    update.label = label;
+    if (label !== type.label) { update.label = label; changes.push(`Name: "${type.label}" → "${label}"`); }
   }
   if ('category' in body) {
     if (!lib.categories.some((c) => c.key === body.category)) return NextResponse.json({ error: 'Choose a category.' }, { status: 400 });
-    update.category = body.category;
+    if (body.category !== type.category) { update.category = body.category; changes.push(`Category: ${type.category} → ${body.category}`); }
   }
-  if ('active' in body) update.active = Boolean(body.active);
+  if ('active' in body && Boolean(body.active) !== type.active) { update.active = Boolean(body.active); changes.push(body.active ? 'Switched on' : 'Switched off'); }
   if ('templateFamily' in body) {
     const family = String(body.templateFamily ?? '');
-    if (family && !(await getTemplateCatalog()).templates.some((t) => t.kind === 'family' && t.key === family)) return NextResponse.json({ error: 'Choose a template from the list.' }, { status: 400 });
-    update.template_family = family || null;
+    if (family && !catalog.templates.some((t) => t.kind === 'family' && t.key === family && t.active)) return NextResponse.json({ error: 'Choose a template from the list.' }, { status: 400 });
+    if ((family || null) !== (type.templateFamily ?? null)) { update.template_family = family || null; changes.push(`Template: ${type.templateFamily || 'general'} → ${family || 'general'}`); }
+  }
+  if ('templateModules' in body) {
+    const modules: string[] = Array.isArray(body.templateModules) ? Array.from(new Set(body.templateModules.map(String))) : [];
+    if (modules.some((m) => !catalog.templates.some((t) => t.kind === 'module' && t.key === m && t.active))) return NextResponse.json({ error: 'Choose add-ons from the list.' }, { status: 400 });
+    const before = catalog.types[key]?.modules ?? [];
+    if (modules.join() !== before.join()) { update.template_modules = modules; changes.push(`Add-ons: ${before.join(', ') || 'none'} → ${modules.join(', ') || 'none'}`); }
   }
 
   if (body.move === 'up' || body.move === 'down') {
@@ -56,5 +68,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ke
   }
   clearGarmentCache();
   clearTemplateCache(); // a type's family or category feeds the template catalog
-  return NextResponse.json({ ok: true });
+  if (body.move === 'up' || body.move === 'down') changes.push(`Moved ${body.move}`);
+  const ok = !changes.length || await recordCatalogChange(admin, who, { kind: 'type', key, action: changes.length === 1 ? changes[0].split(':')[0].toLowerCase() : 'changed', changes });
+  return NextResponse.json({ ok: true, ...(ok ? {} : { warning: NOT_RECORDED }) });
 }

@@ -5,7 +5,7 @@
 import type { ResolvedTemplate } from './template-catalog';
 import { viewsText } from './template-catalog';
 import { applyTemplate, scanKind, FLAGGABLE, SUGGESTABLE, PRODUCT_FLAGGABLE, type GivenValues, type ScanKind } from './garmentAiAnalysis';
-import { buildGarmentPrompt, buildProductPrompt, fieldLines } from './garmentAiPrompt';
+import { buildGarmentPrompt, buildProductPrompt, fieldLines, q } from './garmentAiPrompt';
 import { garmentResponseSchema, productResponseSchema, PRODUCT_COMPONENT_TYPES } from './garmentAiSchema';
 
 export interface ScanInput {
@@ -21,7 +21,7 @@ export interface ScanInput {
 export function scanRequest(i: ScanInput): { kind: ScanKind; prompt: string; schema: Record<string, unknown> } {
   const kind = scanKind(i.template);
   const keys = i.template.checklist.map((c) => c.key);
-  const pointsText = i.template.parts.flatMap((p) => p.points.map((pt) => `${i.template.parts.length > 1 ? `${p.label} ` : ''}${pt.code} ${pt.name}`)).join('; ');
+  const pointsText = i.template.parts.flatMap((p) => p.points.map((pt) => q(`${i.template.parts.length > 1 ? `${p.label} ` : ''}${pt.code} ${pt.name}`, 160))).join('; ');
   const common = {
     photoCount: i.photoCount,
     typeName: i.typeName,

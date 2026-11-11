@@ -31,6 +31,15 @@ export async function getTemplateCatalog(admin: SupabaseClient = createAdminClie
       const body = bodies.get(`${r.key}@${r.current_version}`);
       return body ? [{ key: String(r.key), kind: r.kind as TemplateRecord['kind'], label: String(r.label), description: String(r.description ?? ''), version: Number(r.current_version), active: r.active !== false, body }] : [];
     });
+    // Every version (task 31), so a tech file keeps the versions it was made with. A version's own name, when it has one.
+    const meta = new Map((t.data as Row[]).map((r) => [String(r.key), r]));
+    const history: TemplateCatalog['history'] = {};
+    for (const r of v.data as Row[]) {
+      const m = meta.get(String(r.template_key));
+      if (!m) continue;
+      const body = r.body as TemplateBody;
+      (history[String(r.template_key)] ??= {})[Number(r.version)] = { key: String(r.template_key), kind: m.kind as TemplateRecord['kind'], label: body.label ?? String(m.label), description: body.description ?? String(m.description ?? ''), version: Number(r.version), active: m.active !== false, body };
+    }
     if (!templates.some((x) => x.kind === 'family' && x.key === 'generic') || !templates.some((x) => x.kind === 'base')) throw new Error('the templates table is missing the general family or a base template');
     const catalog: TemplateCatalog = {
       source: 'database',
@@ -42,6 +51,7 @@ export async function getTemplateCatalog(admin: SupabaseClient = createAdminClie
         category: (r.category as string | null) ?? null,
       }])),
       categories: Object.fromEntries((c.data as Row[]).map((r) => [String(r.key), { baseTemplate: String(r.base_template ?? 'garment-base') }])),
+      history,
     };
     cache = { at: Date.now(), catalog };
     warned = false;

@@ -7,7 +7,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createRequire } from 'module'; const { createServerClient } = createRequire(import.meta.url)('@supabase/ssr');
 import fs from 'fs';
 import { stepUp } from './mfa.mjs'; // task 8: admin sessions need the two-step sign-in
-import { deleteTestRequest } from './cleanup.mjs'; // task 30: approved requests are archived, not deleted
+import { deleteTestRequest, deleteTestCatalogChanges } from './cleanup.mjs'; // task 30: approved requests are archived, not deleted
 const env = Object.fromEntries(fs.readFileSync('.env.local','utf8').split('\n').filter(l=>l.includes('=')&&!l.startsWith('#')).map(l=>[l.slice(0,l.indexOf('=')),l.slice(l.indexOf('=')+1).trim().replace(/^["']|["']$/g,'')]));
 const U=env.NEXT_PUBLIC_SUPABASE_URL,A=env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const a=createClient(U,env.SUPABASE_SERVICE_ROLE_KEY,{auth:{persistSession:false}});
@@ -126,6 +126,7 @@ try{
   await deleteTestRequest(a,A1);
   const {data:left}=await a.from('replication_messages').select('id').eq('replication_id',A1); ok('when the request is removed, its chat goes with it',(left||[]).length===0);
 }catch(e){console.log('ERROR',e)}finally{
+  await deleteTestCatalogChanges(a); // task 31: the test's garment type changes are recorded
   for(const i of ids) await deleteTestRequest(a,i);
   if(pathsToClean.length) await a.storage.from('replication-photos').remove(pathsToClean);
   await a.from('notifications').delete().in('recipient_user_id',[admU.id,repAU.id,repBU.id]);

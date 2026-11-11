@@ -13,14 +13,16 @@ export async function loadGarmentLibrary(admin: SupabaseClient): Promise<Garment
   if (cache && Date.now() - cache.at < TTL_MS) return cache.lib;
   const typeQuery = (cols: string) => admin.from('garment_types').select(cols).order('sort', { ascending: true });
   const [c, first] = await Promise.all([
-    admin.from('garment_categories').select('key, label, sort').order('sort', { ascending: true }),
+    // Task 31: categories can be switched off (never deleted); before that SQL, read them without the column.
+    admin.from('garment_categories').select('key, label, sort, active, base_template').order('sort', { ascending: true })
+      .then((r) => (r.error && /active|base_template/.test(r.error.message) ? admin.from('garment_categories').select('key, label, sort').order('sort', { ascending: true }) : r)),
     typeQuery('key, label, category, sort, active, template_family'),
   ]);
   // Until dev-patch-garment-families.sql has been run the column is missing: read without it (families then come from the built-in mapping).
   const t = first.error ? await typeQuery('key, label, category, sort, active') : first;
   const lib: GarmentLibrary = c.error || t.error || !t.data?.length
     ? { categories: DEFAULT_GARMENT_CATEGORIES, types: DEFAULT_GARMENT_TYPES, fromDatabase: false }
-    : { categories: c.data as GarmentCategory[], types: (t.data as unknown as Array<GarmentType & { template_family?: string | null }>).map(({ template_family, ...x }) => ({ ...x, templateFamily: template_family ?? null })), fromDatabase: true };
+    : { categories: (c.data as Array<GarmentCategory & { base_template?: string }>).map(({ base_template, ...x }) => ({ ...x, active: x.active !== false, ...(base_template ? { baseTemplate: base_template } : {}) })), types: (t.data as unknown as Array<GarmentType & { template_family?: string | null }>).map(({ template_family, ...x }) => ({ ...x, templateFamily: template_family ?? null })), fromDatabase: true };
   cache = { at: Date.now(), lib };
   return lib;
 }

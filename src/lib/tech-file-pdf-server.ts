@@ -7,7 +7,7 @@ import path from 'path';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { renderToBuffer } from '@react-pdf/renderer';
 import { TechPackPDF, buildTechFileData } from '@/lib/TechPackPDF';
-import { resolveTemplate } from '@/lib/template-catalog';
+import { resolveTemplateChecked, TemplateUnavailableError } from '@/lib/template-catalog';
 import { getTemplateCatalog } from '@/lib/template-store';
 import { REPLICATION_BUCKET } from '@/lib/replication-server';
 import type { ReplicationRequest } from '@/lib/replicationStorage';
@@ -35,8 +35,10 @@ async function logoDataUrl(): Promise<string | undefined> {
 
 /** Makes the PDF of one revision copy (`row` gives the request's code, rep, date and photos). */
 export async function renderRevisionPdf(admin: SupabaseClient, row: Record<string, unknown>, snap: TechFileSnapshot, repName: string | null): Promise<Buffer> {
-  const { data: gt } = await admin.from('garment_types').select('template_family').eq('key', snap.garmentType).maybeSingle();
-  const t = resolveTemplate(snap.garmentType, (gt?.template_family as string | null) ?? null, await getTemplateCatalog(admin));
+  const { data: gt, error: gtErr } = await admin.from('garment_types').select('template_family, template_modules').eq('key', snap.garmentType).maybeSingle();
+  if (gtErr) throw new TemplateUnavailableError();
+  // The template versions the tech file was made with (task 31); never quietly a different template.
+  const t = resolveTemplateChecked(snap.garmentType, (gt?.template_family as string | null) ?? null, await getTemplateCatalog(admin), snap.analysis?.template?.versions, gt ? { family: gt.template_family ?? null, modules: gt.template_modules ?? null } : null);
   const rep = {
     id: String(row.id), requestCode: (row.request_code as string) || String(row.id), clientName: snap.clientName, productName: snap.productName,
     garmentType: snap.garmentType, status: row.status, submissionDate: (row.submission_date as string) || String(row.created_at || '').slice(0, 10),

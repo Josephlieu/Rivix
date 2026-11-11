@@ -10,3 +10,8 @@ export async function deleteTestRequest(a, id) {
   const r = await a.rpc('delete_test_replication', { p_id: id });
   if (r.error) await a.from('replications').delete().eq('id', id);
 }
+
+/** Task 31: removes the catalog change-log rows made by test users or about test items (DEV-only function, task-31b). */
+export async function deleteTestCatalogChanges(a) {
+  await a.rpc('delete_test_catalog_changes');
+}
