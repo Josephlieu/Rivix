@@ -68,6 +68,7 @@ export async function rowToReplication(admin: SupabaseClient, r: Row, viewer: Re
     rivixTrackingCarrier: r.rivix_tracking_carrier ?? undefined,
     rivixTrackingNumber: r.rivix_tracking_number ?? undefined,
     messages: [], // the old in-row chat is no longer used: see /api/replications/[id]/messages
+    archivedAt: (r.archived_at as string | null) ?? null, // task 30: archived requests leave the queue
     aiAnalysis: viewer === 'admin' ? r.ai_analysis ?? null : null,
     techFile: techFileSummary(r.ai_analysis),
   };

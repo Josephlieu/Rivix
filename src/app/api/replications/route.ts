@@ -11,15 +11,22 @@ const SQL_HINT = 'The replication rep-side tables are missing. Run dev-patch-rep
 const dbProblem = (e: { code?: string; message: string }) =>
   e.code === 'PGRST205' || e.code === '42703' || /does not exist|schema cache|rep_id/i.test(e.message);
 
-// Requests, newest first. An admin sees all of them; a sales rep sees only their own.
-export async function GET() {
+// Requests, newest first. An admin sees all of them; a sales rep sees only their own. Archived requests (task 30) are left
+// out; an admin can ask for them with ?archived=1.
+export async function GET(req: NextRequest) {
   const actor = await getReplicationActor();
   if (!actor) return unauthorized();
 
   const admin = createAdminClient();
-  let q = admin.from('replications').select('*').order('created_at', { ascending: false });
-  if (actor.kind === 'rep') q = q.eq('rep_id', actor.repId);
-  const { data, error } = await q;
+  const withArchived = actor.kind === 'admin' && req.nextUrl.searchParams.get('archived') === '1';
+  const query = (filterArchived: boolean) => {
+    let q = admin.from('replications').select('*').order('created_at', { ascending: false });
+    if (actor.kind === 'rep') q = q.eq('rep_id', actor.repId);
+    if (filterArchived && !withArchived) q = q.is('archived_at', null);
+    return q;
+  };
+  let { data, error } = await query(true);
+  if (error && /archived_at/.test(error.message)) ({ data, error } = await query(false)); // archive SQL not run yet
   if (error) {
     return NextResponse.json({ error: dbProblem(error) ? (error.code === 'PGRST205' ? 'The replications table has not been created yet. Run dev-schema-replications.sql in Supabase.' : SQL_HINT) : error.message }, { status: 500 });
   }

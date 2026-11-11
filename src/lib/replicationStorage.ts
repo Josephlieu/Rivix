@@ -55,6 +55,10 @@ export interface ReplicationRequest {
     message: string;
     timestamp: string;
   }>;
+  /** Task 30: when the request was archived (it then leaves the queue); null = not archived. */
+  archivedAt?: string | null;
+  /** Task 30, set on a save's reply only: the approval stands but its PDF could not be stored. */
+  pdfWarning?: string;
   /** Saved Gemini tech pack — persists across refresh */
   aiAnalysis?: PersistedGarmentAIAnalysis | null; // admin only: always null for a sales rep
   /** Where the tech file is, without its content (sent to reps and admins). */
@@ -97,13 +101,52 @@ export const createReplication = async (
 };
 
 /** Save changes to a request. Returns the saved request (fresh photo links included). */
-export const saveReplication = async (replication: ReplicationRequest, opts: { approve?: boolean } = {}): Promise<ReplicationRequest> => {
+export const saveReplication = async (replication: ReplicationRequest, opts: { approve?: boolean; newDraft?: boolean } = {}): Promise<ReplicationRequest> => {
+  const { pdfWarning: _w, ...rest } = replication; // eslint-disable-line @typescript-eslint/no-unused-vars
   const res = await fetch(`${API}/${encodeURIComponent(replication.id)}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...replication, approve: opts.approve === true }),
+    body: JSON.stringify({ ...rest, approve: opts.approve === true, newDraft: opts.newDraft === true }),
   });
   if (!res.ok) await fail(res, 'Could not save the request.');
+  const j = await res.json();
+  return { ...(j.replication as ReplicationRequest), ...(j.pdfWarning ? { pdfWarning: j.pdfWarning as string } : {}) };
+};
+
+// ---- Task 30: revision history, customer approvals, archive (admin only) ----------------------------------------------------
+export interface RevisionApproval { id: string; fileName: string; fileType: string; fileSize: number; sha256: string; approvedBy: string; approvedOn: string; note: string; uploadedBy: string; at: string }
+export interface RevisionEntry { id: string; seq: number; status: 'draft' | 'approved'; revision: number; changes: string[]; templateVersions: Array<{ key: string; version: number }>; drawing: { key: string; version: number | null; parts?: Array<{ key: string; version: number | null }> } | null; pdf: { sha256: string } | null; by: string; at: string; approvals: RevisionApproval[] }
+export const getRevisions = async (id: string): Promise<{ revisions: RevisionEntry[]; missing?: boolean }> => {
+  const res = await fetch(`${API}/${encodeURIComponent(id)}/revisions`, { cache: 'no-store' });
+  if (!res.ok) await fail(res, 'Could not load the revision history.');
+  return res.json();
+};
+export const compareRevisions = async (id: string, from: number, to: number): Promise<string[]> => {
+  const res = await fetch(`${API}/${encodeURIComponent(id)}/revisions/compare?from=${from}&to=${to}`, { cache: 'no-store' });
+  if (!res.ok) await fail(res, 'Could not compare the revisions.');
+  return (await res.json()).changes as string[];
+};
+export const revisionPdfLink = async (id: string, seq: number): Promise<string> => {
+  const res = await fetch(`${API}/${encodeURIComponent(id)}/revisions/${seq}/pdf`, { cache: 'no-store' });
+  if (!res.ok) await fail(res, 'Could not get the PDF.');
+  return (await res.json()).url as string;
+};
+export const makeRevisionPdf = async (id: string, seq: number): Promise<void> => {
+  const res = await fetch(`${API}/${encodeURIComponent(id)}/revisions/${seq}/pdf`, { method: 'POST' });
+  if (!res.ok) await fail(res, 'Could not make the PDF.');
+};
+export const attachCustomerApproval = async (id: string, seq: number, form: FormData): Promise<void> => {
+  const res = await fetch(`${API}/${encodeURIComponent(id)}/revisions/${seq}/approvals`, { method: 'POST', body: form });
+  if (!res.ok) await fail(res, 'Could not attach the approval.');
+};
+export const approvalFileLink = async (id: string, approvalId: string): Promise<string> => {
+  const res = await fetch(`${API}/${encodeURIComponent(id)}/approvals/${encodeURIComponent(approvalId)}`, { cache: 'no-store' });
+  if (!res.ok) await fail(res, 'Could not get the file.');
+  return (await res.json()).url as string;
+};
+export const archiveReplication = async (id: string, archived: boolean): Promise<ReplicationRequest> => {
+  const res = await fetch(`${API}/${encodeURIComponent(id)}/archive`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ archived }) });
+  if (!res.ok) await fail(res, archived ? 'Could not archive the request.' : 'Could not restore the request.');
   return (await res.json()).replication as ReplicationRequest;
 };
 
@@ -130,8 +173,14 @@ export const uploadReplicationPhoto = async (id: string, file: File): Promise<Re
   return (await res.json()).replication as ReplicationRequest;
 };
 
+/** Deletes a request. A request with an approved tech file or a customer approval is refused (task 30): the Error then has
+ *  code "archive-instead", and the caller offers to archive it. */
 export const deleteReplication = async (id: string): Promise<void> => {
   const res = await fetch(`${API}/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  if (res.status === 409) {
+    const j = await res.json().catch(() => ({}));
+    throw Object.assign(new Error(j.error || 'This request cannot be deleted: archive it instead.'), { code: j.code as string | undefined });
+  }
   if (!res.ok) await fail(res, 'Could not delete the request.');
 };
 

@@ -1,4 +1,4 @@
-'use client';
+// Rendered in the browser (download) and on the server (task 30: the stored PDF of each approved revision).
 
 // The factory tech file for one replication request, laid out like the Ontario Parks tech packages:
 //  1 Cover   2 Colour & fabric   3 Product details   4 Call-outs   5 Construction   6 Bill of materials
@@ -8,6 +8,7 @@
 
 import { garmentTypeLabel } from './garment-types-data';
 import { missingInformation } from './garmentAiAnalysis';
+import { sizeLabels, sizeNote, withDefaultSizes } from './size-run';
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Image, Font, Svg, Path, Circle } from '@react-pdf/renderer';
 import { drawingFor, drawingPrimitives, placeMarkers, rowNumbers, DRAWING_NOTE, type DrawingDef, type DrawingTemplate } from './drawings';
@@ -226,6 +227,8 @@ export const TechPackPDF = ({ d }: { d: TechFileData }) => {
   const tests = a.testing || [];
   const extra = d.photos.slice(1);
   const missing = missingInformation(a);
+  const sz = withDefaultSizes(a, d.template?.family.key); // gloves and footwear get their own sizes even before a save (task 30)
+  const sizes = sizeLabels(sz); // XS to XL, or the glove / footwear sizes
   // Task 29: the drawing (none for a file approved before drawings existed, so it prints exactly as before).
   const drawing = d.template ? drawingFor(a, d.template) : { show: 'none' as const };
   const numbers = d.template ? rowNumbers(d.template) : new Map<string, number>();
@@ -242,7 +245,7 @@ export const TechPackPDF = ({ d }: { d: TechFileData }) => {
           <View style={s.chipRow}>
             <Text style={d.approved ? s.chip : s.chipGrey}>{d.approved ? `Rev ${d.revision} approved` : 'Draft: not approved'}</Text>
             <Text style={s.chipGrey}>{garmentTypeLabel(d.garmentType)}</Text>
-            <Text style={s.chipGrey}>Sizes XS – XL</Text>
+            <Text style={s.chipGrey}>Sizes {sizes[0]} – {sizes[4]}{sz.sizeRun?.system === 'shoe' ? ` (${sizeNote(sz)})` : ''}</Text>
           </View>
         </View>
         <View style={s.detailCard}>
@@ -387,18 +390,19 @@ export const TechPackPDF = ({ d }: { d: TechFileData }) => {
         {showNo ? (
           <View break={drawing.show === 'parts' && drawing.parts.some(p => p.def)}>
           <Table
-            cols={[{ h: 'No.', w: '5%', center: true }, { h: 'POM', w: '7%' }, { h: 'Description', w: '32%' }, { h: 'XS', w: '9.5%', center: true }, { h: 'S', w: '9.5%', center: true }, { h: 'M', w: '9.5%', center: true }, { h: 'L', w: '9.5%', center: true }, { h: 'XL', w: '9.5%', center: true }, { h: 'Tol. ±', w: '8.5%', center: true }]}
+            cols={[{ h: 'No.', w: '5%', center: true }, { h: 'POM', w: '7%' }, { h: 'Description', w: '32%' }, ...sizes.map(h => ({ h, w: '9.5%', center: true })), { h: 'Tol. ±', w: '8.5%', center: true }]}
             rows={(a.measurements || []).map(m => flagRow([String(numbers.get(m.pom.trim()) ?? '–'), m.pom, m.description, m.xs, m.s, m.m, m.l, m.xl, m.tolerance], m.needsConfirmation, 2))}
             empty="No measurements entered."
           />
           </View>
         ) : (
           <Table
-            cols={[{ h: 'POM', w: '8%' }, { h: 'Description', w: '34%' }, { h: 'XS', w: '10%', center: true }, { h: 'S', w: '10%', center: true }, { h: 'M', w: '10%', center: true }, { h: 'L', w: '10%', center: true }, { h: 'XL', w: '10%', center: true }, { h: 'Tol. ±', w: '8%', center: true }]}
+            cols={[{ h: 'POM', w: '8%' }, { h: 'Description', w: '34%' }, ...sizes.map(h => ({ h, w: '10%', center: true })), { h: 'Tol. ±', w: '8%', center: true }]}
             rows={(a.measurements || []).map(m => flagRow([m.pom, m.description, m.xs, m.s, m.m, m.l, m.xl, m.tolerance], m.needsConfirmation))}
             empty="No measurements entered."
           />
         )}
+        {sizeNote(sz) ? <Text style={s.note}>Size columns: {sizeNote(sz)} ({sizes.join(', ')}).</Text> : null}
         {!d.approved && <Text style={s.warn}>Measurements are estimates until approved. Measure the physical garment.</Text>}
       </Sheet>
 

@@ -2,6 +2,7 @@
 import type { ResolvedTemplate } from './template-catalog';
 import { MARKING_KINDS } from './garmentAiSchema';
 import type { DrawingStamp } from './drawings';
+import { defaultSizeRun, type SizeRun } from './size-run';
 
 /** Clothing uses the full garment scan; gloves, footwear and other PPE (the product base template) a shorter one (task 28). */
 export type ScanKind = 'garment' | 'product';
@@ -132,6 +133,8 @@ export interface PersistedGarmentAIAnalysis {
   template?: { typeKey?: string; kind?: ScanKind; versions?: Array<{ key: string; version: number }>; certification?: string };
   /** Task 29: the drawing this tech file was approved with. Set by the server at approval only. */
   drawing?: DrawingStamp;
+  /** Task 30: the size columns (gloves and footwear); absent = XS to XL. */
+  sizeRun?: SizeRun;
 }
 
 export interface ChecklistEntry {
@@ -285,6 +288,9 @@ export function applyTemplate(aiData: Row, template: ResolvedTemplate, given: Gi
   out.washCare = { ...(out.washCare || {}), specialNotes: '', instructions: (out.washCare as Row).instructions };
   out.season = '';
   out.checklist = checklistFor(template, aiData.fields ?? aiData.checklist, opts.photoCount);
+  // Gloves and footwear measure in their own sizes (task 30); clothing keeps XS to XL.
+  const run = defaultSizeRun(template.family.sizing.style);
+  if (run) out.sizeRun = run; else delete out.sizeRun;
   // Printed text, copied exactly with its photo. Data only: it never fills any other value (task 28).
   out.markings = cleanMarkings(aiData.markings, opts.photoCount);
   // Google Search matched a retail product: anything the AI wrote may come from that web page, not the photo, so nothing it

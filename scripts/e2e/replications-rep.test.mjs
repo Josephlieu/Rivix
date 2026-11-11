@@ -7,6 +7,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createRequire } from 'module'; const { createServerClient } = createRequire(import.meta.url)('@supabase/ssr');
 import fs from 'fs';
 import { stepUp } from './mfa.mjs'; // task 8: admin sessions need the two-step sign-in
+import { deleteTestRequest } from './cleanup.mjs'; // task 30: approved requests are archived, not deleted
 const env = Object.fromEntries(fs.readFileSync('.env.local','utf8').split('\n').filter(l=>l.includes('=')&&!l.startsWith('#')).map(l=>[l.slice(0,l.indexOf('=')),l.slice(l.indexOf('=')+1).trim().replace(/^["']|["']$/g,'')]));
 const U=env.NEXT_PUBLIC_SUPABASE_URL,A=env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const a=createClient(U,env.SUPABASE_SERVICE_ROLE_KEY,{auth:{persistSession:false}});
@@ -120,11 +121,12 @@ try{
   const m1=await anon.from('replication_messages').select('id'); const d1=await anon.from('replication_downloads').select('id');
   ok('the public key cannot read the chat or the download log',(!m1.data||m1.data.length===0)&&(!d1.data||d1.data.length===0));
 
-  // --- deleting a request removes its chat and log; admin only
-  r=await call('DELETE',`${B}/${A1}`,ad); ok('the admin deletes the request',r.status===200);
-  const {data:left}=await a.from('replication_messages').select('id').eq('replication_id',A1); ok('its chat is gone with it',(left||[]).length===0);
+  // --- deleting: an approved request is archived instead (task 30); when a request is removed, its chat goes with it
+  r=await call('DELETE',`${B}/${A1}`,ad); let dj=await r.json(); ok('the admin cannot delete an approved request: archive it instead',r.status===409&&dj.code==='archive-instead',String(r.status));
+  await deleteTestRequest(a,A1);
+  const {data:left}=await a.from('replication_messages').select('id').eq('replication_id',A1); ok('when the request is removed, its chat goes with it',(left||[]).length===0);
 }catch(e){console.log('ERROR',e)}finally{
-  for(const i of ids) await a.from('replications').delete().eq('id',i);
+  for(const i of ids) await deleteTestRequest(a,i);
   if(pathsToClean.length) await a.storage.from('replication-photos').remove(pathsToClean);
   await a.from('notifications').delete().in('recipient_user_id',[admU.id,repAU.id,repBU.id]);
   // A rep's request or message notifies EVERY admin (including real ones): remove those test notices too.

@@ -9,6 +9,8 @@ import { checklistFor, templateMeasurements, outstandingConfirmations, missingIn
 import { garmentTypeLabel } from '@/lib/garment-types-data';
 import { drawingFor, rowNumbers } from '@/lib/drawings';
 import FlatDrawing, { DrawingPlaceholder } from '@/components/FlatDrawing';
+import RevisionHistory from './RevisionHistory';
+import { defaultSizeRun, sizeLabels, SHOE_WIDTHS } from '@/lib/size-run';
 import { getGarmentTypes } from '@/lib/replicationStorage';
 
 type Analysis = PersistedGarmentAIAnalysis;
@@ -32,7 +34,7 @@ const stable = (v: unknown) => JSON.stringify(v);
 interface Props {
   rep: ReplicationRequest;
   // Saves the request; true when it worked (the page shows the reason when it did not).
-  onSave: (updated: ReplicationRequest, approve: boolean) => Promise<boolean>;
+  onSave: (updated: ReplicationRequest, approve: boolean, opts?: { newDraft?: boolean }) => Promise<boolean>;
 }
 
 const input = 'w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30';
@@ -120,6 +122,8 @@ export default function ReviewTab({ rep, onSave }: Props) {
     const analysis = (rep.aiAnalysis ? structuredClone(rep.aiAnalysis) : emptyAnalysis()) as Analysis;
     if (!analysis.checklist) analysis.checklist = checklistFor(template);
     if (analysis.measurements.length === 0) analysis.measurements = templateMeasurements(template);
+    // Gloves and footwear measure in their own sizes (task 30); clothing keeps XS to XL.
+    if (!analysis.sizeRun) { const run = defaultSizeRun(template.family.sizing.style); if (run) analysis.sizeRun = run; }
     return { specs: { ...rep.specs } as ReplicationSpec, analysis };
   };
   const [draft, setDraft] = useState(fromRep);
@@ -172,6 +176,10 @@ export default function ReviewTab({ rep, onSave }: Props) {
   if (['colorway.threadColor', 'colorway.hardwareFinish', 'bom.hardware', 'bom.thread'].some(isFlagged)) askList.push('Close-up photos of the zipper, snaps and stitching');
   if ((a.checklist || []).some(c => c.required && c.needsConfirmation)) askList.push('Photos from the back and the sides, if only the front was sent');
   const approved = review?.status === 'approved';
+  // Task 30: an approved tech file is locked until an admin starts a new draft (the server enforces it too).
+  const [unlocked, setUnlocked] = useState(false);
+  useEffect(() => { setUnlocked(false); }, [review?.status, review?.revision]);
+  const locked = approved && !unlocked;
   const missing = missingInformation(a);
   // Task 29: the template's flat drawing (a draft: the current one; approved: the one it was approved with; approved before
   // drawings existed: none, so it looks as it did). Number N on the drawing = row "No." N in the measurement table.
@@ -179,6 +187,7 @@ export default function ReviewTab({ rep, onSave }: Props) {
   const numbers = rowNumbers(template);
   const showNo = drawing.show !== 'none';
   const markings = a.markings || [];
+  const sizes = sizeLabels(a);
 
   const rowInput = (v: string | number, on: (s: string) => void, cls = '') => (
     <input className={`${input} ${cls}`} value={String(v ?? '')} onChange={e => on(e.target.value)} maxLength={300} />
@@ -201,7 +210,7 @@ export default function ReviewTab({ rep, onSave }: Props) {
     setProblem(p);
     if (p) return;
     setSaving(approve ? 'approve' : 'save');
-    const ok = await onSave({ ...rep, specs: draft.specs, aiAnalysis: { ...draft.analysis, review: undefined } }, approve);
+    const ok = await onSave({ ...rep, specs: draft.specs, aiAnalysis: { ...draft.analysis, review: undefined } }, approve, { newDraft: approved && unlocked });
     setSaving('');
     void ok; // the saved copy comes back through the sync effect above
   };
@@ -216,20 +225,26 @@ export default function ReviewTab({ rep, onSave }: Props) {
     ['seamConstruction', 'Seam construction'],
   ];
 
+  const revNo = Number(review?.revision) || 0;
   return (
     <div className="space-y-5">
       {/* status bar */}
       <div className={`flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-5 py-4 ${approved ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}>
         <div>
-          <p className={`text-xs font-black uppercase tracking-widest ${approved ? 'text-emerald-700' : 'text-amber-700'}`}>{approved ? 'Approved' : 'Draft: not approved yet'}</p>
+          <p className={`text-xs font-black uppercase tracking-widest ${approved ? 'text-emerald-700' : 'text-amber-700'}`}>{approved ? (locked ? `Approved: Rev ${revNo}, locked` : `New draft from Rev ${revNo} (not saved yet)`) : 'Draft: not approved yet'}</p>
           <p className="text-[11px] text-slate-600">
             {approved
-              ? `Checked by ${review?.approvedBy || 'an admin'}${review?.approvedAt ? ` on ${new Date(review.approvedAt).toLocaleDateString()}` : ''}. Changing anything below makes it a draft again.`
+              ? locked
+                ? `Checked by ${review?.approvedBy || 'an admin'}${review?.approvedAt ? ` on ${new Date(review.approvedAt).toLocaleDateString()}` : ''}. An approved tech file cannot be changed: start a new draft to edit it. Rev ${revNo}, its PDF and any customer approval stay exactly as they are (see History).`
+                : `Your changes become a new draft (to approve as Rev ${revNo + 1}). Rev ${revNo} stays exactly as it was.`
               : 'The AI’s numbers are guesses from photos. Check every value against the real garment, correct it, then approve. A request can only move past “Received” once approved.'}
           </p>
         </div>
+        {locked && <button type="button" onClick={() => setUnlocked(true)} className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-700">Start a new draft (Rev {revNo + 1})</button>}
         {dirty && <span className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest text-rivix">Unsaved changes</span>}
       </div>
+
+      <fieldset disabled={locked} className="min-w-0 space-y-5">
 
       <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-[13px] text-amber-900"><span className="font-bold">The AI can make mistakes.</span> Check every value carefully, especially the safety standard (use the one the customer asked for), fabric and weight, and measurements.</p>
 
@@ -347,13 +362,19 @@ export default function ReviewTab({ rep, onSave }: Props) {
         </Section>
       )}
 
-      <Section title="Measurements (inches, flat on the half)" hint="The AI cannot take real measurements from a photo: measure the physical garment and correct these.">
+      <Section title={a.sizeRun ? 'Measurements (inches)' : 'Measurements (inches, flat on the half)'} hint={`The AI cannot take real measurements from a photo: measure the physical ${a.sizeRun ? 'product' : 'garment'} and correct these.${a.sizeRun ? ' The size columns can be renamed to match the size run.' : ''}`}>
+        {a.sizeRun?.system === 'shoe' && (
+          <div className="flex flex-wrap gap-3 text-xs">
+            <label className="space-y-1"><span className={label}>Size system</span><input className={input} value={a.sizeRun.sizeSystem ?? ''} maxLength={40} onChange={e => setA({ sizeRun: { ...a.sizeRun!, sizeSystem: e.target.value } })} /></label>
+            <label className="space-y-1"><span className={label}>Width</span><select className={input} value={a.sizeRun.width ?? 'D'} onChange={e => setA({ sizeRun: { ...a.sizeRun!, width: e.target.value } })}>{SHOE_WIDTHS.map(w => <option key={w} value={w}>{w}</option>)}</select></label>
+          </div>
+        )}
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-xs">
             <thead>
               <tr className="text-left text-[10px] uppercase tracking-widest text-slate-400">
                 {showNo && <th className="w-10 pb-2 text-center">No.</th>}<th className="w-16 pb-2">Point</th><th className="pb-2">Description</th>
-                {['XS', 'S', 'M', 'L', 'XL'].map(s => <th key={s} className="w-16 pb-2 text-center">{s}</th>)}
+                {sizes.map((s, i) => <th key={i} className="w-16 pb-2 text-center">{a.sizeRun ? <input aria-label={`Size column ${i + 1}`} className={`${input} text-center font-bold`} value={s} maxLength={12} onChange={e => setA({ sizeRun: { ...a.sizeRun!, labels: sizes.map((x, j) => (j === i ? e.target.value : x)) } })} /> : s}</th>)}
                 <th className="w-20 pb-2 text-center">Tol. ±</th><th className="w-8" /><th />
               </tr>
             </thead>
@@ -468,17 +489,23 @@ export default function ReviewTab({ rep, onSave }: Props) {
         <p className="text-[10px] text-slate-400">The standard list is a starting point (it adds hi-vis and flame-resistance tests when the garment looks like it needs them). Confirm it with the testing lab: the tech file says so.</p>
       </Section>
 
+      </fieldset>
+
+      <Section title="History" hint="Every save that changed this tech file, newest first. Approved revisions are locked and keep their PDF; attach the customer's approval to one of them.">
+        <RevisionHistory repId={rep.id} refreshKey={incomingKey} />
+      </Section>
+
       {problem && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-800">{problem}</p>}
 
-      <div className="sticky bottom-3 flex flex-wrap items-center justify-end gap-3 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur">
+      {!locked && <div className="sticky bottom-3 flex flex-wrap items-center justify-end gap-3 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur">
         <span className="mr-auto text-[11px] text-slate-500">Stitch types and detected components are not editable here yet.</span>
-        <button type="button" onClick={() => run(false)} disabled={!!saving || (!dirty && !!rep.aiAnalysis?.checklist)} className="rounded-xl border border-slate-200 px-5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40">
+        <button type="button" onClick={() => run(false)} disabled={!!saving || (!dirty && !!rep.aiAnalysis?.checklist && !(approved && unlocked))} className="rounded-xl border border-slate-200 px-5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40">
           {saving === 'save' ? 'Saving…' : 'Save changes'}
         </button>
         <button type="button" onClick={() => run(true)} disabled={!!saving || (approved && !dirty)} className="rounded-xl bg-rivix px-5 py-2 text-xs font-bold text-white shadow-lg shadow-rivix/30 hover:bg-rivix-dark disabled:opacity-40">
-          {saving === 'approve' ? 'Approving…' : approved && dirty ? 'Save and re-approve' : approved ? 'Approved ✓' : 'Approve specification'}
+          {saving === 'approve' ? 'Approving…' : approved ? `Approve as Rev ${revNo + 1}` : 'Approve specification'}
         </button>
-      </div>
+      </div>}
     </div>
   );
 }

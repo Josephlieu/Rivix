@@ -17,6 +17,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { stepUp } from './mfa.mjs';
+import { deleteTestRequest } from './cleanup.mjs';
 const { createServerClient } = createRequire(import.meta.url)('@supabase/ssr');
 const ok = (n, c, x = '') => console.log(c ? 'PASS' : 'FAIL', n, x);
 
@@ -182,7 +183,7 @@ try {
   const saved = j.replication;
   r = await call('PUT', `/api/replications/${r1.id}`, { ...saved, aiAnalysis: { ...saved.aiAnalysis, drawing: { key: 'jacket', version: 7 } } });
   ok('saving the approved file unchanged keeps it approved, with its own drawing (a sent one is ignored)', (await row(r1.id)).review?.status === 'approved' && JSON.stringify((await row(r1.id)).drawing) === '{"key":"jacket","version":1}');
-  r = await call('PUT', `/api/replications/${r1.id}`, { ...saved, aiAnalysis: { ...saved.aiAnalysis, measurements: saved.aiAnalysis.measurements.map((m, i) => (i === 0 ? { ...m, m: '25' } : m)) } });
+  r = await call('PUT', `/api/replications/${r1.id}`, { ...saved, newDraft: true, aiAnalysis: { ...saved.aiAnalysis, measurements: saved.aiAnalysis.measurements.map((m, i) => (i === 0 ? { ...m, m: '25' } : m)) } });
   ok('editing it makes it a draft again, and the draft shows the current drawing (no stamp)', (await row(r1.id)).review?.status === 'draft' && (await row(r1.id)).drawing === undefined);
 
   const r2 = await mk('cut-resistant-gloves');
@@ -201,7 +202,7 @@ try {
   const oldNow = await row(old?.id);
   ok('an older approved file saved unchanged stays approved with no drawing (it prints as before)', !!old && oldNow.review?.status === 'approved' && oldNow.drawing === undefined && DR.drawingFor(oldNow, jacket).show === 'none');
 } catch (e) { console.log('ERROR', e); ok('DEV checks ran', false); } finally {
-  for (const i of ids) if (i) await a.from('replications').delete().eq('id', i);
+  for (const i of ids) if (i) await deleteTestRequest(a, i);
   await a.from('notifications').delete().like('body', '%ZZ DRW%');
   await a.from('rep_activity').delete().like('summary', '%ZZ DRW%');
   await a.auth.admin.deleteUser(adm.id);

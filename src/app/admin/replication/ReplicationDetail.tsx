@@ -20,6 +20,7 @@ import {
   getReplication,
   saveReplication, 
   deleteReplication,
+  archiveReplication,
   uploadReplicationPhoto,
   getReplicationLookups,
   getDownloadLog,
@@ -290,7 +291,10 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
     // 1. Get all images to analyze — more photos = better factory specs
     const rep = replications.find(r => r.id === repId);
     // A second scan replaces the AI draft, including any corrections made on the Review tab, and needs approving again.
-    if (rep?.aiAnalysis && !window.confirm('Run the AI scan again?\n\nThis replaces the current AI draft, including any corrections you made on the Review & Approve tab, and the specification will need approving again.')) return;
+    // Task 30: an approved tech file is locked; a new scan starts a new draft and the approved revision stays as it was.
+    const lockedRev = rep?.aiAnalysis?.review?.status === 'approved' ? Number(rep.aiAnalysis.review.revision) || 0 : null;
+    if (lockedRev !== null && !window.confirm(`This tech file is approved (Rev ${lockedRev}) and locked.\n\nA new scan starts a new draft. Rev ${lockedRev}, its PDF and any customer approval stay exactly as they are (see History).`)) return;
+    if (lockedRev === null && rep?.aiAnalysis && !window.confirm('Run the AI scan again?\n\nThis replaces the current AI draft, including any corrections you made on the Review & Approve tab, and the specification will need approving again.')) return;
     const imagesToAnalyze = rep?.images || [];
 
     // Initialize analysis state
@@ -397,7 +401,7 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
       const washCare = aiData.washCare
         ? { ...aiData.washCare, instructionsFr: aiData.washCare.instructionsFr?.length ? aiData.washCare.instructionsFr : suggestFrenchCare(aiData.washCare.instructions || []).fr }
         : aiData.washCare;
-      if (rep) await persist({ ...rep, specs: prefillSpecs(rep.specs, aiData).specs, aiAnalysis: { ...aiData, washCare, analyzedAt: new Date().toISOString() } });
+      if (rep) await persist({ ...rep, specs: prefillSpecs(rep.specs, aiData).specs, aiAnalysis: { ...aiData, washCare, analyzedAt: new Date().toISOString() } }, false, { newDraft: lockedRev !== null });
 
     } catch (err: any) {
       console.warn("AI Analysis Error:", err);
@@ -484,12 +488,12 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
 
   // Save a changed request. On success the saved copy (with fresh photo links) replaces the old one
   // everywhere; on failure nothing changes on screen and the reason is shown.
-  const persist = async (updated: ReplicationRequest, approve = false): Promise<boolean> => {
+  const persist = async (updated: ReplicationRequest, approve = false, opts: { newDraft?: boolean } = {}): Promise<boolean> => {
     try {
-      const saved = await saveReplication(updated, { approve });
+      const { pdfWarning, ...saved } = await saveReplication(updated, { approve, newDraft: opts.newDraft });
       setReplications(prev => prev.map(r => (r.id === saved.id ? saved : r)));
       setSelectedRep(cur => (cur && cur.id === saved.id ? saved : cur));
-      setError('');
+      setError(pdfWarning ?? '');
       return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save the request.');
@@ -546,8 +550,25 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
       router.push(basePath);
       return;
     } catch (e) {
+      // Task 30: a request with an approved tech file or a customer approval is archived instead.
+      if ((e as { code?: string })?.code === 'archive-instead') { setArchiveOffer(confirmDelete); setConfirmDelete(null); return; }
       setConfirmDelete(null);
       setError(e instanceof Error ? e.message : 'Could not delete the request.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+  const [archiveOffer, setArchiveOffer] = useState<ReplicationRequest | null>(null);
+  const handleArchive = async (target: ReplicationRequest, archived: boolean) => {
+    setDeleting(true);
+    try {
+      const saved = await archiveReplication(target.id, archived);
+      setArchiveOffer(null);
+      if (archived) { router.push(basePath); return; }
+      setReplications(prev => prev.map(r => (r.id === saved.id ? saved : r)));
+      setSelectedRep(cur => (cur && cur.id === saved.id ? saved : cur));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not archive the request.');
     } finally {
       setDeleting(false);
     }
@@ -806,6 +827,24 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
         </div>
       </Modal>
     )}
+    {archiveOffer && (
+      <Modal onClose={() => setArchiveOffer(null)} busy={deleting} maxWidth="max-w-md">
+        <h2 className="text-lg font-black text-slate-900">Archive instead?</h2>
+        <p className="mt-2 text-sm text-slate-600">
+          <span className="font-bold">{archiveOffer.requestCode || archiveOffer.id}</span> has an approved tech file or a customer approval, so it cannot be deleted. Archiving keeps everything (photos, revisions, PDFs, approvals) and takes it out of the queue. It can be restored later.
+        </p>
+        <div className="mt-6 flex justify-end gap-3">
+          <button onClick={() => setArchiveOffer(null)} disabled={deleting} className="rounded-xl px-4 py-2 text-sm font-bold text-slate-500 hover:text-slate-800 disabled:opacity-40">Cancel</button>
+          <button onClick={() => handleArchive(archiveOffer, true)} disabled={deleting} className="rounded-xl bg-slate-900 px-5 py-2 text-sm font-bold text-white hover:bg-slate-700 disabled:opacity-60">{deleting ? 'Archiving…' : 'Archive request'}</button>
+        </div>
+      </Modal>
+    )}
+    {selectedRep?.archivedAt && (
+      <p className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-700">
+        <span><span className="font-bold">Archived</span> on {new Date(selectedRep.archivedAt).toLocaleDateString()}. It is not in the queue; everything is kept.</span>
+        {isAdmin && <button onClick={() => handleArchive(selectedRep, false)} disabled={deleting} className="font-bold text-rivix hover:underline disabled:opacity-50">Restore to the queue</button>}
+      </p>
+    )}
     <Link href={basePath} className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-rivix">← Back to the queue</Link>
     <div className="font-sans">
       
@@ -1002,7 +1041,7 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
 
             {/* REVIEW & APPROVE (kept mounted so unsaved edits survive switching tabs) */}
             {isAdmin && <div className={activeTab === 'review' ? '' : 'hidden'}>
-              <ReviewTab key={selectedRep.id} rep={selectedRep} onSave={async (updated, approve) => { const ok = await persist(updated, approve); if (ok) setToast({ type: 'success', text: approve ? 'Specification approved. The sales rep has been notified.' : 'Changes saved.' }); return ok; }} />
+              <ReviewTab key={selectedRep.id} rep={selectedRep} onSave={async (updated, approve, opts) => { const ok = await persist(updated, approve, opts); if (ok) setToast({ type: 'success', text: approve ? 'Specification approved. The sales rep has been notified.' : 'Changes saved.' }); return ok; }} />
             </div>}
 
             {/* TAB 1: SPEC REVIEW */}

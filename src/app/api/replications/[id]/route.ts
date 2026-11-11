@@ -8,6 +8,11 @@ import { notifyUsers } from '@/lib/notify';
 import { resolveTemplate } from '@/lib/template-catalog';
 import { getTemplateCatalog } from '@/lib/template-store';
 import { drawingStamp } from '@/lib/drawings';
+import { techFileSnapshot, contentKey } from '@/lib/revisions';
+import { recordRevision, snapshotOfRow, isApproved } from '@/lib/revision-server';
+
+// An approval also makes and stores the PDF of that revision (task 30).
+export const maxDuration = 60;
 
 // One request, found by its id or by its readable number (RQ-0001). A rep only gets their own.
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -48,6 +53,16 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   keepTypeCheck(parsed.row, existing); // the product type confirmation is the server's (task 28)
 
   const isAdmin = actor.kind === 'admin';
+  // Task 30: an approved tech file is locked. Changing it needs "Start a new draft" (newDraft); the approved revision and its
+  // PDF stay as they were. Saves that do not change the tech file (status, tracking, the rep) are not affected.
+  const newDraft = isAdmin && body?.newDraft === true;
+  if (isAdmin && isApproved(existing.ai_analysis) && !newDraft && body?.approve !== true) {
+    const next = techFileSnapshot({ clientName: parsed.row.client_name, productName: parsed.row.product_name, garmentType: parsed.row.garment_type, specs: parsed.row.specs, analysis: parsed.row.ai_analysis });
+    if (contentKey(next) !== contentKey(snapshotOfRow(existing))) {
+      const rev = Number(existing.ai_analysis?.review?.revision) || 0;
+      return NextResponse.json({ error: `This tech file is approved (Rev ${rev}) and locked. Start a new draft to change it; Rev ${rev} stays as it was.`, code: 'locked' }, { status: 409 });
+    }
+  }
   // Approval: only an admin can ask for it; the server checks the draft and records who and when.
   const approve = isAdmin && body?.approve === true;
   if (approve) {
@@ -61,6 +76,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     stamp = drawingStamp(resolveTemplate(parsed.row.garment_type as string, (gt?.template_family as string | null) ?? null, await getTemplateCatalog(admin)));
   }
   parsed.row.ai_analysis = applyReview(parsed.row.ai_analysis, existing.ai_analysis, approve, actor.email, stamp);
+  // "Start a new draft" from an approved tech file: it is a draft now, even before anything is changed.
+  if (newDraft && !approve && parsed.row.ai_analysis && isApproved(existing.ai_analysis)) {
+    const { drawing: _d, ...rest } = parsed.row.ai_analysis; // eslint-disable-line @typescript-eslint/no-unused-vars
+    parsed.row.ai_analysis = { ...rest, review: { status: 'draft', revision: Number(existing.ai_analysis?.review?.revision) || 0 } };
+  }
 
   if (!isAdmin) {
     repSafeUpdate(parsed.row, existing); // the AI draft and spec details stay as the admin saved them
@@ -93,6 +113,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const removed = (existing.images as string[]).filter(p => !(parsed.row.images as string[]).includes(p));
   if (removed.length) await admin.storage.from(REPLICATION_BUCKET).remove(removed);
 
+  // Task 30: keep a revision of the tech file when this save changed it (an approval also stores its PDF).
+  let pdfWarning: string | undefined;
+  if (isAdmin) {
+    const repInfo = data.rep_id ? (await repsByIds(admin, [data.rep_id])).get(data.rep_id as string) : undefined;
+    pdfWarning = (await recordRevision(admin, data, actor, { approved: approve, repName: repInfo?.name ?? null })).pdfWarning;
+  }
+
   // Tell the owning rep about the steps they care about (approved, in production, shipped, handed to them).
   if (isAdmin) {
     const code = (data.request_code as string) || data.id;
@@ -113,10 +140,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     else if (data.status !== existing.status && data.status === 'sample_shipped') await notifyUsers(admin, [repUser], { kind: 'replication_status', title: `${code}: sample shipped`, body: what, link });
   }
 
-  return NextResponse.json({ replication: await rowToReplication(admin, data, actor.kind) });
+  return NextResponse.json({ replication: await rowToReplication(admin, data, actor.kind), ...(pdfWarning ? { pdfWarning } : {}) });
 }
 
-// Delete a request and its photos (admin only).
+// Delete a request and its photos (admin only). A request with an approved tech file revision or a customer approval cannot be
+// deleted (task 30): it is archived instead. The database refuses it too (task-30b SQL).
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const actor = await getReplicationActor();
   if (!actor) return unauthorized();
@@ -129,8 +157,17 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const { data: existing } = await admin.from('replications').select('images').eq('id', id).maybeSingle();
   if (!existing) return notFound();
 
+  const ARCHIVE = 'This request has an approved tech file or a customer approval, so it cannot be deleted. Archive it instead: everything is kept and it leaves the queue.';
+  const [{ count: approvedRevs }, { count: approvals }] = await Promise.all([
+    admin.from('replication_revisions').select('id', { count: 'exact', head: true }).eq('replication_id', id).eq('status', 'approved'),
+    admin.from('replication_customer_approvals').select('id', { count: 'exact', head: true }).eq('replication_id', id),
+  ]);
+  if ((approvedRevs ?? 0) > 0 || (approvals ?? 0) > 0) return NextResponse.json({ error: ARCHIVE, code: 'archive-instead' }, { status: 409 });
   const { error } = await admin.from('replications').delete().eq('id', id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    if (/archive it instead/i.test(error.message)) return NextResponse.json({ error: ARCHIVE, code: 'archive-instead' }, { status: 409 });
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
   const paths = Array.isArray(existing.images) ? (existing.images as string[]) : [];
   if (paths.length) await admin.storage.from(REPLICATION_BUCKET).remove(paths);
   return NextResponse.json({ ok: true });

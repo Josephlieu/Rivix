@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createRequire } from 'module'; const { createServerClient } = createRequire(import.meta.url)('@supabase/ssr');
 import fs from 'fs';
 import { stepUp } from './mfa.mjs'; // task 8: admin sessions need the two-step sign-in
+import { deleteTestRequest } from './cleanup.mjs'; // task 30: approved requests are archived, not deleted
 const env = Object.fromEntries(fs.readFileSync('.env.local','utf8').split('\n').filter(l=>l.includes('=')&&!l.startsWith('#')).map(l=>[l.slice(0,l.indexOf('=')),l.slice(l.indexOf('=')+1).trim().replace(/^["']|["']$/g,'')]));
 const U=env.NEXT_PUBLIC_SUPABASE_URL,A=env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const a=createClient(U,env.SUPABASE_SERVICE_ROLE_KEY,{auth:{persistSession:false}});
@@ -106,16 +107,21 @@ try{
   r=await call('PUT',`${BASE}/${id}`,ac,full({status:'spec_mapped',aiAnalysis:j.replication.aiAnalysis})); j=await r.json();
   ok('saving unchanged keeps the approval (e.g. a chat message)',r.status===200&&j.replication?.aiAnalysis?.review?.status==='approved'&&j.replication.aiAnalysis.review.approvedAt===approvedAt);
   r=await call('PUT',`${BASE}/${id}`,ac,full({status:'sample_production',aiAnalysis:j.replication.aiAnalysis})); j=await r.json(); ok('an approved request can start production',r.status===200&&j.replication?.status==='sample_production',j.error||'');
-  r=await call('PUT',`${BASE}/${id}`,ac,full({status:'sample_production',aiAnalysis:{...j.replication.aiAnalysis,measurements:[{...analysis.measurements[0],m:'99'}]}})); j=await r.json();
-  ok('changing the draft after approval makes it a draft again',r.status===200&&j.replication?.aiAnalysis?.review?.status==='draft');
+  const approvedCopy=j.replication;
+  r=await call('PUT',`${BASE}/${id}`,ac,full({status:'sample_production',aiAnalysis:{...approvedCopy.aiAnalysis,measurements:[{...analysis.measurements[0],m:'99'}]}})); j=await r.json();
+  ok('an approved tech file is locked: changing it without starting a new draft is refused (task 30)',r.status===409&&j.code==='locked',String(r.status));
+  r=await call('PUT',`${BASE}/${id}`,ac,{...full({status:'sample_production',aiAnalysis:{...approvedCopy.aiAnalysis,measurements:[{...analysis.measurements[0],m:'99'}]}}),newDraft:true}); j=await r.json();
+  ok('changing the draft after approval (new draft) makes it a draft again',r.status===200&&j.replication?.aiAnalysis?.review?.status==='draft');
   ok('a draft keeps the last approved revision number',j.replication?.aiAnalysis?.review?.revision===1);
   r=await call('PUT',`${BASE}/${id}`,ac,full({status:'sample_production',approve:true,aiAnalysis:j.replication.aiAnalysis})); j=await r.json(); ok('approving again makes revision 2',r.status===200&&j.replication?.aiAnalysis?.review?.revision===2&&j.replication?.aiAnalysis?.review?.status==='approved',j.error||'');
-  r=await call('PUT',`${BASE}/${id}`,ac,full({status:'sample_production',aiAnalysis:{...j.replication.aiAnalysis,measurements:[{...analysis.measurements[0],m:'98'}]}})); j=await r.json();
+  r=await call('PUT',`${BASE}/${id}`,ac,{...full({status:'sample_production',aiAnalysis:{...j.replication.aiAnalysis,measurements:[{...analysis.measurements[0],m:'98'}]}}),newDraft:true}); j=await r.json();
   r=await call('PUT',`${BASE}/${id}`,ac,full({status:'sample_shipped',aiAnalysis:j.replication.aiAnalysis})); ok('a draft cannot be shipped',r.status===400);
   r=await call('GET',BASE,ac); j=await r.json(); const got=j.replications.find(x=>x.id===id); ok('it all survives a reload',got?.status==='sample_production'&&got?.aiAnalysis?.garmentClass==='parka'&&got?.rivixTrackingNumber==='123');
   const cnt=await a.from('replications').select('id').eq('id',id); ok('exactly one row exists',cnt.data.length===1);
   r=await call('PUT',`${BASE}/${id}`,ac,{clientName:'ZZ Customer',productName:'ZZ Parka',imagePaths:[paths[0]]}); j=await r.json(); ok('leaving a photo out removes it',j.replication?.images?.length===1);
-  const gonePhoto=await a.storage.from('replication-photos').download(paths[1]); ok('the removed photo file is deleted from storage',!!gonePhoto.error);
+  // Listed, not downloaded: since task 30 the approval PDF has read this photo, and a download can come from the storage cache.
+  const folder=paths[1].slice(0,paths[1].lastIndexOf('/')), fname=paths[1].slice(paths[1].lastIndexOf('/')+1);
+  const listed=await a.storage.from('replication-photos').list(folder,{limit:100}); ok('the removed photo file is deleted from storage',!listed.error&&!(listed.data||[]).some(f=>f.name===fname)&&(listed.data||[]).some(f=>paths[0].endsWith(f.name)),JSON.stringify(listed.data?.map(f=>f.name)));
   r=await call('PUT',`${BASE}/bad%20id!`,ac,{clientName:'ZZ',productName:'ZZ'}); ok('an unsafe id is refused',r.status===400);
   r=await call('PUT',`${BASE}/zz-none`,ac,{clientName:'ZZ',productName:'ZZ'}); ok('saving a missing request gives 404',r.status===404);
 
@@ -129,13 +135,15 @@ try{
   const direct=await anon.from('replications').select('id').eq('id',id); ok('public key cannot read requests',!direct.data||direct.data.length===0);
   const w=await anon.from('replications').insert({id:'zz-anon-'+t,client_name:'hack',product_name:'hack'}); ok('public key cannot write requests',!!w.error);
 
-  // --- delete removes the row and the files
-  r=await call('DELETE',`${BASE}/${id}`,ac); ok('admin deletes the request',r.status===200);
-  const gone=await a.from('replications').select('id').eq('id',id); ok('row removed',gone.data.length===0);
-  const f2=await a.storage.from('replication-photos').download(paths[0]); ok('photo files removed',!!f2.error);
-  r=await call('DELETE',`${BASE}/${id}`,ac); ok('deleting twice gives 404',r.status===404);
+  // --- delete (task 30: a request with an approved tech file is archived, not deleted)
+  r=await call('DELETE',`${BASE}/${id}`,ac); j=await r.json(); ok('a request with an approved tech file cannot be deleted: archive it instead',r.status===409&&j.code==='archive-instead',String(r.status));
+  ok('  and it is still there, with its photos',(await a.from('replications').select('id').eq('id',id)).data.length===1&&!(await a.storage.from('replication-photos').download(paths[0])).error);
+  r=await call('POST',BASE,ac,{clientName:'ZZ Customer',productName:'ZZ Delete Me',garmentType:'parka'}); j=await r.json(); const del=j.replication?.id;
+  r=await call('DELETE',`${BASE}/${del}`,ac); ok('admin deletes a request with no approved tech file',r.status===200);
+  const gone=await a.from('replications').select('id').eq('id',del); ok('row removed',gone.data.length===0);
+  r=await call('DELETE',`${BASE}/${del}`,ac); ok('deleting twice gives 404',r.status===404);
 }catch(e){console.log('ERROR',e)}finally{
-  if(id) await a.from('replications').delete().eq('id',id);
+  if(id) await deleteTestRequest(a,id);
   if(paths.length) await a.storage.from('replication-photos').remove(paths);
   for(const u of [adm,rep,cus]) await a.auth.admin.deleteUser(u.id);console.log('cleaned');
 }
