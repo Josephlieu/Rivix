@@ -1,6 +1,7 @@
 import type { PersistedGarmentAIAnalysis } from './garmentAiAnalysis';
 import type { GarmentCategory, GarmentType } from './garment-types-data';
 import type { TemplateCatalog } from './template-catalog';
+import type { WebFound } from './link-source';
 
 export interface ReplicationSpec {
   fabricWeight: string;
@@ -19,6 +20,8 @@ export interface ReplicationSpec {
   inboundReceivedAt?: string;
   /** True when the customer is posting the real garment to RIVIX (otherwise photos only). */
   garmentPosted?: boolean;
+  /** Task 21: the product page the request started from (set by the server only; admins only). Read with readWebSource(). */
+  webSource?: unknown;
   annotations: Array<{
     id: string;
     x: number; // percentage from left
@@ -43,6 +46,7 @@ export interface ReplicationRequest {
   submissionDate: string;
   images: string[]; // short-lived private links to the photos, in display order
   imagePaths?: string[]; // where the photos live in private storage (same order as images)
+  imageLabels?: string[]; // task 21: "Reference image from <site>" for photos taken from a website, '' for the others
   specs: ReplicationSpec;
   clientTrackingCarrier?: string;
   clientTrackingNumber?: string;
@@ -93,7 +97,7 @@ export const getReplication = async (idOrCode: string): Promise<ReplicationReque
 
 /** Create a request (no photos yet; add them with uploadReplicationPhoto). Returns the saved request. */
 export const createReplication = async (
-  r: Pick<ReplicationRequest, 'clientName' | 'productName' | 'garmentType'> & Partial<ReplicationRequest>
+  r: Pick<ReplicationRequest, 'clientName' | 'productName' | 'garmentType'> & Partial<ReplicationRequest> & { linkRead?: { readId: string; images: number[] } }
 ): Promise<ReplicationRequest> => {
   const res = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(r) });
   if (!res.ok) await fail(res, 'Could not create the request.');
@@ -163,6 +167,21 @@ export const confirmReplicationType = async (id: string, typeKey: string): Promi
   const res = await fetch(`${API}/${encodeURIComponent(id)}/type`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ typeKey }) });
   if (!res.ok) await fail(res, 'Could not confirm the product type.');
   return (await res.json()).replication as ReplicationRequest;
+};
+
+/** Task 21: what an admin's read of a product page found (the server keeps the rest; the request takes it by readId). */
+export interface LinkReadResult {
+  readId: string;
+  finalUrl: string;
+  site: string;
+  found: WebFound;
+  images: Array<{ index: number; thumb: string; width: number; height: number }>;
+  notes: string[];
+}
+export const readProductLink = async (url: string): Promise<LinkReadResult> => {
+  const res = await fetch(`${API}/read-link`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url }) });
+  if (!res.ok) await fail(res, 'The page could not be read.');
+  return (await res.json()) as LinkReadResult;
 };
 
 export const uploadReplicationPhoto = async (id: string, file: File): Promise<ReplicationRequest> => {

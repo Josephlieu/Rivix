@@ -127,6 +127,8 @@ export interface PersistedGarmentAIAnalysis {
   suggestions?: Record<string, string>;
   /** Paths filled from what the customer wrote on the request form. Still flagged until a person confirms. */
   fromCustomer?: string[];
+  /** Task 21: paths filled from the product page the request started from: "from the website, not confirmed". */
+  fromWebsite?: string[];
   /** Task 28: every readable label and printed marking, copied exactly, with its photo. Each needs a person to confirm it. */
   markings?: Marking[];
   /** The template this draft was made with (task 26 versions; task 28 type and kind). */
@@ -243,13 +245,14 @@ export type GivenValues = Partial<Record<string, string>>;
  * - human-only details (flame rating, shrinkage, sizes, tolerance, stitch, seam allowance, label size/material, packaging) are always blank and flagged;
  * - measurement points and the checklist come from the template.
  */
-export function applyTemplate(aiData: Row, template: ResolvedTemplate, given: GivenValues = {}, opts: { kind?: ScanKind; photoCount?: number } = {}): Row {
+export function applyTemplate(aiData: Row, template: ResolvedTemplate, given: GivenValues = {}, opts: { kind?: ScanKind; photoCount?: number; website?: GivenValues; webImages?: boolean } = {}): Row {
   const kind = opts.kind ?? 'garment';
   const paths = flaggableFor(kind);
   const { fields: _fields, ...rest } = aiData; // eslint-disable-line @typescript-eslint/no-unused-vars
   const out: Row = { ...rest };
   const flags = new Set<string>();
   const fromCustomer: string[] = [];
+  const fromWebsite: string[] = []; // task 21: values taken from a product page: "from the website, not confirmed"
   const humanOnly = new Set(['fabricAnalysis.frRating', 'fabricAnalysis.shrinkage']);
   for (const path of paths) {
     const [group, field] = path.split('.');
@@ -257,8 +260,11 @@ export function applyTemplate(aiData: Row, template: ResolvedTemplate, given: Gi
     const list = isListPath(path);
     let value: string | string[] = list ? asLines(obj[field]) : (typeof obj[field] === 'string' && !isNotVisible(obj[field]) ? obj[field].trim() : '');
     if (humanOnly.has(path)) value = '';
-    const g = (given[path] ?? '').trim();
-    if (g) { value = list ? asLines(g) : g; fromCustomer.push(path); }
+    // What the customer wrote wins; otherwise a value from the product page (task 21). Both always need confirming.
+    const said = (given[path] ?? '').trim();
+    const web = said ? '' : (opts.website?.[path] ?? '').trim();
+    const g = said || web;
+    if (g) { value = list ? asLines(g) : g; (said ? fromCustomer : fromWebsite).push(path); }
     obj[field] = value;
     out[group] = obj;
     if (g || (list ? (value as string[]).length === 0 : value === '')) flags.add(path);
@@ -274,6 +280,7 @@ export function applyTemplate(aiData: Row, template: ResolvedTemplate, given: Gi
   }
   out.suggestions = suggestions;
   out.fromCustomer = fromCustomer;
+  out.fromWebsite = fromWebsite;
 
   const rows = (list: unknown): Row[] => (Array.isArray(list) ? list : []).filter((r) => r && typeof r === 'object');
   // Measurement points come from the template (a photo gives no sizes); the AI's rows are used only when the template has none.
@@ -295,7 +302,8 @@ export function applyTemplate(aiData: Row, template: ResolvedTemplate, given: Gi
   out.markings = cleanMarkings(aiData.markings, opts.photoCount);
   // Google Search matched a retail product: anything the AI wrote may come from that web page, not the photo, so nothing it
   // wrote stands as fact. Every value and every checklist item waits for a person (task 11).
-  if (fromWeb(aiData)) {
+  // Task 21: photos taken from a website show the product as sold (and may be retouched): the same applies.
+  if (fromWeb(aiData) || opts.webImages) {
     for (const path of paths) flags.add(path);
     out.checklist = (out.checklist as ChecklistEntry[]).map((c) => ({ ...c, needsConfirmation: true }));
   }
@@ -361,5 +369,6 @@ export function buildPersistedAnalysis(
     flags: (aiData.flags as string[]) || undefined,
     suggestions: (aiData.suggestions as Record<string, string>) || undefined,
     fromCustomer: (aiData.fromCustomer as string[]) || undefined,
+    fromWebsite: (aiData.fromWebsite as string[]) || undefined,
   };
 }

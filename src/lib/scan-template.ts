@@ -60,9 +60,9 @@ export function parseJsonFromModel(text: string): unknown {
 }
 
 /** Turns the AI's answer into the saved draft: cleaned by the template's rules, with the template it was made with. */
-export function finishScan(aiData: Record<string, unknown>, i: ScanInput & { kind: ScanKind; given?: GivenValues }): Record<string, unknown> {
+export function finishScan(aiData: Record<string, unknown>, i: ScanInput & { kind: ScanKind; given?: GivenValues; website?: GivenValues; webImages?: boolean }): Record<string, unknown> {
   return {
-    ...applyTemplate(aiData, i.template, i.given ?? {}, { kind: i.kind, photoCount: i.photoCount }),
+    ...applyTemplate(aiData, i.template, i.given ?? {}, { kind: i.kind, photoCount: i.photoCount, website: i.website, webImages: i.webImages }),
     template: { typeKey: i.typeKey, kind: i.kind, versions: i.template.versions, certification: i.template.certification },
   };
 }
@@ -70,7 +70,8 @@ export function finishScan(aiData: Record<string, unknown>, i: ScanInput & { kin
 export class EmptyAnswerError extends Error { constructor() { super('Empty response from AI'); } }
 
 /** The whole scan: build the request, ask the AI once (through `ask`), read and clean the answer. */
-export async function runTemplateScan(i: ScanInput & { given?: GivenValues; ask: (prompt: string, schema: Record<string, unknown>) => Promise<string> }) {
+// `website` and `webImages` (task 21) never reach the prompt: the website's text is data for the person, not the AI.
+export async function runTemplateScan(i: ScanInput & { given?: GivenValues; website?: GivenValues; webImages?: boolean; ask: (prompt: string, schema: Record<string, unknown>) => Promise<string> }) {
   const { kind, prompt, schema } = scanRequest(i);
   const text = await i.ask(prompt, schema);
   if (!text) throw new EmptyAnswerError();

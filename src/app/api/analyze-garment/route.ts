@@ -1,4 +1,5 @@
 import { scanSearchEnabled } from '@/lib/gemini-model';
+import { readWebSource, websiteGiven } from '@/lib/link-source';
 import { NextRequest, NextResponse } from 'next/server';
 import { getReplicationActor, unauthorized, canAccess } from '@/lib/replication-access';
 import { createAdminClient } from '@/lib/supabase-admin';
@@ -34,6 +35,8 @@ export async function POST(req: NextRequest) {
     let garmentKey: string | null = null;
     let customerNotes = '';
     const given: GivenValues = {}; // what the customer wrote on the request form
+    let website: GivenValues | undefined; // task 21: from the product page, "from the website, not confirmed"
+    let webImages = false;
     let imageArray: string[] = [];
 
     if (body.replicationId !== undefined) {
@@ -51,6 +54,13 @@ export async function POST(req: NextRequest) {
       given['fabricAnalysis.material'] = said('coreMaterial');
       given['fabricAnalysis.weight'] = said('fabricWeight');
       given['washCare.instructions'] = said('careText');
+      // Task 21: values from the product page the request started from (material, weight, care only; never a rating,
+      // standard or certification), and whether any photo is a reference image from that site.
+      const ws = readWebSource(sp.webSource);
+      if (ws) {
+        website = websiteGiven(ws.found);
+        webImages = (Array.isArray(row.images) ? row.images : []).some((p: unknown) => typeof p === 'string' && ws.referenceImages.includes(p));
+      }
       imageArray = await loadRequestPhotos(admin, row.images);
     } else {
       // Loose photos (admin only): the admin must say what the product is; that choice is the confirmation.
@@ -85,7 +95,7 @@ export async function POST(req: NextRequest) {
     try {
       result = await runTemplateScan({
         template, typeKey: garmentKey!, typeName: garmentTypeLabel(garmentKey), photoCount: imageArray.length, customerNotes,
-        searchAvailable: useSearch, given, ask: gemini.ask,
+        searchAvailable: useSearch, given, website, webImages, ask: gemini.ask,
       });
     } catch (e) {
       if (e instanceof EmptyAnswerError) return NextResponse.json({ error: 'Empty response from AI' }, { status: 500 });

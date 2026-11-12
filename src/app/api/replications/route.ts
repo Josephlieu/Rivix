@@ -6,6 +6,7 @@ import { getReplicationActor, unauthorized, repsByIds, requestLink } from '@/lib
 import { replicationToRow, rowToReplication } from '@/lib/replication-server';
 import { allowedGarmentKeys } from '@/lib/garment-types';
 import { adminUserIds, notifyUsers } from '@/lib/notify';
+import { readLinkPick, loadUsableRead, claimRead, unclaimRead, takeRead, webSourceOf } from '@/lib/link-reads-server';
 
 const SQL_HINT = 'The replication rep-side tables are missing. Run dev-patch-replication-rep-side.sql in Supabase.';
 const dbProblem = (e: { code?: string; message: string }) =>
@@ -35,7 +36,9 @@ export async function GET(req: NextRequest) {
 }
 
 // Create a request. A rep's request belongs to that rep; an admin may give it to a rep or keep it ("handled directly").
-// Photos are added afterwards, one by one, through /photos.
+// Photos are added afterwards, one by one, through /photos. Task 21: an admin may start from a website link they read
+// (`linkRead: { readId, images }`): the link, the read time, what was found and the chosen reference images are taken from
+// the server's own record of that read (link_reads), never from what the browser sends.
 export async function POST(req: NextRequest) {
   const actor = await getReplicationActor();
   if (!actor) return unauthorized();
@@ -54,6 +57,16 @@ export async function POST(req: NextRequest) {
     repId = rep.id as string;
   }
 
+  // Task 21: a website read (admins only), claimed for this request in one conditional update.
+  const pick = body?.linkRead !== undefined && body?.linkRead !== null ? readLinkPick(body.linkRead) : null;
+  if (body?.linkRead && (actor.kind !== 'admin' || !pick)) return NextResponse.json({ error: 'Reading a website link is for RIVIX admins.' }, { status: actor.kind === 'admin' ? 400 : 403 });
+  let read: Awaited<ReturnType<typeof loadUsableRead>> = null;
+  if (pick) {
+    read = await loadUsableRead(admin, pick.readId, actor.userId);
+    if (!read || !(await claimRead(admin, read.id, id))) return NextResponse.json({ error: 'That website read has expired or was already used. Read the link again.' }, { status: 409 });
+    parsed.row.specs = { ...(parsed.row.specs as Record<string, unknown>), webSource: webSourceOf(read, actor.email || actor.name) };
+  }
+
   const row = { id, ...parsed.row, images: [], status: 'received', rep_id: repId, created_by_role: actor.kind, created_by_name: actor.name };
   delete (row as Record<string, unknown>).ai_analysis; // a new request starts without an analysis
   let { data, error } = await admin.from('replications').insert(row).select('*').single();
@@ -62,7 +75,18 @@ export async function POST(req: NextRequest) {
     const { rep_id: _r, created_by_role: _c, created_by_name: _n, ...plain } = row; // eslint-disable-line @typescript-eslint/no-unused-vars
     ({ data, error } = await admin.from('replications').insert(plain).select('*').single());
   }
-  if (error || !data) return NextResponse.json({ error: error && dbProblem(error) ? SQL_HINT : error?.message || 'Could not create the request.' }, { status: 500 });
+  if (error || !data) {
+    if (read) await unclaimRead(admin, read.id);
+    return NextResponse.json({ error: error && dbProblem(error) ? SQL_HINT : error?.message || 'Could not create the request.' }, { status: 500 });
+  }
+  if (read && pick) {
+    // The chosen reference images move into the request; the web source records which photos they are.
+    const taken = await takeRead(admin, read, pick, id, actor.email || actor.name);
+    const { data: updated } = await admin.from('replications')
+      .update({ images: taken.images, specs: { ...(data.specs as Record<string, unknown>), webSource: taken.webSource } })
+      .eq('id', id).select('*').single();
+    if (updated) data = updated;
+  }
 
   // Tell the other side: admins hear about a rep's request; a rep hears about one an admin made for them.
   const reps = await repsByIds(admin, [repId]);

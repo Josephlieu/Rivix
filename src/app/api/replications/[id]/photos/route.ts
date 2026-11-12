@@ -1,15 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getReplicationActor, unauthorized, notFound, canAccess } from '@/lib/replication-access';
 import { createAdminClient } from '@/lib/supabase-admin';
+import { sniffImage as sniff } from '@/lib/image-sniff';
 import { isValidReplicationId, rowToReplication, MAX_PHOTO_BYTES, MAX_PHOTOS, PHOTO_TYPES, REPLICATION_BUCKET } from '@/lib/replication-server';
-
-// Check the bytes really are the image type claimed, not just a file named like one.
-function sniff(b: Uint8Array): string | null {
-  if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return 'image/jpeg';
-  if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return 'image/png';
-  if (String.fromCharCode(...b.slice(0, 4)) === 'RIFF' && String.fromCharCode(...b.slice(8, 12)) === 'WEBP') return 'image/webp';
-  return null;
-}
 
 // Add one photo (JPEG, PNG or WebP, up to 4 MB). The request must already be saved.
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

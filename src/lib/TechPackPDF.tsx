@@ -9,6 +9,7 @@
 import { garmentTypeLabel } from './garment-types-data';
 import { missingInformation } from './garmentAiAnalysis';
 import { sizeLabels, sizeNote, withDefaultSizes } from './size-run';
+import { readWebSource } from './link-source';
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Image, Font, Svg, Path, Circle } from '@react-pdf/renderer';
 import { drawingFor, drawingPrimitives, placeMarkers, rowNumbers, DRAWING_NOTE, type DrawingDef, type DrawingTemplate } from './drawings';
@@ -261,6 +262,8 @@ export const TechPackPDF = ({ d }: { d: TechFileData }) => {
           </View>
         </View>
         {d.photos[0] ? <Image style={s.photo} src={d.photos[0]} /> : <Text style={s.none}>No reference photo.</Text>}
+        {/* Task 21: a request started from a product page says so (only then; older files print as before). Plain text. */}
+        {(() => { const ws = readWebSource((d.specs as { webSource?: unknown } | undefined)?.webSource); return ws ? <Text style={s.warn}>{`Started from a website link: ${ws.url}${ws.readAt ? ` (read ${ws.readAt.slice(0, 10)})` : ''}. Photos taken from ${ws.site} are reference images from that site. What the site says is from the website and not confirmed; the original's certification does not carry over to a copy.`}</Text> : null; })()}
         {!d.approved && <Text style={s.warn}>DRAFT. This specification has not been approved. Values were drafted by AI from photos and must be checked against the physical garment before this file goes to a factory.</Text>}
       </Sheet>
 

@@ -12,6 +12,8 @@ import FlatDrawing, { DrawingPlaceholder } from '@/components/FlatDrawing';
 import RevisionHistory from './RevisionHistory';
 import { defaultSizeRun, sizeLabels, SHOE_WIDTHS } from '@/lib/size-run';
 import { getGarmentTypes } from '@/lib/replicationStorage';
+import { readWebSource, linkMissing, FROM_WEBSITE } from '@/lib/link-source';
+import WebFoundView from './WebFoundView';
 
 type Analysis = PersistedGarmentAIAnalysis;
 type Measurement = Analysis['measurements'][number];
@@ -124,6 +126,8 @@ export default function ReviewTab({ rep, onSave }: Props) {
   let templateProblem = '';
   try { template = resolveTemplateChecked(rep.garmentType, family, catalog, rep.aiAnalysis?.template?.versions); }
   catch (e) { templateProblem = e instanceof Error ? e.message : 'The template could not be read.'; template = resolveTemplate('', null, BUILT_IN_CATALOG); }
+  // Task 21: the product page this request started from (set by the server; data only, shown as plain text).
+  const webSource = readWebSource(rep.specs.webSource);
   const fromRep = () => {
     const analysis = (rep.aiAnalysis ? structuredClone(rep.aiAnalysis) : emptyAnalysis()) as Analysis;
     if (!analysis.checklist) analysis.checklist = checklistFor(template);
@@ -156,7 +160,8 @@ export default function ReviewTab({ rep, onSave }: Props) {
   const confirm = (path: string) => setA({ flags: flags.filter(f => f !== path) });
   // The AI's idea for a field it could not see: shown beside the field; "Use this" copies it in, and it still needs confirming.
   const sug = (path: string) => a.suggestions?.[path];
-  const src = (path: string) => (a.fromCustomer?.includes(path) ? "From the customer's request form. Check it, then confirm." : undefined);
+  const src = (path: string) => (a.fromCustomer?.includes(path) ? "From the customer's request form. Check it, then confirm."
+    : a.fromWebsite?.includes(path) ? `${FROM_WEBSITE} (${webSource?.site || 'the product page'}). Check it against the garment, then confirm.` : undefined);
   const use = (path: string) => {
     const text = a.suggestions?.[path];
     if (!text) return;
@@ -267,6 +272,20 @@ export default function ReviewTab({ rep, onSave }: Props) {
           <h3 className="text-xs font-black uppercase tracking-widest text-rose-900">Missing information ({missing.length})</h3>
           <p className="mb-2 text-[11px] text-rose-800">Required for this product type and not known or not confirmed yet. Fill in what you can, then confirm each item. Also printed in the PDF.</p>
           <ul className="list-disc space-y-0.5 pl-5 text-xs text-rose-900">{missing.map(x => <li key={x}>{x}</li>)}</ul>
+        </section>
+      )}
+
+      {webSource && (
+        <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-5">
+          <div>
+            <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">From the website</h3>
+            <p className="mt-1 break-all text-[12px] text-slate-500">
+              Started from <a href={webSource.url} target="_blank" rel="noopener noreferrer nofollow" className="font-bold text-rivix hover:underline">{webSource.url}</a>
+              {' '}· read {webSource.readAt ? new Date(webSource.readAt).toLocaleString() : ''}{webSource.readBy ? ` by ${webSource.readBy}` : ''}
+              {webSource.referenceImages.length > 0 && <> · {webSource.referenceImages.length} reference image{webSource.referenceImages.length > 1 ? 's' : ''} from {webSource.site}</>}
+            </p>
+          </div>
+          <WebFoundView found={webSource.found} missing={linkMissing(webSource.found, template)} missingFor={garmentTypeLabel(rep.garmentType)} />
         </section>
       )}
 

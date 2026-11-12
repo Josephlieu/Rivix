@@ -483,7 +483,7 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
     if (!selectedRep || photoMsg) return;
     if (!window.confirm('Remove this photo from the request?\n\nThe AI result is not changed. Click "Run again" on the AI tab to scan without it.')) return;
     const drop = <T,>(l: T[]) => l.filter((_, i) => i !== idx);
-    await persist({ ...selectedRep, images: drop(selectedRep.images || []), imagePaths: drop(selectedRep.imagePaths || []) });
+    await persist({ ...selectedRep, images: drop(selectedRep.images || []), imagePaths: drop(selectedRep.imagePaths || []), imageLabels: drop(selectedRep.imageLabels || []) });
   };
 
   // Save a changed request. On success the saved copy (with fresh photo links) replaces the old one
@@ -1057,6 +1057,7 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
                         alt={`${selectedRep.productName} — client reference photo`}
                         className="w-full h-full max-h-[480px] object-contain rounded-2xl"
                       />
+                      {selectedRep.imageLabels?.[0] && <p className="mt-2 text-[11px] font-bold uppercase tracking-widest text-amber-300">{selectedRep.imageLabels[0]}</p>}
                       <div className="mt-4 flex w-full gap-2 overflow-x-auto pb-1">
                         {selectedRep.images.map((img, idx) => (
                           <div key={idx} className="group relative shrink-0">
@@ -1068,10 +1069,11 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
                               onClick={() => {
                                 if (idx === 0) return;
                                 const move = <T,>(list: T[]) => { const c = [...list]; const [x] = c.splice(idx, 1); c.unshift(x); return c; };
-                                persist({ ...selectedRep, images: move(selectedRep.images), imagePaths: move(selectedRep.imagePaths || []) });
+                                persist({ ...selectedRep, images: move(selectedRep.images), imagePaths: move(selectedRep.imagePaths || []), imageLabels: move(selectedRep.imageLabels || []) });
                               }}
                             />
                             {idx === 0 && <span className="absolute bottom-0 left-0 right-0 rounded-b-md bg-rivix/90 text-center text-[9px] font-bold uppercase text-white">Main</span>}
+                            {selectedRep.imageLabels?.[idx] && <span title={selectedRep.imageLabels[idx]} className="absolute left-0 top-0 rounded-br-md rounded-tl-md bg-amber-400 px-1 text-[9px] font-black uppercase text-slate-900">Web</span>}
                             <button
                               type="button"
                               onClick={() => removePhoto(idx)}
@@ -1858,11 +1860,14 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
                           {/* Photos the AI read: first one large, the rest as a grid */}
                           {selectedRep.images?.[0] && (
                             <div className="grid grid-cols-3 gap-2">
-                              <img src={selectedRep.images[0]} alt="Main reference photo" className="col-span-3 max-h-[26rem] w-full rounded-lg border border-slate-200 bg-slate-50 object-contain" />
+                              <img src={selectedRep.images[0]} alt="Main reference photo" title={selectedRep.imageLabels?.[0] || undefined} className="col-span-3 max-h-[26rem] w-full rounded-lg border border-slate-200 bg-slate-50 object-contain" />
                               {selectedRep.images.slice(1).map((u, i) => (
-                                <img key={u || i} src={u} alt={`Reference photo ${i + 2}`} className="aspect-square w-full rounded-lg border border-slate-200 object-cover" />
+                                <img key={u || i} src={u} alt={`Reference photo ${i + 2}`} title={selectedRep.imageLabels?.[i + 1] || undefined} className={`aspect-square w-full rounded-lg border object-cover ${selectedRep.imageLabels?.[i + 1] ? 'border-amber-400' : 'border-slate-200'}`} />
                               ))}
                             </div>
+                          )}
+                          {selectedRep.imageLabels?.some(Boolean) && (
+                            <p className="mt-1 text-[11px] text-slate-500">Photos {selectedRep.imageLabels.map((l, i) => (l ? i + 1 : 0)).filter(Boolean).join(', ')}: {selectedRep.imageLabels.find(Boolean)}.</p>
                           )}
                           {/* Colours & WASH CARE — side by side */}
                           <div className="grid grid-cols-1 gap-6 mt-8">

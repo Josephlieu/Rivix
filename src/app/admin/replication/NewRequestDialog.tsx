@@ -2,7 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Modal from '@/components/Modal';
-import { createReplication, uploadReplicationPhoto, getReplicationLookups, getGarmentTypes, type ReplicationRequest } from '@/lib/replicationStorage';
+import { createReplication, uploadReplicationPhoto, getReplicationLookups, getGarmentTypes, readProductLink, type ReplicationRequest, type LinkReadResult } from '@/lib/replicationStorage';
+import { resolveTemplate, BUILT_IN_CATALOG, type TemplateCatalog } from '@/lib/template-catalog';
+import { linkMissing } from '@/lib/link-source';
+import WebFoundView from './WebFoundView';
 import { DEFAULT_GARMENT_CATEGORIES, DEFAULT_GARMENT_TYPES, type GarmentCategory, type GarmentType } from '@/lib/garment-types-data';
 export const MAX_PHOTOS = 12;
 export const MAX_BYTES = 4 * 1024 * 1024;
@@ -42,13 +45,34 @@ export default function NewRequestDialog({ role, onClose, onCreated }: Props) {
   const [types, setTypes] = useState<GarmentType[]>(DEFAULT_GARMENT_TYPES);
   const [category, setCategory] = useState('workwear'); // General Workwear, whose first type is Jacket (task 27)
   const [garmentType, setGarmentType] = useState('jacket');
-  useEffect(() => { getGarmentTypes().then(l => { setCategories(l.categories); setTypes(l.types); }).catch(() => {}); }, []);
+  const [catalog, setCatalog] = useState<TemplateCatalog>(BUILT_IN_CATALOG);
+  useEffect(() => { getGarmentTypes().then(l => { setCategories(l.categories); setTypes(l.types); if (l.templates) setCatalog(l.templates); }).catch(() => {}); }, []);
   const typesInCategory = types.filter(t => t.category === category);
   const chooseCategory = (key: string) => { setCategory(key); const first = types.find(t => t.category === key); if (first) setGarmentType(first.key); };
   const [notes, setNotes] = useState('');
   // What the customer already knows (from the label or a spec sheet). Optional; anything entered here is taken as given, and the admin still confirms it.
   const [known, setKnown] = useState({ coreMaterial: '', fabricWeight: '', safetyRating: '', careText: '' });
   const [files, setFiles] = useState<File[]>([]);
+  // Task 21 (admins only): start from a product page. The server reads it through its guarded fetcher and keeps the
+  // reference images; this form shows what was found and which images to keep, and the request takes them by read id.
+  const [link, setLink] = useState('');
+  const [reading, setReading] = useState(false);
+  const [linkError, setLinkError] = useState('');
+  const [read, setRead] = useState<LinkReadResult | null>(null);
+  const [keep, setKeep] = useState<number[]>([]);
+  const readLink = async () => {
+    if (!link.trim() || reading) return;
+    setReading(true); setLinkError(''); setRead(null); setKeep([]);
+    try {
+      const r = await readProductLink(link.trim());
+      setRead(r);
+      setKeep(r.images.map(i => i.index).slice(0, MAX_PHOTOS));
+      if (!productName.trim() && r.found.name) setProductName(r.found.name.slice(0, 200));
+    } catch (err) { setLinkError(err instanceof Error ? err.message : 'The page could not be read.'); }
+    setReading(false);
+  };
+  const linkTemplate = (() => { try { return resolveTemplate(garmentType, types.find(t => t.key === garmentType)?.templateFamily ?? null, catalog); } catch { return null; } })();
+  const room = MAX_PHOTOS - keep.length;
   const [previews, setPreviews] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState('');
@@ -81,11 +105,11 @@ export default function NewRequestDialog({ role, onClose, onCreated }: Props) {
     if (!list) return;
     const picked = Array.from(list);
     const wrongType = picked.filter(f => !OK_TYPES.includes(f.type));
-    const room = MAX_PHOTOS - files.length;
-    setFiles(prev => [...prev, ...picked.filter(f => OK_TYPES.includes(f.type))].slice(0, MAX_PHOTOS));
+    const free = room - files.length;
+    setFiles(prev => [...prev, ...picked.filter(f => OK_TYPES.includes(f.type))].slice(0, room));
     setError(
       wrongType.length ? 'Only JPEG, PNG or WebP photos can be added.'
-      : picked.length > room ? `A request can hold up to ${MAX_PHOTOS} photos.` : ''
+      : picked.length > free ? `A request can hold up to ${MAX_PHOTOS} photos.` : ''
     );
     if (input.current) input.current.value = '';
   };
@@ -104,6 +128,7 @@ export default function NewRequestDialog({ role, onClose, onCreated }: Props) {
           reflectiveStriping: '', pocketsCount: '', seamConstruction: '', specialInstructions: notes.trim(), annotations: [], garmentPosted: posted,
         },
         messages: [],
+        ...(role === 'admin' && read ? { linkRead: { readId: read.readId, images: keep } } : {}),
       });
       let latest = created;
       for (let i = 0; i < files.length; i++) {
@@ -129,6 +154,45 @@ export default function NewRequestDialog({ role, onClose, onCreated }: Props) {
           <h2 className="text-lg font-black text-slate-900">New replication request</h2>
           <p className="text-xs text-slate-400">Enter a garment for a customer. Add photos from several angles (front, back, pockets, labels, zippers): the AI reads all of them.</p>
         </div>
+
+        {role === 'admin' && (
+          <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-3">
+            <label htmlFor="rq-link" className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Start from a website link (optional)</label>
+            <div className="flex gap-2">
+              <input id="rq-link" type="url" inputMode="url" className={field} value={link} maxLength={2000} placeholder="https://… a product page"
+                onChange={e => setLink(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); readLink(); } }} disabled={busy} />
+              <button type="button" onClick={readLink} disabled={busy || reading || !link.trim()} className="shrink-0 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 hover:border-rivix hover:text-rivix disabled:opacity-40">{reading ? 'Reading…' : 'Read the page'}</button>
+            </div>
+            <p className="text-[11px] text-slate-400">The portal reads the page's text and images only (nothing on the page is run). What it finds is from the website and not confirmed; the images are kept as reference images from that site.</p>
+            {linkError && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">{linkError}</p>}
+            {read && (
+              <div className="space-y-3 border-t border-slate-200 pt-3">
+                <p className="text-xs text-slate-500">Read from <span className="font-bold text-slate-700">{read.site}</span>.</p>
+                {read.notes.map(n => <p key={n} className="text-[11px] text-amber-800">{n}</p>)}
+                {read.images.length > 0 && (
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Reference images from {read.site} ({keep.length} kept)</p>
+                    <div className="mt-1 grid grid-cols-4 gap-2 sm:grid-cols-6">
+                      {read.images.map(im => {
+                        const on = keep.includes(im.index);
+                        return (
+                          <label key={im.index} className={`relative block aspect-square cursor-pointer overflow-hidden rounded-lg border-2 ${on ? 'border-rivix' : 'border-slate-200 opacity-50'}`}>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={im.thumb} alt={`Reference image ${im.index + 1} from ${read.site}`} className="h-full w-full object-cover" />
+                            <input type="checkbox" className="absolute left-1 top-1 h-4 w-4 accent-[#c61213]" checked={on} disabled={busy}
+                              onChange={() => setKeep(k => (on ? k.filter(x => x !== im.index) : k.length + files.length < MAX_PHOTOS ? [...k, im.index] : k))} aria-label={`Keep reference image ${im.index + 1}`} />
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                <WebFoundView found={read.found} missing={linkTemplate ? linkMissing(read.found, linkTemplate) : []} missingFor={types.find(t => t.key === garmentType)?.label ?? 'this type'} />
+                <button type="button" onClick={() => { setRead(null); setKeep([]); }} disabled={busy} className="text-[11px] font-bold text-slate-400 hover:text-rivix">Don&apos;t use this page</button>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="relative space-y-1" onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setListOpen(false); }}>
           <label htmlFor="rep-customer" className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Customer</label>
@@ -231,8 +295,8 @@ export default function NewRequestDialog({ role, onClose, onCreated }: Props) {
 
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Photos ({files.length}/{MAX_PHOTOS})</span>
-            <button type="button" onClick={() => input.current?.click()} disabled={busy || files.length >= MAX_PHOTOS}
+            <span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Photos ({files.length + keep.length}/{MAX_PHOTOS})</span>
+            <button type="button" onClick={() => input.current?.click()} disabled={busy || files.length >= room}
               className="text-xs font-bold text-rivix hover:underline disabled:opacity-40">+ Add photos</button>
           </div>
           <input ref={input} type="file" accept="image/jpeg,image/png,image/webp" multiple hidden onChange={e => addFiles(e.target.files)} />
