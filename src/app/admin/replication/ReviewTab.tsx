@@ -14,6 +14,7 @@ import { defaultSizeRun, sizeLabels, SHOE_WIDTHS } from '@/lib/size-run';
 import { getGarmentTypes } from '@/lib/replicationStorage';
 import { readWebSource, linkMissing, FROM_WEBSITE } from '@/lib/link-source';
 import WebFoundView from './WebFoundView';
+import StandardNote from '@/components/StandardNote';
 
 type Analysis = PersistedGarmentAIAnalysis;
 type Measurement = Analysis['measurements'][number];
@@ -54,8 +55,9 @@ function Section({ title, hint, children }: { title: string; hint?: string; chil
   );
 }
 
-function Field({ name, value, onChange, wide, options, flagged, onConfirm, suggestion, onUse, note }: {
+function Field({ name, value, onChange, wide, options, flagged, onConfirm, suggestion, onUse, note, edition }: {
   name: string; value: string; onChange: (v: string) => void; wide?: boolean;
+  edition?: boolean; // a safety standard: note a replaced edition (never blocks)
   options?: string[]; // suggestions (the field stays free text)
   flagged?: boolean; onConfirm?: () => void; // "needs confirmation" flag and the button that clears it
   suggestion?: string; onUse?: () => void; // the AI's idea (never filled in by itself)
@@ -70,6 +72,7 @@ function Field({ name, value, onChange, wide, options, flagged, onConfirm, sugge
       </label>
       {listId && <datalist id={listId}>{options!.map(o => <option key={o} value={o} />)}</datalist>}
       {note && <span className="block text-[10px] text-slate-500">{note}</span>}
+      {edition && <StandardNote value={value} />}
       {flagged && onConfirm && <ConfirmFlag onConfirm={onConfirm} />}
       {suggestion && onUse && <Suggestion text={suggestion} onUse={onUse} />}
     </div>
@@ -344,7 +347,7 @@ export default function ReviewTab({ rep, onSave }: Props) {
 
       <Section title="Basic specification" hint="What the customer’s garment is made of. Shown on the Client Spec Review tab.">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {specFields.map(([k, name]) => <Field key={k} name={name} value={String(draft.specs[k] ?? '')} onChange={v => setSpec(k, v)} options={k === 'safetyRating' ? HIVIS_STANDARDS : k === 'reflectiveStriping' ? TAPE_OPTIONS : undefined} />)}
+          {specFields.map(([k, name]) => <Field key={k} name={name} value={String(draft.specs[k] ?? '')} onChange={v => setSpec(k, v)} options={k === 'safetyRating' ? HIVIS_STANDARDS : k === 'reflectiveStriping' ? TAPE_OPTIONS : undefined} edition={k === 'safetyRating'} />)}
           <Field wide name="Special instructions" value={draft.specs.specialInstructions || ''} onChange={v => setSpec('specialInstructions', v)} />
         </div>
         <div className="flex flex-wrap items-center gap-3">

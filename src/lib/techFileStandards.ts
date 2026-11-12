@@ -110,8 +110,8 @@ export const HIVIS_STANDARDS = [
   'EN ISO 20471:2013 Class 3',
   'EN ISO 20471:2013 Class 2',
   'EN ISO 20471:2013 Class 1',
-  'CSA Z96-15 Class 3',
-  'CSA Z96-15 Class 2',
+  'CSA Z96:22 Class 3', // the catalogue says CSA Z96-15, which CSA Z96:22 replaced (2026-11-12, user's decision)
+  'CSA Z96:22 Class 2',
 ];
 export const TAPE_WIDTHS = ['25 mm (1 in)', '50 mm (2 in)'];
 export const TAPE_COLOURS = ['Silver', 'Dual silver', 'Silver FR (flame-resistant) tape'];

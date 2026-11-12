@@ -27,3 +27,15 @@ export function normalizeStandard(v: unknown): string | null {
   if (!s) return null;
   return SAFETY_STANDARDS.find((x) => x.toLowerCase() === s.toLowerCase()) ?? s;
 }
+
+// Standard editions we know have been replaced. Typing one shows a small note under the field; it never blocks saving,
+// and what was typed is kept (a customer may still ask for the older edition). Add more here; nowhere else.
+export const REPLACED_EDITIONS: ReadonlyArray<{ match: RegExp; old: string; current: string }> = [
+  { match: /\bZ96\s*[-\u2010-\u2013]\s*15(?!\d)/i, old: 'CSA Z96-15', current: 'CSA Z96:22' },
+];
+
+export function replacedEditionNote(v: unknown): string | null {
+  const s = String(v ?? '');
+  const hit = REPLACED_EDITIONS.find((e) => e.match.test(s));
+  return hit ? `${hit.old} has been replaced by ${hit.current}. Keep it only if the customer asked for the older edition.` : null;
+}

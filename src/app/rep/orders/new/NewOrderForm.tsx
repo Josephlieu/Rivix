@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Plus, Trash2, Loader2, AlertCircle, Check } from 'lucide-react';
 import ComboInput from '@/components/ComboInput';
 import { SAFETY_STANDARDS } from '@/lib/safety-standards';
+import StandardNote from '@/components/StandardNote';
 import SizeGrid, { SizeGridValue, emptySizeGrid, gridToSizes, gridTotal, sizesToGrid } from '@/components/SizeGrid';
 
 interface CustomerOption { id: string; customer_code: string; company_name: string; rep_id?: string | null; rep_name?: string | null }
@@ -200,6 +201,7 @@ export default function NewOrderForm({
                 <div className="space-y-1.5">
                   <label className={label}>Safety standard</label>
                   <ComboInput className={input} value={it.safety_standard} onChange={(v) => setItem(i, { safety_standard: v })} options={[...SAFETY_STANDARDS]} placeholder="Pick one, or type another (Other)" />
+                  <StandardNote value={it.safety_standard} />
                 </div>
               </div>
               <div className="space-y-1.5">

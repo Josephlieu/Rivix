@@ -169,11 +169,12 @@ export default function DocumentList({ documents, onDelete, showOrder, empty = '
         <div key={d.id} className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/50 p-3 sm:p-4">
           <div className="p-2.5 rounded-xl bg-white text-slate-400 shrink-0"><FileText size={18} /></div>
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 min-w-0">
-              <p className="text-sm font-bold text-slate-900 truncate">{d.title}</p>
+            {/* A long title wraps (and shows in full on hover); the badge moves below it rather than squeezing it. */}
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0">
+              <p className="min-w-0 break-words text-sm font-bold text-slate-900" title={d.title}>{d.title}</p>
               <ExpiryBadge expiresOn={d.expires_on} today={today} />
             </div>
-            <p className="text-[11px] text-slate-400 truncate">
+            <p className="text-[11px] text-slate-400 truncate" title={[d.doc_type, showOrder && d.order_id ? showOrder[d.order_id] : '', formatDate(d.created_at)].filter(Boolean).join(' · ')}>
               {d.doc_type}
               {showOrder && d.order_id && showOrder[d.order_id] ? ` · ${showOrder[d.order_id]}` : ''}
               {' · '}{formatDate(d.created_at)}
@@ -238,7 +239,7 @@ export default function DocumentList({ documents, onDelete, showOrder, empty = '
           >
             <div className="p-4 border-b border-slate-100 flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <h3 className="text-sm font-bold text-slate-900 truncate">{viewer.doc.title}</h3>
+                <h3 className="text-sm font-bold text-slate-900 truncate" title={viewer.doc.title}>{viewer.doc.title}</h3>
                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest truncate">{viewer.doc.doc_type} · {viewer.doc.file_name}</p>
               </div>
               <div className="flex items-center gap-2 shrink-0">

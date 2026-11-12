@@ -7,6 +7,7 @@ import ConfirmModal from '@/components/ConfirmModal';
 import { supabaseBrowser } from '@/lib/supabase-browser';
 import { ALLOWED_DOC_MIME, DOC_ACCEPT, MAX_DOC_BYTES } from '@/lib/documents';
 import { SAFETY_STANDARDS } from '@/lib/safety-standards';
+import StandardNote from '@/components/StandardNote';
 import { formatDate } from '@/lib/format';
 
 interface Customer { id: string; company_name: string; customer_code: string }
@@ -151,6 +152,7 @@ export default function AdminProductSpecsPage() {
             <div className="space-y-1.5">
               <label className={label}>Safety standard</label>
               <ComboInput className={input} value={draft.safety_standard} onChange={(v) => setDraft({ ...draft, safety_standard: v })} options={[...SAFETY_STANDARDS]} placeholder="Pick one, or type another (Other)" />
+              <StandardNote value={draft.safety_standard} />
             </div>
             <div className="sm:col-span-2 space-y-1.5">
               <label className={label}>Notes</label>

@@ -12,12 +12,18 @@ const { createServerClient } = createRequire(import.meta.url)('@supabase/ssr');
 const ok=(n,c,x='')=>console.log(c?'PASS':'FAIL',n,x);
 
 // --- the pick list (pure)
-const { SAFETY_STANDARDS, normalizeStandard } = await import('../../src/lib/safety-standards.ts');
+const { SAFETY_STANDARDS, normalizeStandard, replacedEditionNote, REPLACED_EDITIONS } = await import('../../src/lib/safety-standards.ts');
 ok('the list has CSA Z96:22 Class 1-3',['CSA Z96:22 Class 1','CSA Z96:22 Class 2','CSA Z96:22 Class 3'].every(s=>SAFETY_STANDARDS.includes(s)));
 ok('the old CSA Z96-15 edition is not in the list (it goes under Other)',!SAFETY_STANDARDS.some(s=>/Z96-15/.test(s)));
 ok('ANSI Type O Class 1 and Type R Class 2/3, EN ISO 20471, NFPA 2112, arc rated, CGSB and None are there',['ANSI/ISEA 107-2020 Type O Class 1','ANSI/ISEA 107-2020 Type R Class 2','ANSI/ISEA 107-2020 Type R Class 3','EN ISO 20471 Class 3','NFPA 2112 (flame resistant)','Arc rated: ASTM F1506 (NFPA 70E / CSA Z462)','CAN/CGSB-155.20 (flash fire)','None'].every(s=>SAFETY_STANDARDS.includes(s)));
 ok('a list value typed in other capitals gets the exact spelling',normalizeStandard('  csa z96:22   class 2 ')==='CSA Z96:22 Class 2');
 ok('anything else is kept as typed (Other)',normalizeStandard('CSA Z96-15 Class 3')==='CSA Z96-15 Class 3');
+// A replaced edition shows a note (never blocks; the text is still kept as typed, checked above and below).
+for(const v of ['CSA Z96-15 Class 2','Z96-15','csa z96-15 class 3','CSA Z96 - 15','CSA Z96\u201115 Class 1']) ok(`note for a replaced edition: "${v}"`,/CSA Z96-15 has been replaced by CSA Z96:22/.test(replacedEditionNote(v)||''));
+for(const v of ['CSA Z96:22 Class 2','Z96-150','CSA Z96','ANSI/ISEA 107-2015 Type R Class 3','',null,undefined]) ok(`no note for "${v}"`,replacedEditionNote(v)===null);
+ok('no item in the pick list gets the note',SAFETY_STANDARDS.every(s=>replacedEditionNote(s)===null));
+ok('the replaced-edition list is one constant with old and current names',Array.isArray(REPLACED_EDITIONS)&&REPLACED_EDITIONS.every(e=>e.match instanceof RegExp&&e.old&&e.current));
+{ const { HIVIS_STANDARDS } = await import('../../src/lib/techFileStandards.ts'); ok('the Replication suggestion list offers no replaced edition',HIVIS_STANDARDS.every(s=>replacedEditionNote(s)===null)); }
 ok('empty = no standard',normalizeStandard('')===null&&normalizeStandard(null)===null);
 
 // --- the routes (dev server + dev database)

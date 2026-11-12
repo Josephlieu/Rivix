@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
-import { isAdminUser, isRepUser } from '@/lib/admin-auth';
+import { isAdminUser, isRepUser, homePathFor } from '@/lib/admin-auth';
 import { readAdminSession, adminNextStep } from '@/lib/admin-session';
 
 export async function proxy(request: NextRequest) {
@@ -123,6 +123,12 @@ export async function proxy(request: NextRequest) {
       const loginUrl = new URL('/login', request.url);
       loginUrl.searchParams.set('next', pathname);
       return NextResponse.redirect(loginUrl);
+    }
+
+    // The portal is for customers only. A rep or admin who opens a /portal address goes to their own area (/rep or
+    // /admin, where the admin's two-step check applies) instead of seeing an empty customer portal.
+    if (isRepUser(user) || isAdminUser(user)) {
+      return NextResponse.redirect(new URL(homePathFor(user), request.url));
     }
 
     return response;

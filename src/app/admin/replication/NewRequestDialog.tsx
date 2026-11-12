@@ -7,6 +7,7 @@ import { resolveTemplate, BUILT_IN_CATALOG, type TemplateCatalog } from '@/lib/t
 import { linkMissing } from '@/lib/link-source';
 import WebFoundView from './WebFoundView';
 import { DEFAULT_GARMENT_CATEGORIES, DEFAULT_GARMENT_TYPES, type GarmentCategory, type GarmentType } from '@/lib/garment-types-data';
+import StandardNote from '@/components/StandardNote';
 export const MAX_PHOTOS = 12;
 export const MAX_BYTES = 4 * 1024 * 1024;
 export const OK_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
@@ -269,7 +270,8 @@ export default function NewRequestDialog({ role, onClose, onCreated }: Props) {
             <label className="block space-y-1"><span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Fabric weight</span>
               <input className={field} value={known.fabricWeight} onChange={e => setKnown(k => ({ ...k, fabricWeight: e.target.value }))} maxLength={100} placeholder="e.g. 7 oz or 240 gsm" /></label>
             <label className="block space-y-1"><span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Safety standard or rating</span>
-              <input className={field} value={known.safetyRating} onChange={e => setKnown(k => ({ ...k, safetyRating: e.target.value }))} maxLength={200} placeholder="e.g. CSA Z96 Class 2" /></label>
+              <input className={field} value={known.safetyRating} onChange={e => setKnown(k => ({ ...k, safetyRating: e.target.value }))} maxLength={200} placeholder="e.g. CSA Z96 Class 2" />
+              <StandardNote value={known.safetyRating} /></label>
             <label className="block space-y-1"><span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Care text from the label</span>
               <input className={field} value={known.careText} onChange={e => setKnown(k => ({ ...k, careText: e.target.value }))} maxLength={300} placeholder="e.g. Machine wash cold, do not bleach" /></label>
           </div>

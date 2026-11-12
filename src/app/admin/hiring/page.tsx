@@ -709,7 +709,7 @@ export default function AdminHiringPage() {
             
             <div className="space-y-3 divide-y divide-slate-200 text-[11px] font-semibold">
               <div className="pt-2 first:pt-0">
-                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block">CSA Z96-15 Class 3</span>
+                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block">CSA Z96:22 Class 3</span>
                 <p className="text-slate-600 mt-0.5 font-medium">Highest visibility standard. Covers full torso + bands on sleeves & legs. Essential for major drilling platforms.</p>
               </div>
               <div className="pt-3">
