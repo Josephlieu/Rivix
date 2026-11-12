@@ -166,7 +166,7 @@ export function imageCandidates(html: string, base: URL, ld: Array<Record<string
     if (SKIP_IMAGE.test(`${src} ${a.class ?? ''} ${a.alt ?? ''} ${a.id ?? ''}`)) continue;
     raw.push(src);
   }
-  const out: string[] = [];
+  const out: string[] = [], later: string[] = [];
   const seen = new Set<string>();
   for (const r of raw) {
     const s = r.trim().replace(/^\/\//, 'https://');
@@ -175,7 +175,7 @@ export function imageCandidates(html: string, base: URL, ld: Array<Record<string
     try { u = new URL(s, base); } catch { continue; }
     // An http image link is tried over https only (never http); the guard checks it like any other link.
     if (u.protocol === 'http:' && (!u.port || u.port === '80')) { u.protocol = 'https:'; u.port = ''; }
-    if (u.protocol !== 'https:' || /\.(svg|svgz|gif|ico|bmp|tiff?)$/i.test(u.pathname)) continue;
+    if (u.protocol !== 'https:' || /\.(svg|svgz|ico|bmp|tiff?)$/i.test(u.pathname)) continue;
     let path = u.pathname;
     try { path = decodeURIComponent(path); } catch { /* keep as is */ }
     if (SKIP_IMAGE.test(path)) continue; // read decoded, so "WeChat%20QR%20Code.png" is caught
@@ -183,10 +183,12 @@ export function imageCandidates(html: string, base: URL, ld: Array<Record<string
     if (seen.has(key)) continue;
     seen.add(key);
     u.hash = '';
-    out.push(u.toString());
+    // A link named .gif is tried last, not dropped: some shops store their photos as .gif files and their image server
+    // sends JPEG or WebP for them (seen on a real Shopify shop, 2026-11-12). Only the bytes decide: a real GIF is refused.
+    (/\.gif$/i.test(u.pathname) ? later : out).push(u.toString());
     if (out.length >= max) break;
   }
-  return out;
+  return [...out, ...later].slice(0, max);
 }
 
 // ---- The whole page -------------------------------------------------------------------------------------------------------

@@ -237,6 +237,24 @@ ok('shop page: photos on the variants are found, and an http og:image is tried o
 ok('  a lazy-load template link ({width}) is not tried', !sx.imageLinks.some((u) => /lazy|%7B/.test(u)));
 ok('  sizes and colours from option buttons and variant names; SKU from the first variant', ['Small', 'X Large', 'Medium', '2XL'].every((z) => sx.found.sizes.includes(z)) && ['Yellow', 'Orange', 'Navy'].every((c) => sx.found.colours.includes(c)) && sx.found.sku === 'T500YS', `${sx.found.sizes} | ${sx.found.colours}`);
 ok('  the fabric from a long run-on description (the words around it only) and care text', sx.found.materials.some((m) => /polyester\/cotton fabric/.test(m) && m.length <= 220) && sx.found.care.some((c) => /Machine wash at 60/.test(c)), sx.found.materials.join(' / '));
+// The real shop page (fetched once more on DEV, 2026-11-12) lists its photos only as .gif files on its image server: in the
+// structured data (product and variant), og:image, and the gallery <img> srcset. The server sends WebP or JPEG for them.
+const G = 'https://gshop.example/cdn/shop/files/T500-Various-Colours-Workwear-Nation-Ltd';
+const gifShop = `<html><head><meta property="og:image" content="${G}-9514.gif?v=17"><meta property="og:image:secure_url" content="${G}-9514.gif?v=17">
+<script type="application/ld+json">${JSON.stringify({ '@context': 'http://schema.org/', '@graph': [{ '@type': 'ProductGroup', name: 'Portwest T500 Jacket Yellow/Navy Small', image: `${G}-9514.gif?v=17&width=1200`, hasVariant: [{ '@type': 'Product', sku: 'T500YNRS', image: `${G}-9514.gif?v=17&width=1920` }] }] })}</script></head>
+<body><img src="${G.replace('https:', '')}-9514.gif?v=17&amp;width=1946" srcset="${G.replace('https:', '')}-9514.gif?v=17&amp;width=246 246w, ${G.replace('https:', '')}-9514.gif?v=17&amp;width=1946 1946w" alt="T500" width="1946" height="1946">
+<img src="${G.replace('https:', '')}-1835.gif?v=17&amp;width=1946" alt="T500" width="1946" height="1946"><img src="https://gshop.example/cdn/shop/files/real-anim.gif" width="800" height="800"></body></html>`;
+const gx = X.extractProduct(gifShop, new URL('https://gshop.example/products/t500-small'));
+ok('.gif-named photos (as on the real shop) are found: one link per photo, from the structured data first', gx.imageLinks.length === 3 && gx.imageLinks[0] === `${G}-9514.gif?v=17&width=1200` && gx.imageLinks.some((u) => u.includes('-1835.gif')), gx.imageLinks.join(' '));
+ok('  .gif links are tried after other image links', X.imageCandidates(`<img src="${G}-a.gif" width="900"><img src="https://gshop.example/b.jpg" width="900">`, new URL('https://gshop.example/'), [])[0] === 'https://gshop.example/b.jpg');
+n = fakeNet({ 'gshop.example': [PUBLIC] }, {
+  'https://gshop.example/products/t500-small': html(gifShop),
+  [`${G}-9514.gif?v=17&width=1200`]: { status: 200, headers: { 'content-type': 'image/webp' }, body: body(webp) },
+  [`${G}-1835.gif?v=17&width=1946`]: { status: 200, headers: { 'content-type': 'image/jpeg' }, body: body(jpg) },
+  'https://gshop.example/cdn/shop/files/real-anim.gif': { status: 200, headers: { 'content-type': 'image/gif' }, body: body(gif) },
+});
+const rg = await I.readProductLink('https://gshop.example/products/t500-small', n.deps);
+ok('  read: the two photos the server sends as WebP / JPEG are kept; a real GIF is refused by its bytes', rg.images.length === 2 && rg.images.every((im) => SN.sniffImage(im.jpeg) === 'image/jpeg') && /1 image link was skipped/.test(rg.notes.join(' ')), `${rg.images.length} | ${rg.notes.join(' | ')}`);
 // A maker's site that sends a product link to its "choose your market" page (seen on DEV, 2026-11-12): never read as the product.
 const market = '<html><head><title>MAKER</title></head><body><nav>Flame Resistant Multi-Norm</nav><img src="https://cdn.maker.example/images/WeChat%20QR%20Code.png"><img src="https://cdn.maker.example/img/qrcode.jpg"></body></html>';
 n = fakeNet({ 'maker.example': [PUBLIC], 'cdn.maker.example': [PUBLIC2] }, { 'https://maker.example/products/view/T500/YBR': { status: 307, headers: { location: 'https://maker.example/' }, body: body('') }, 'https://maker.example/': { status: 307, headers: { location: '/market/' }, body: body('') }, 'https://maker.example/market/': html(market) });
