@@ -296,8 +296,8 @@ ok('a saved web source keeps an https link only', L.readWebSource({ url: 'javasc
 // ---------------------------------------------------------------------------------------------------------------------------
 // 6. The API on DEV (no outside website: every link below must be refused before a connection)
 const env = Object.fromEntries(fs.readFileSync('.env.local', 'utf8').split('\n').filter((l) => l.includes('=') && !l.startsWith('#')).map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1).trim().replace(/^["']|["']$/g, '')]));
-const U = env.NEXT_PUBLIC_SUPABASE_URL, A = env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const a = createClient(U, env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+const U = env.NEXT_PUBLIC_SUPABASE_URL, A = (env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+const a = createClient(U, (env.SUPABASE_SECRET_KEY||env.SUPABASE_SERVICE_ROLE_KEY), { auth: { persistSession: false } });
 const pw = 'Tmp-pass-9876!', t = Date.now();
 const mk = async (em, m) => (await a.auth.admin.createUser({ email: em, password: pw, email_confirm: true, ...(m ? { app_metadata: m } : {}) })).data.user;
 const cookie = async (em, two = true) => { const j = new Map(); const sb = createServerClient(U, A, { cookies: { getAll: () => [...j].map(([name, value]) => ({ name, value })), setAll: (l) => l.forEach(({ name, value }) => j.set(name, value)) } }); const x = await sb.auth.signInWithPassword({ email: em, password: pw }); if (x.error) throw x.error; if (two) await stepUp(sb); return [...j].map(([k, v]) => `${k}=${v}`).join('; '); };

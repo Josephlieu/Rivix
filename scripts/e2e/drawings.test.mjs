@@ -158,8 +158,8 @@ ok('  the general template says "no standard drawing" on screen; copied text sta
 
 // --- DEV: approval records the drawing on the server
 const env = Object.fromEntries(fs.readFileSync('.env.local', 'utf8').split('\n').filter((l) => l.includes('=') && !l.startsWith('#')).map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1).trim().replace(/^["']|["']$/g, '')]));
-const U = env.NEXT_PUBLIC_SUPABASE_URL, AK = env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const a = createClient(U, env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+const U = env.NEXT_PUBLIC_SUPABASE_URL, AK = (env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+const a = createClient(U, (env.SUPABASE_SECRET_KEY||env.SUPABASE_SERVICE_ROLE_KEY), { auth: { persistSession: false } });
 const pw = 'Tmp-pass-9876!', t = Date.now();
 const adm = (await a.auth.admin.createUser({ email: `zz-drw-a-${t}@yopmail.com`, password: pw, email_confirm: true, app_metadata: { role: 'admin' } })).data.user;
 const ids = [];

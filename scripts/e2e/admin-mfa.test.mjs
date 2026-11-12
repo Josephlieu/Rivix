@@ -18,8 +18,8 @@ ok('the reset email goes to the affected admin and names who did it and when',m.
 ok("it says to contact RIVIX if they didn't ask for it",/If you didn't ask for this, contact RIVIX now\./.test(m.text)&&/<html/.test(m.html));
 
 const env = Object.fromEntries(fs.readFileSync('.env.local','utf8').split('\n').filter(l=>l.includes('=')&&!l.startsWith('#')).map(l=>[l.slice(0,l.indexOf('=')),l.slice(l.indexOf('=')+1).trim().replace(/^["']|["']$/g,'')]));
-const U=env.NEXT_PUBLIC_SUPABASE_URL,A=env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const a=createClient(U,env.SUPABASE_SERVICE_ROLE_KEY,{auth:{persistSession:false}});
+const U=env.NEXT_PUBLIC_SUPABASE_URL,A=(env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+const a=createClient(U,(env.SUPABASE_SECRET_KEY||env.SUPABASE_SERVICE_ROLE_KEY),{auth:{persistSession:false}});
 const pw='Tmp-pass-9876!',t=Date.now();
 const mk=async(e,x)=>(await a.auth.admin.createUser({email:e,password:pw,email_confirm:true,...(x?{app_metadata:x}:{})})).data.user;
 const ad1=await mk(`zz-mfa-a1-${t}@yopmail.com`,{role:'admin'}), ad2=await mk(`zz-mfa-a2-${t}@yopmail.com`,{role:'admin'}), ru=await mk(`zz-mfa-r-${t}@yopmail.com`,{role:'rep'}), cu=await mk(`zz-mfa-c-${t}@yopmail.com`);

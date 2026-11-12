@@ -71,7 +71,7 @@ if (fs.existsSync(catPath)) {
 // The column on dev (after dev-patch-garment-families.sql)
 const env = Object.fromEntries(fs.readFileSync('.env.local', 'utf8').split('\n').filter(l => l.includes('=') && !l.startsWith('#')).map(l => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1).trim().replace(/^["']|["']$/g, '')]));
 const { createClient } = await import('@supabase/supabase-js');
-const a = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+const a = createClient(env.NEXT_PUBLIC_SUPABASE_URL, (env.SUPABASE_SECRET_KEY||env.SUPABASE_SERVICE_ROLE_KEY), { auth: { persistSession: false } });
 const r = await a.from('garment_types').select('key, template_family');
 if (r.error) console.log('SKIP template column check (run dev-patch-garment-families.sql on dev first)');
 else ok('dev: every garment type has the family the code expects (the 6 catalogue types once their SQL is run)', r.data.length >= 35 && r.data.filter(x => TYPE_TEMPLATES[x.key]).every(x => x.template_family === TYPE_TEMPLATES[x.key].family), r.data.filter(x => TYPE_TEMPLATES[x.key] && x.template_family !== TYPE_TEMPLATES[x.key].family).map(x => x.key).join(','));

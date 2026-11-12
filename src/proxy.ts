@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { isAdminUser, isRepUser, homePathFor } from '@/lib/admin-auth';
 import { readAdminSession, adminNextStep } from '@/lib/admin-session';
+import { supabasePublicKey } from '@/lib/supabase-keys';
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -13,7 +14,7 @@ export async function proxy(request: NextRequest) {
 
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      supabasePublicKey(),
       {
         cookies: {
           getAll() {
@@ -56,7 +57,7 @@ export async function proxy(request: NextRequest) {
 
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      supabasePublicKey(),
       {
         cookies: {
           getAll() {
@@ -98,7 +99,7 @@ export async function proxy(request: NextRequest) {
 
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      supabasePublicKey(),
       {
         cookies: {
           getAll() {

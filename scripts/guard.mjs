@@ -25,7 +25,12 @@ const SECRET = [
   [/sk_(live|test)_[0-9A-Za-z]{20,}/, 'Stripe secret key'],
   [/re_[A-Za-z0-9]{8,}_[A-Za-z0-9]{16,}/, 'Resend API key'],
   [/-----BEGIN (RSA |EC |OPENSSH |)PRIVATE KEY-----/, 'private key'],
-  [/(SUPABASE_SERVICE_ROLE_KEY|GEMINI_API_KEY|RESEND_API_KEY)\s*=\s*['"]?[A-Za-z0-9._-]{20,}/, 'key assigned in a file'],
+  [/(SUPABASE_SERVICE_ROLE_KEY|SUPABASE_SECRET_KEY|NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY|NEXT_PUBLIC_SUPABASE_ANON_KEY|GEMINI_API_KEY|RESEND_API_KEY)\s*=\s*['"]?[A-Za-z0-9._-]{20,}/, 'key assigned in a file'],
+  // Supabase's new keys (they replace the anon and service_role JWTs). Both belong in environment variables, never in a file.
+  [/sb_secret_[A-Za-z0-9_-]{16,}/, 'Supabase secret key'],
+  [/sb_publishable_[A-Za-z0-9_-]{16,}/, 'Supabase publishable key (keep it in environment variables)'],
+  // A NEXT_PUBLIC_ variable is built into the browser code, so a secret must never have that prefix.
+  [/NEXT_PUBLIC_[A-Z0-9_]*(SECRET|SERVICE_ROLE)/, 'secret Supabase key named NEXT_PUBLIC_ (it would be sent to every browser)'],
   [/eyJ[A-Za-z0-9_-]{15,}\.eyJ[A-Za-z0-9_-]{15,}\.[A-Za-z0-9_-]{15,}/, 'JWT (Supabase keys look like this)'],
 ];
 const MALWARE = [
