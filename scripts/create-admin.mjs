@@ -21,7 +21,7 @@ for (const line of readFileSync('.env.local', 'utf-8').split('\n')) {
   if (m) env[m[1]] = m[2];
 }
 
-const supabase = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+const supabase = createClient(env.NEXT_PUBLIC_SUPABASE_URL, (env.SUPABASE_SECRET_KEY||env.SUPABASE_SERVICE_ROLE_KEY));
 
 const { data: list, error: listErr } = await supabase.auth.admin.listUsers({ perPage: 1000 });
 if (listErr) { console.error('Failed to list users:', listErr.message); process.exit(1); }

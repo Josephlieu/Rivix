@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { supabasePublicKey } from './supabase-keys';
 
 // Server-side client for Server Components and route handlers. It saves a refreshed sign-in token where cookies can be
 // set (route handlers, actions) and quietly skips it in Server Components.
@@ -8,7 +9,7 @@ export async function createSupabaseServerClient() {
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabasePublicKey(),
     {
       cookies: {
         getAll() {
@@ -39,7 +40,7 @@ export async function createSupabaseRouteClient() {
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabasePublicKey(),
     {
       cookies: {
         getAll() {
