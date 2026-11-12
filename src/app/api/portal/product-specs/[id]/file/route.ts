@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createAdminClient } from '@/lib/supabase-admin';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 
 export async function GET(
@@ -37,10 +37,7 @@ export async function GET(
   // The bucket is private, so a signed URL has to come from the service
   // role — this only runs after the RLS-scoped check above confirmed
   // ownership.
-  const admin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+  const admin = createAdminClient();
 
   const { data: signed, error: signError } = await admin.storage
     .from('product-specs')
