@@ -3,6 +3,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { repsByIds, type RepInfo } from '@/lib/replication-access';
 import { outstandingConfirmations } from '@/lib/garmentAiAnalysis';
+import { normalizeAnalysis } from '@/lib/analysis-shape';
 
 export const REPLICATION_BUCKET = 'replication-photos';
 export const MAX_PHOTO_BYTES = 4 * 1024 * 1024; // stays under the request size limit on the host
@@ -70,8 +71,9 @@ export async function rowToReplication(admin: SupabaseClient, r: Row, viewer: Re
     rivixTrackingNumber: r.rivix_tracking_number ?? undefined,
     messages: [], // the old in-row chat is no longer used: see /api/replications/[id]/messages
     archivedAt: (r.archived_at as string | null) ?? null, // task 30: archived requests leave the queue
-    aiAnalysis: viewer === 'admin' ? r.ai_analysis ?? null : null,
-    techFile: techFileSummary(r.ai_analysis),
+    // Saved scans are sent in the shape the screens expect (shape only, never a made-up value): see analysis-shape.ts.
+    aiAnalysis: viewer === 'admin' ? normalizeAnalysis(r.ai_analysis) : null,
+    techFile: techFileSummary(normalizeAnalysis(r.ai_analysis)),
   };
 }
 
@@ -179,6 +181,8 @@ export function applyReview(next: Row | null, saved: Row | null, approve: boolea
   const revision = Number(saved?.review?.revision) || 0;
   if (approve) return { ...clean, ...(drawing ? { drawing } : {}), review: { status: 'approved', approvedAt: new Date().toISOString(), approvedBy: email, revision: revision + 1 } };
   const savedReview = saved?.review;
-  if (savedReview?.status === 'approved' && stable(withoutReview(saved)) === stable(clean)) return { ...clean, ...(saved?.drawing ? { drawing: saved.drawing } : {}), review: savedReview };
+  // Both copies through the shape clean-up (analysis-shape.ts): a copy that differs only in shape (a missing list that is now an
+  // empty one) is no edit, so it keeps the approval; any real change still turns it back into a draft.
+  if (savedReview?.status === 'approved' && stable(withoutReview(normalizeAnalysis<Row>(saved))) === stable(withoutReview(normalizeAnalysis<Row>(clean)))) return { ...clean, ...(saved?.drawing ? { drawing: saved.drawing } : {}), review: savedReview };
   return { ...clean, review: { status: 'draft', revision } };
 }

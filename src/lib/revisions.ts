@@ -5,6 +5,7 @@
 import { garmentTypeLabel } from './garment-types-data';
 import { FLAGGABLE } from './garmentAiAnalysis';
 import { sizeLabels, sizeNote, SIZE_KEYS } from './size-run';
+import { normalizeAnalysis } from './analysis-shape';
 export { sizeLabels, sizeNote, defaultSizeRun, SIZE_KEYS, ALPHA_SIZES, SHOE_WIDTHS, type SizeRun } from './size-run';
 
 type Row = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -23,8 +24,11 @@ export function techFileSnapshot(r: { clientName?: unknown; productName?: unknow
 }
 const stable = (v: unknown): string => JSON.stringify(v, (_k, x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.entries(x as Row).sort(([a], [b]) => a.localeCompare(b))) : x));
 /** The tech file's content, without what only the server sets (review, drawing stamp, scan time): equal keys = no change. */
+// Both sides are read through the shape clean-up (analysis-shape.ts), so a copy that differs only in shape (a missing list
+// that is now an empty one) is the same tech file: it is not a change, not a new revision, and not an edit to a locked one.
 export function contentKey(s: TechFileSnapshot): string {
-  const a = s.analysis ? (({ review: _r, drawing: _d, analyzedAt: _t, ...rest }) => rest)(s.analysis) : null; // eslint-disable-line @typescript-eslint/no-unused-vars
+  const clean = normalizeAnalysis<Row>(s.analysis);
+  const a = clean ? (({ review: _r, drawing: _d, analyzedAt: _t, ...rest }) => rest)(clean) : null; // eslint-disable-line @typescript-eslint/no-unused-vars
   return stable({ c: s.clientName, p: s.productName, g: s.garmentType, s: s.specs, a });
 }
 
@@ -48,7 +52,8 @@ const same = (a: unknown, b: unknown) => stable(a ?? null) === stable(b ?? null)
 export function describeChanges(prev: TechFileSnapshot | null, next: TechFileSnapshot): string[] {
   const out: string[] = [];
   const add = (s: string) => { if (out.length < 300) out.push(s); };
-  if (!prev) return [next.analysis ? `First recorded revision (${(next.analysis.measurements || []).length} measurements, ${(next.analysis.checklist || []).length} checklist items)` : 'First recorded revision'];
+  const N = normalizeAnalysis<Row>(next.analysis);
+  if (!prev) return [N ? `First recorded revision (${(N.measurements || []).length} measurements, ${(N.checklist || []).length} checklist items)` : 'First recorded revision'];
   if (prev.productName !== next.productName) add(`Product name: ${show(prev.productName)} → ${show(next.productName)}`);
   if (prev.clientName !== next.clientName) add(`Customer: ${show(prev.clientName)} → ${show(next.clientName)}`);
   if (prev.garmentType !== next.garmentType) add(`Product type: ${garmentTypeLabel(prev.garmentType)} → ${garmentTypeLabel(next.garmentType)}`);
@@ -56,7 +61,7 @@ export function describeChanges(prev: TechFileSnapshot | null, next: TechFileSna
     if (k === 'annotations') { if (!same(prev.specs[k], next.specs[k])) add('Spec annotations changed'); continue; }
     if (!same(prev.specs[k] ?? '', next.specs[k] ?? '')) add(`${SPEC_LABELS[k] ?? k}: ${show(prev.specs[k])} → ${show(next.specs[k])}`);
   }
-  const A = prev.analysis, B = next.analysis;
+  const A = normalizeAnalysis<Row>(prev.analysis), B = normalizeAnalysis<Row>(next.analysis); // shape only: see contentKey
   if (!A && B) { add(`Tech file drafted (${(B.measurements || []).length} measurements, ${(B.checklist || []).length} checklist items)`); return out; }
   if (A && !B) { add('Tech file removed'); return out; }
   if (!A || !B) return out;

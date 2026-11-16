@@ -291,7 +291,9 @@ export function applyTemplate(aiData: Row, template: ResolvedTemplate, given: Gi
   out.labelPlacements = rows(aiData.labelPlacements).map((r) => ({ ...r, attachment: '', dimensions: '', material: '', needsConfirmation: true }));
   out.stitchReference = [];
   const bom: Row = out.bom && typeof out.bom === 'object' ? out.bom : {};
-  out.bom = { ...bom, packaging: { foldDescription: '', polybagSize: '', cartonSize: '', hangtagSpec: '' } };
+  // The three BOM lists are always present: a gloves, footwear or PPE scan has none in its answer (RQ-0635 crashed on that).
+  // The AI's list when it gave one, else empty: never a made-up item.
+  out.bom = { ...bom, hardware: asLines(bom.hardware), thread: asLines(bom.thread), labels: asLines(bom.labels), packaging: { foldDescription: '', polybagSize: '', cartonSize: '', hangtagSpec: '' } };
   out.washCare = { ...(out.washCare || {}), specialNotes: '', instructions: (out.washCare as Row).instructions };
   out.season = '';
   out.checklist = checklistFor(template, aiData.fields ?? aiData.checklist, opts.photoCount);

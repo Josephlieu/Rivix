@@ -15,6 +15,7 @@ import { getGarmentTypes } from '@/lib/replicationStorage';
 import { readWebSource, linkMissing, FROM_WEBSITE } from '@/lib/link-source';
 import WebFoundView from './WebFoundView';
 import StandardNote from '@/components/StandardNote';
+import { normalizeAnalysis } from '@/lib/analysis-shape';
 
 type Analysis = PersistedGarmentAIAnalysis;
 type Measurement = Analysis['measurements'][number];
@@ -40,6 +41,8 @@ interface Props {
   onSave: (updated: ReplicationRequest, approve: boolean, opts?: { newDraft?: boolean }) => Promise<boolean>;
 }
 
+// Shown inside an empty box only (a placeholder): never saved as a value.
+export const NOT_FILLED_IN = 'Not filled in';
 const input = 'w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30';
 const label = 'text-[10px] font-bold uppercase tracking-widest text-slate-500';
 
@@ -68,7 +71,7 @@ function Field({ name, value, onChange, wide, options, flagged, onConfirm, sugge
     <div className={`block space-y-1 ${wide ? 'sm:col-span-2' : ''}`}>
       <label className="block space-y-1">
         <span className={label}>{name}</span>
-        <input className={`${input} ${flagged ? 'border-amber-400 bg-amber-50' : ''}`} value={value} onChange={e => onChange(e.target.value)} maxLength={500} list={listId} />
+        <input className={`${input} ${flagged ? 'border-amber-400 bg-amber-50' : ''}`} value={value ?? ''} onChange={e => onChange(e.target.value)} maxLength={500} list={listId} placeholder={NOT_FILLED_IN} />
       </label>
       {listId && <datalist id={listId}>{options!.map(o => <option key={o} value={o} />)}</datalist>}
       {note && <span className="block text-[10px] text-slate-500">{note}</span>}
@@ -102,12 +105,14 @@ function ListBox({ name, hint, value, onChange, flagged, onConfirm, suggestion, 
   flagged?: boolean; onConfirm?: () => void; suggestion?: string; onUse?: () => void; note?: string;
 }) {
   // Keep what is being typed (including empty lines) while editing; split into lines when saving into the draft.
-  const [text, setText] = useState(value.join('\n'));
-  useEffect(() => { if (stable(lines(text)) !== stable(value)) setText(value.join('\n')); }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
+  // A saved value that is not a list (an older or odd scan) is shown as empty, never as a crash.
+  const list = Array.isArray(value) ? value : [];
+  const [text, setText] = useState(list.join('\n'));
+  useEffect(() => { if (stable(lines(text)) !== stable(list)) setText(list.join('\n')); }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <label className="block space-y-1">
       <span className={label}>{name}</span>
-      <textarea className={`${input} ${flagged ? 'border-amber-400 bg-amber-50' : ''}`} rows={4} value={text} onChange={e => { setText(e.target.value); onChange(lines(e.target.value)); }} />
+      <textarea className={`${input} ${flagged ? 'border-amber-400 bg-amber-50' : ''}`} rows={4} value={text} placeholder={NOT_FILLED_IN} onChange={e => { setText(e.target.value); onChange(lines(e.target.value)); }} />
       {hint && <span className="block text-[10px] text-slate-400">{hint}</span>}
       {note && <span className="block text-[10px] text-slate-500">{note}</span>}
       {flagged && onConfirm && <ConfirmFlag onConfirm={onConfirm} />}
@@ -132,7 +137,10 @@ export default function ReviewTab({ rep, onSave }: Props) {
   // Task 21: the product page this request started from (set by the server; data only, shown as plain text).
   const webSource = readWebSource(rep.specs.webSource);
   const fromRep = () => {
-    const analysis = (rep.aiAnalysis ? structuredClone(rep.aiAnalysis) : emptyAnalysis()) as Analysis;
+    // Read the saved scan through the shape clean-up (shape only, never a made-up value): a gloves, footwear or PPE scan has
+    // no BOM lists, and RQ-0635 crashed this tab on that (2026-11-17).
+    const saved = normalizeAnalysis<Analysis>(rep.aiAnalysis);
+    const analysis = saved ? structuredClone(saved) : emptyAnalysis();
     if (!analysis.checklist) analysis.checklist = checklistFor(template);
     if (analysis.measurements.length === 0) analysis.measurements = templateMeasurements(template);
     // Gloves and footwear measure in their own sizes (task 30); clothing keeps XS to XL.

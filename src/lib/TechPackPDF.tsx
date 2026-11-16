@@ -10,6 +10,7 @@ import { garmentTypeLabel } from './garment-types-data';
 import { missingInformation } from './garmentAiAnalysis';
 import { sizeLabels, sizeNote, withDefaultSizes } from './size-run';
 import { readWebSource } from './link-source';
+import { normalizeAnalysis } from './analysis-shape';
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Image, Font, Svg, Path, Circle } from '@react-pdf/renderer';
 import { drawingFor, drawingPrimitives, placeMarkers, rowNumbers, DRAWING_NOTE, type DrawingDef, type DrawingTemplate } from './drawings';
@@ -95,7 +96,7 @@ export interface TechFileData {
 }
 
 export function buildTechFileData(rep: ReplicationRequest, photos: string[], logo?: string, template?: TechFileData['template']): TechFileData {
-  const analysis = (rep.aiAnalysis ?? {}) as A;
+  const analysis = (normalizeAnalysis<A>(rep.aiAnalysis) ?? {}) as A; // shape only (analysis-shape.ts)
   const review = analysis.review;
   return {
     requestCode: rep.requestCode || rep.id,
