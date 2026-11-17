@@ -10,7 +10,7 @@ import { garmentTypeLabel } from './garment-types-data';
 import { missingInformation } from './garmentAiAnalysis';
 import { sizeLabels, sizeNote, withDefaultSizes } from './size-run';
 import { readWebSource } from './link-source';
-import { normalizeAnalysis } from './analysis-shape';
+import { canonicalAnalysis, itemState } from './checklist-confirm';
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Image, Font, Svg, Path, Circle } from '@react-pdf/renderer';
 import { drawingFor, drawingPrimitives, placeMarkers, rowNumbers, DRAWING_NOTE, type DrawingDef, type DrawingTemplate } from './drawings';
@@ -96,7 +96,9 @@ export interface TechFileData {
 }
 
 export function buildTechFileData(rep: ReplicationRequest, photos: string[], logo?: string, template?: TechFileData['template']): TechFileData {
-  const analysis = (normalizeAnalysis<A>(rep.aiAnalysis) ?? {}) as A; // shape only (analysis-shape.ts)
+  // The settled form (checklist-confirm.ts): shape cleaned; only a person's stamp counts as confirmed, so an AI "confirmed"
+  // prints as not confirmed.
+  const analysis = (canonicalAnalysis(rep.aiAnalysis) ?? {}) as A;
   const review = analysis.review;
   return {
     requestCode: rep.requestCode || rep.id,
@@ -150,6 +152,11 @@ function PdfDrawing({ def, numbers, components, title }: { def: DrawingDef; numb
 
 const has = (v?: string | null) => !!v && v.trim() !== '';
 const NEEDS = 'Needs confirmation';
+// A checklist item's state for the factory copy: a person's confirmation prints with its date and "RIVIX" (never a name or email).
+const checklistStatus = (c: { confirmedAt?: string }): string => {
+  const st = itemState(c, 'checklist');
+  return st === 'confirmed' ? `Confirmed, ${formatDate(String(c.confirmedAt))}, RIVIX` : st === 'read' ? 'Read from photo, not confirmed' : NEEDS;
+};
 const Val = ({ v, flag }: { v?: string | null; flag?: boolean }) => (has(v) ? <Text style={s.value}>{v}{flag ? `  [${NEEDS}]` : ''}</Text> : <Text style={s.none}>{flag ? NEEDS : 'Not specified'}</Text>);
 const Field = ({ name, v, wide, flag }: { name: string; v?: string | null; wide?: boolean; flag?: boolean }) => (
   <View style={wide ? s.cell2 : s.cell}><Text style={s.label}>{name}</Text><Val v={v} flag={flag} /></View>
@@ -259,7 +266,8 @@ export const TechPackPDF = ({ d }: { d: TechFileData }) => {
             <Field name="Date created" v={formatDate(d.createdOn)} />
             <Field name="Sales rep" v={d.repName || 'Admin (handled directly)'} />
             <Field name="Revision" v={d.approved ? `Rev ${d.revision}` : d.revision ? `Draft (last approved: Rev ${d.revision})` : 'Draft'} />
-            <Field name="Approved by" v={d.approved ? `${d.approvedBy || 'RIVIX'}${d.approvedAt ? `, ${formatDate(d.approvedAt)}` : ''}` : null} wide />
+            {/* The PDF goes to factories: never a person's name or email (2026-11-18); the portal keeps who approved. */}
+            <Field name="Approved by" v={d.approved ? `RIVIX${d.approvedAt ? `, ${formatDate(d.approvedAt)}` : ''}` : null} wide />
           </View>
         </View>
         {d.photos[0] ? <Image style={s.photo} src={d.photos[0]} /> : <Text style={s.none}>No reference photo.</Text>}
@@ -314,7 +322,7 @@ export const TechPackPDF = ({ d }: { d: TechFileData }) => {
             <Text style={s.h2}>Checklist for this garment type</Text>
             <Table
               cols={[{ h: 'Item', w: '46%' }, { h: 'Status', w: '16%' }, { h: 'Value', w: '38%' }]}
-              rows={(a.checklist || []).map(c => [c.label + (c.required ? ' *' : ''), c.needsConfirmation ? NEEDS : 'Confirmed', c.value])}
+              rows={(a.checklist || []).map(c => [c.label + (c.required ? ' *' : ''), checklistStatus(c), c.value])}
               empty=""
             />
           </>

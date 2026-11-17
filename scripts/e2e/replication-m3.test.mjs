@@ -7,6 +7,7 @@ if (!process.env.M3_CHILD) {
   process.exit(r.status ?? 1);
 }
 const ok = (n, c, x = '') => console.log(c ? 'PASS' : 'FAIL', n, x);
+const STAMP = { needsConfirmation: false, confirmedBy: 'zz-admin@example.com', confirmedAt: '2026-11-18T10:00:00.000Z' }; // a person's confirmation, as the server stamps it
 const C = await import('../../src/lib/template-catalog.ts');
 const resolveTemplate = (k, f) => C.resolveTemplate(k, f, C.BUILT_IN_CATALOG); // task 26: built-in catalog
 const A = await import('../../src/lib/garmentAiAnalysis.ts');
@@ -17,7 +18,7 @@ const cl = A.checklistFor(vest);
 ok('checklist has every template item, all needing confirmation when the AI said nothing', cl.length === vest.checklist.length && cl.every(c => c.needsConfirmation && c.value === ''));
 const cl2 = A.checklistFor(vest, [{ key: 'colour', value: 'Orange body, silver tape', needsConfirmation: false }, { key: 'fabric', value: '100% polyester knit', needsConfirmation: false }, { key: 'labels', value: 'not visible' }, { key: 'nonsense', value: 'x' }]);
 const item = (k) => cl2.find(c => c.key === k);
-ok('a photo item the AI saw is not flagged; "not visible" or unknown keys stay flagged or are ignored', item('colour').needsConfirmation === false && item('labels').needsConfirmation && item('labels').value === '' && !cl2.some(c => c.key === 'nonsense'));
+ok('a photo item the AI saw is "read from photo" (never confirmed by the AI); "not visible" or unknown keys stay flagged or are ignored', item('colour').readFromPhoto === true && item('colour').needsConfirmation === true && !item('colour').confirmedBy && item('labels').needsConfirmation && !item('labels').readFromPhoto && item('labels').value === '' && !cl2.some(c => c.key === 'nonsense'));
 ok('a document item (fabric, trims, ratings) keeps what the AI wrote but always waits for a person', item('fabric').source === 'document' && item('fabric').value === '100% polyester knit' && item('fabric').needsConfirmation === true);
 
 const tm = A.templateMeasurements(vest);
@@ -43,11 +44,14 @@ ok('an AI result with no measurements falls back to the template points', empty.
 // approval rules
 const open = A.outstandingConfirmations(out);
 ok('open items are counted (values, rows and required checklist items)', open.includes('Fabric material') && open.includes('Measurement 1') && open.includes('Seam 1') && open.some(x => x === vest.checklist.find(c => c.required).label));
-const done = { ...out, flags: [], measurements: out.measurements.map(r => ({ ...r, needsConfirmation: false })), construction: out.construction.map(r => ({ ...r, needsConfirmation: false })), checklist: out.checklist.map(c => ({ ...c, needsConfirmation: false })) };
+// Since 2026-11-18 "a person confirmed" means a stamp the server writes (checklist-confirm.ts); needsConfirmation:false alone is not.
+const done = { ...out, flags: [], measurements: out.measurements.map(r => ({ ...r, ...STAMP })), construction: out.construction.map(r => ({ ...r, ...STAMP })), labelPlacements: (out.labelPlacements || []).map(r => ({ ...r, ...STAMP })), markings: (out.markings || []).map(r => ({ ...r, ...STAMP })), checklist: out.checklist.map(c => ({ ...c, ...STAMP })) };
+const unstamped = { ...out, flags: [], measurements: out.measurements.map(r => ({ ...r, needsConfirmation: false })), construction: out.construction.map(r => ({ ...r, needsConfirmation: false })), checklist: out.checklist.map(c => ({ ...c, needsConfirmation: false })) };
+ok('needsConfirmation:false without a person\'s stamp leaves every row and required item open', A.outstandingConfirmations(unstamped).length === out.measurements.length + out.construction.length + (out.labelPlacements || []).length + (out.markings || []).length + out.checklist.filter(c => c.required).length);
 ok('nothing is open once a person has confirmed everything', A.outstandingConfirmations(done).length === 0);
-const optionalOnly = { ...done, checklist: out.checklist.map(c => ({ ...c, needsConfirmation: !c.required })) };
+const optionalOnly = { ...done, checklist: out.checklist.map(c => (c.required ? { ...c, ...STAMP } : { ...c, needsConfirmation: true })) };
 ok('an unconfirmed OPTIONAL checklist item does not block approval', A.outstandingConfirmations(optionalOnly).length === 0 && out.checklist.some(c => !c.required));
-ok('an old analysis with no flags or checklist has nothing open', A.outstandingConfirmations({ measurements: [{ pom: 'A', description: 'x' }] }).length === 0 && A.outstandingConfirmations(null).length === 0);
+ok('an old analysis\'s measurement with no person\'s stamp is open (since 2026-11-18); no analysis has nothing open', JSON.stringify(A.outstandingConfirmations({ measurements: [{ pom: 'A', description: 'x' }] })) === '["Measurement 1"]' && A.outstandingConfirmations({ measurements: [{ pom: 'A', description: 'x', ...STAMP }] }).length === 0 && A.outstandingConfirmations(null).length === 0);
 ok('isNotVisible matches the AI wording only', ['not visible', 'Not visible.', 'unknown'].every(A.isNotVisible) && !['visible', 'navy', ''].some(A.isNotVisible));
 
 // pick lists in the catalogue wording

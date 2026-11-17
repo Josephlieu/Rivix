@@ -9,6 +9,7 @@ import { createRequire } from 'module'; const { createServerClient } = createReq
 import fs from 'fs';
 import { stepUp } from './mfa.mjs'; // task 8: admin sessions need the two-step sign-in
 import { deleteTestRequest } from './cleanup.mjs'; // task 30: approved requests are archived, not deleted
+import { confirmAll } from './confirm.mjs'; // 2026-11-18: approvals need a person's explicit confirmations
 const env = Object.fromEntries(fs.readFileSync('.env.local','utf8').split('\n').filter(l=>l.includes('=')&&!l.startsWith('#')).map(l=>[l.slice(0,l.indexOf('=')),l.slice(l.indexOf('=')+1).trim().replace(/^["']|["']$/g,'')]));
 const U=env.NEXT_PUBLIC_SUPABASE_URL,A=(env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 const a=createClient(U,(env.SUPABASE_SECRET_KEY||env.SUPABASE_SERVICE_ROLE_KEY),{auth:{persistSession:false}});
@@ -37,7 +38,7 @@ try{
   for(let i=0;i<2;i++){ r=await call('POST',`${B}/${id}/photos`,ad,photo(),true); j=await r.json(); }
   pathsToClean.push(...(j.replication?.imagePaths||[]));
   ok('two photos added',j.replication?.imagePaths?.length===2);
-  r=await call('PUT',`${B}/${id}`,ad,{...j.replication,specs:adminSpecs,aiAnalysis:analysis,approve:true}); j=await r.json();
+  r=await call('PUT',`${B}/${id}`,ad,{...j.replication,specs:adminSpecs,aiAnalysis:analysis,approve:true,confirmations:confirmAll(analysis)}); j=await r.json();
   ok('the admin saves and approves the tech file',r.status===200&&j.replication?.aiAnalysis?.review?.status==='approved'&&j.replication?.specs?.zippers===SECRET_ZIP,j.error||'');
 
   // --- what the rep receives

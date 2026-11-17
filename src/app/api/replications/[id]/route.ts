@@ -10,6 +10,7 @@ import { getTemplateCatalog } from '@/lib/template-store';
 import { drawingStamp } from '@/lib/drawings';
 import { techFileSnapshot, contentKey } from '@/lib/revisions';
 import { recordRevision, snapshotOfRow, isApproved } from '@/lib/revision-server';
+import { settleConfirmations } from '@/lib/checklist-confirm';
 
 // An approval also makes and stores the PDF of that revision (task 30).
 export const maxDuration = 60;
@@ -53,6 +54,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   keepTypeCheck(parsed.row, existing); // the product type confirmation is the server's (task 28)
 
   const isAdmin = actor.kind === 'admin';
+  // Who confirmed what is decided here, never by the browser or the AI (2026-11-18): only the rows named in this save's explicit
+  // `confirmations` list get a stamp, for the signed-in admin, now; a scan save (`scan: true`) confirms nothing; a row that only
+  // says needsConfirmation: false, or carries a stamp the server did not write, is not confirmed. Runs before the lock check,
+  // the approval check and the review state, so they all see the server's version.
+  const scanSave = isAdmin && body?.scan === true;
+  if (isAdmin && parsed.row.ai_analysis) {
+    parsed.row.ai_analysis = settleConfirmations(parsed.row.ai_analysis, existing.ai_analysis, { scan: scanSave, confirmations: body?.confirmations, actorEmail: actor.email });
+  }
   // Task 30: an approved tech file is locked. Changing it needs "Start a new draft" (newDraft); the approved revision and its
   // PDF stay as they were. Saves that do not change the tech file (status, tracking, the rep) are not affected.
   const newDraft = isAdmin && body?.newDraft === true;
@@ -123,7 +132,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   let pdfWarning: string | undefined;
   if (isAdmin) {
     const repInfo = data.rep_id ? (await repsByIds(admin, [data.rep_id])).get(data.rep_id as string) : undefined;
-    pdfWarning = (await recordRevision(admin, data, actor, { approved: approve, repName: repInfo?.name ?? null })).pdfWarning;
+    pdfWarning = (await recordRevision(admin, data, actor, { approved: approve, repName: repInfo?.name ?? null, source: { kind: scanSave ? 'scan' : 'edit', by: actor.email } })).pdfWarning;
   }
 
   // Tell the owning rep about the steps they care about (approved, in production, shipped, handed to them).

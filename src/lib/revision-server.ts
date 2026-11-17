@@ -4,6 +4,9 @@
 // and the save still works.
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { techFileSnapshot, contentKey, describeChanges, type TechFileSnapshot } from '@/lib/revisions';
+
+/** What made a revision: an AI scan (started by a person) or a person's edit. Revisions saved before 2026-11-18 have none. */
+export interface RevisionSource { kind: 'scan' | 'edit'; by: string }
 import { resolveTemplateChecked, TemplateUnavailableError } from '@/lib/template-catalog';
 import { getTemplateCatalog } from '@/lib/template-store';
 import { drawingStamp } from '@/lib/drawings';
@@ -38,7 +41,7 @@ async function versionsFor(admin: SupabaseClient, snap: TechFileSnapshot) {
  * After a save: records a revision when the tech file changed (or was approved, or a new draft was started).
  * Returns a warning when the approved PDF could not be made (the approval itself stands; "Make PDF" can add it once later).
  */
-export async function recordRevision(admin: SupabaseClient, row: Row, actor: { userId: string; email: string }, opts: { approved: boolean; repName: string | null }): Promise<{ recorded: boolean; pdfWarning?: string }> {
+export async function recordRevision(admin: SupabaseClient, row: Row, actor: { userId: string; email: string }, opts: { approved: boolean; repName: string | null; source?: RevisionSource }): Promise<{ recorded: boolean; pdfWarning?: string }> {
   const snap = snapshotOfRow(row);
   for (let attempt = 0; attempt < 2; attempt++) {
     const last = await latestRevision(admin, row.id);
@@ -58,7 +61,9 @@ export async function recordRevision(admin: SupabaseClient, row: Row, actor: { u
       catch (e) { pdfWarning = `The tech file is approved, but its PDF could not be stored (${e instanceof Error ? e.message.slice(0, 120) : 'unknown error'}). Use "Make PDF" in the history.`; }
     }
     const { error } = await admin.from('replication_revisions').insert({
-      replication_id: row.id, seq: (last ? Number(last.seq) : 0) + 1, status, revision, snapshot: snap, changes,
+      // What made this revision (2026-11-18): an AI scan started by a person, or a person's edit. Kept in the snapshot JSON (no new
+      // column); never part of the tech file's content (contentKey, compare).
+      replication_id: row.id, seq: (last ? Number(last.seq) : 0) + 1, status, revision, snapshot: opts.source ? { ...snap, source: opts.source } : snap, changes,
       template_versions: v.templateVersions, drawing: v.drawing, pdf_path: pdf?.path ?? null, pdf_sha256: pdf?.sha256 ?? null,
       created_by: actor.userId, created_by_email: actor.email,
     });

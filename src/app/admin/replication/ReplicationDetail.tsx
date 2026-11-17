@@ -7,6 +7,7 @@ import ReviewTab from './ReviewTab';
 import AnalysisTabView, { AI_SCAN_STEPS, analysisResultFromSaved, type AIAnalysisResult } from './AnalysisTabView';
 import SectionErrorBoundary, { RenderSection } from '@/components/SectionErrorBoundary';
 import { normalizeAnalysis } from '@/lib/analysis-shape';
+import type { ConfirmationRef } from '@/lib/checklist-confirm';
 import { prepare as preparePhoto, MAX_PHOTOS, MAX_BYTES, OK_TYPES } from './NewRequestDialog';
 import ChatPanel from './ChatPanel';
 import { useReplicationChat } from './useReplicationChat';
@@ -250,7 +251,8 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
       const washCare = aiData.washCare
         ? { ...aiData.washCare, instructionsFr: aiData.washCare.instructionsFr?.length ? aiData.washCare.instructionsFr : suggestFrenchCare(aiData.washCare.instructions || []).fr }
         : aiData.washCare;
-      if (rep) await persist({ ...rep, specs: prefillSpecs(rep.specs, aiData).specs, aiAnalysis: { ...aiData, washCare, analyzedAt: new Date().toISOString() } }, false, { newDraft: lockedRev !== null });
+      // `scan: true`: a scan result confirms nothing, and its revision is labelled "AI scan, started by <you>" (2026-11-18).
+      if (rep) await persist({ ...rep, specs: prefillSpecs(rep.specs, aiData).specs, aiAnalysis: { ...aiData, washCare, analyzedAt: new Date().toISOString() } }, false, { newDraft: lockedRev !== null, scan: true });
 
     } catch (err: any) {
       console.warn("AI Analysis Error:", err);
@@ -337,9 +339,9 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
 
   // Save a changed request. On success the saved copy (with fresh photo links) replaces the old one
   // everywhere; on failure nothing changes on screen and the reason is shown.
-  const persist = async (updated: ReplicationRequest, approve = false, opts: { newDraft?: boolean } = {}): Promise<boolean> => {
+  const persist = async (updated: ReplicationRequest, approve = false, opts: { newDraft?: boolean; scan?: boolean; confirmations?: ConfirmationRef[] } = {}): Promise<boolean> => {
     try {
-      const { pdfWarning, ...saved } = await saveReplication(updated, { approve, newDraft: opts.newDraft });
+      const { pdfWarning, ...saved } = await saveReplication(updated, { approve, newDraft: opts.newDraft, scan: opts.scan, confirmations: opts.confirmations });
       setReplications(prev => prev.map(r => (r.id === saved.id ? saved : r)));
       setSelectedRep(cur => (cur && cur.id === saved.id ? saved : cur));
       setError(pdfWarning ?? '');

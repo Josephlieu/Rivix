@@ -146,7 +146,8 @@ ok('worst case on the main path (first try + retry without search) fits in the 2
 // anything from the web needs confirmation
 const vest = resolveTemplate('high-visibility-vest');
 const fromPhoto = A.applyTemplate({ productIdentification: { mode: 'visual', brand: null, model: null, source: 'photos' }, colorway: { bodyColor: 'yellow', reflectiveTape: 'silver bands at hem and both front panels' }, checklist: [{ key: 'colour', value: 'Yellow body' }] }, vest);
-ok('photo only: what the photo shows is not flagged', !fromPhoto.flags.includes('colorway.bodyColor') && fromPhoto.checklist.find((c) => c.key === 'colour').needsConfirmation === false);
+// Since 2026-11-18 a checklist item the AI read is "read from photo" and still waits for a person (never confirmed by the AI).
+ok('photo only: what the photo shows is not flagged, and its checklist item is "read from photo", not confirmed', !fromPhoto.flags.includes('colorway.bodyColor') && fromPhoto.checklist.find((c) => c.key === 'colour').readFromPhoto === true && fromPhoto.checklist.find((c) => c.key === 'colour').needsConfirmation === true && !fromPhoto.checklist.find((c) => c.key === 'colour').confirmedBy);
 const web = A.applyTemplate({ productIdentification: { mode: 'retail', brand: 'Acme', model: 'HV-1', source: 'https://example.com/hv-1' }, colorway: { bodyColor: 'yellow', reflectiveTape: '3M Scotchlite 8906, 50 mm' }, checklist: [{ key: 'colour', value: 'Yellow body' }, { key: 'garment-class', value: 'CSA Z96 Class 2' }] }, vest);
 ok('a web (retail) match: every value is flagged', Object.keys(A.FLAGGABLE).every((p) => web.flags.includes(p)));
 ok('  and every checklist item needs confirmation, including the claimed class', web.checklist.every((c) => c.needsConfirmation) && web.checklist.find((c) => c.key === 'garment-class').needsConfirmation);

@@ -6,6 +6,7 @@ import { createRequire } from 'module'; const { createServerClient } = createReq
 import fs from 'fs';
 import { stepUp } from './mfa.mjs'; // task 8: admin sessions need the two-step sign-in
 import { deleteTestRequest, deleteTestCatalogChanges } from './cleanup.mjs'; // task 30: approved requests are archived, not deleted
+import { confirmAll } from './confirm.mjs'; // 2026-11-18: approvals need a person's explicit confirmations
 const env = Object.fromEntries(fs.readFileSync('.env.local','utf8').split('\n').filter(l=>l.includes('=')&&!l.startsWith('#')).map(l=>[l.slice(0,l.indexOf('=')),l.slice(l.indexOf('=')+1).trim().replace(/^["']|["']$/g,'')]));
 const U=env.NEXT_PUBLIC_SUPABASE_URL,A=(env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 const a=createClient(U,(env.SUPABASE_SECRET_KEY||env.SUPABASE_SERVICE_ROLE_KEY),{auth:{persistSession:false}});
@@ -99,7 +100,7 @@ try{
   // --- approval
   r=await call('PUT',`${BASE}/${id}`,ac,full({status:'received',approve:true,aiAnalysis:{...analysis,measurements:[]}})); ok('approving with no measurements is refused',r.status===400);
   r=await call('PUT',`${BASE}/${id}`,ac,full({status:'received',approve:true,aiAnalysis:{...analysis,measurements:[{pom:'',description:'',xs:'',s:'',m:'',l:'',xl:'',tolerance:''}]}})); ok('approving a row without a code or description is refused',r.status===400);
-  r=await call('PUT',`${BASE}/${id}`,ac,full({status:'received',approve:true,aiAnalysis:{...analysis,review:{status:'approved',approvedBy:'someone else'}}})); j=await r.json();
+  r=await call('PUT',`${BASE}/${id}`,ac,full({status:'received',approve:true,aiAnalysis:{...analysis,review:{status:'approved',approvedBy:'someone else'}},confirmations:confirmAll(analysis)})); j=await r.json();
   ok('approving works and moves Received to Mapped',r.status===200&&j.replication?.status==='spec_mapped'&&j.replication?.aiAnalysis?.review?.status==='approved',j.error||'');
   ok('who approved is the signed-in admin, not what the browser sent',/^zz-ra-/.test(j.replication?.aiAnalysis?.review?.approvedBy||''),j.replication?.aiAnalysis?.review?.approvedBy);
   ok('the first approval is revision 1',j.replication?.aiAnalysis?.review?.revision===1,String(j.replication?.aiAnalysis?.review?.revision));
@@ -113,7 +114,7 @@ try{
   r=await call('PUT',`${BASE}/${id}`,ac,{...full({status:'sample_production',aiAnalysis:{...approvedCopy.aiAnalysis,measurements:[{...analysis.measurements[0],m:'99'}]}}),newDraft:true}); j=await r.json();
   ok('changing the draft after approval (new draft) makes it a draft again',r.status===200&&j.replication?.aiAnalysis?.review?.status==='draft');
   ok('a draft keeps the last approved revision number',j.replication?.aiAnalysis?.review?.revision===1);
-  r=await call('PUT',`${BASE}/${id}`,ac,full({status:'sample_production',approve:true,aiAnalysis:j.replication.aiAnalysis})); j=await r.json(); ok('approving again makes revision 2',r.status===200&&j.replication?.aiAnalysis?.review?.revision===2&&j.replication?.aiAnalysis?.review?.status==='approved',j.error||'');
+  r=await call('PUT',`${BASE}/${id}`,ac,full({status:'sample_production',approve:true,aiAnalysis:j.replication.aiAnalysis,confirmations:confirmAll(j.replication.aiAnalysis)})); j=await r.json(); ok('approving again makes revision 2',r.status===200&&j.replication?.aiAnalysis?.review?.revision===2&&j.replication?.aiAnalysis?.review?.status==='approved',j.error||'');
   r=await call('PUT',`${BASE}/${id}`,ac,{...full({status:'sample_production',aiAnalysis:{...j.replication.aiAnalysis,measurements:[{...analysis.measurements[0],m:'98'}]}}),newDraft:true}); j=await r.json();
   r=await call('PUT',`${BASE}/${id}`,ac,full({status:'sample_shipped',aiAnalysis:j.replication.aiAnalysis})); ok('a draft cannot be shipped',r.status===400);
   r=await call('GET',BASE,ac); j=await r.json(); const got=j.replications.find(x=>x.id===id); ok('it all survives a reload',got?.status==='sample_production'&&got?.aiAnalysis?.garmentClass==='parka'&&got?.rivixTrackingNumber==='123');

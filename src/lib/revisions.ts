@@ -5,7 +5,7 @@
 import { garmentTypeLabel } from './garment-types-data';
 import { FLAGGABLE } from './garmentAiAnalysis';
 import { sizeLabels, sizeNote, SIZE_KEYS } from './size-run';
-import { normalizeAnalysis } from './analysis-shape';
+import { canonicalAnalysis, isStamped, fingerprint } from './checklist-confirm';
 export { sizeLabels, sizeNote, defaultSizeRun, SIZE_KEYS, ALPHA_SIZES, SHOE_WIDTHS, type SizeRun } from './size-run';
 
 type Row = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -27,7 +27,8 @@ const stable = (v: unknown): string => JSON.stringify(v, (_k, x) => (x && typeof
 // Both sides are read through the shape clean-up (analysis-shape.ts), so a copy that differs only in shape (a missing list
 // that is now an empty one) is the same tech file: it is not a change, not a new revision, and not an edit to a locked one.
 export function contentKey(s: TechFileSnapshot): string {
-  const clean = normalizeAnalysis<Row>(s.analysis);
+  // The settled form (checklist-confirm.ts): real stamps kept, any other "confirmed" read as not confirmed; shape cleaned.
+  const clean = canonicalAnalysis(s.analysis);
   const a = clean ? (({ review: _r, drawing: _d, analyzedAt: _t, ...rest }) => rest)(clean) : null; // eslint-disable-line @typescript-eslint/no-unused-vars
   return stable({ c: s.clientName, p: s.productName, g: s.garmentType, s: s.specs, a });
 }
@@ -52,7 +53,7 @@ const same = (a: unknown, b: unknown) => stable(a ?? null) === stable(b ?? null)
 export function describeChanges(prev: TechFileSnapshot | null, next: TechFileSnapshot): string[] {
   const out: string[] = [];
   const add = (s: string) => { if (out.length < 300) out.push(s); };
-  const N = normalizeAnalysis<Row>(next.analysis);
+  const N = canonicalAnalysis(next.analysis);
   if (!prev) return [N ? `First recorded revision (${(N.measurements || []).length} measurements, ${(N.checklist || []).length} checklist items)` : 'First recorded revision'];
   if (prev.productName !== next.productName) add(`Product name: ${show(prev.productName)} → ${show(next.productName)}`);
   if (prev.clientName !== next.clientName) add(`Customer: ${show(prev.clientName)} → ${show(next.clientName)}`);
@@ -61,7 +62,8 @@ export function describeChanges(prev: TechFileSnapshot | null, next: TechFileSna
     if (k === 'annotations') { if (!same(prev.specs[k], next.specs[k])) add('Spec annotations changed'); continue; }
     if (!same(prev.specs[k] ?? '', next.specs[k] ?? '')) add(`${SPEC_LABELS[k] ?? k}: ${show(prev.specs[k])} → ${show(next.specs[k])}`);
   }
-  const A = normalizeAnalysis<Row>(prev.analysis), B = normalizeAnalysis<Row>(next.analysis); // shape only: see contentKey
+  const A = canonicalAnalysis(prev.analysis), B = canonicalAnalysis(next.analysis); // settled forms: see contentKey
+  const by = (r: Row) => (isStamped(r) ? ` by ${r.confirmedBy}` : '');
   if (!A && B) { add(`Tech file drafted (${(B.measurements || []).length} measurements, ${(B.checklist || []).length} checklist items)`); return out; }
   if (A && !B) { add('Tech file removed'); return out; }
   if (!A || !B) return out;
@@ -96,7 +98,8 @@ export function describeChanges(prev: TechFileSnapshot | null, next: TechFileSna
     if (o.description !== m.description) add(`Measurement ${pom}: description ${show(o.description)} → ${show(m.description)}`);
     SIZE_KEYS.forEach((k, i) => { if (!same(o[k] ?? '', m[k] ?? '')) add(`${name}, ${lb[i]}: ${show(o[k])} → ${show(m[k])}`); });
     if (!same(o.tolerance ?? '', m.tolerance ?? '')) add(`${name}, tolerance: ${show(o.tolerance)} → ${show(m.tolerance)}`);
-    if (o.needsConfirmation === true && m.needsConfirmation !== true) add(`${name}: confirmed`);
+    if (!isStamped(o) && isStamped(m)) add(`${name}: confirmed${by(m)}`);
+    if (isStamped(o) && !isStamped(m)) add(`${name}: needs confirmation again`);
   }
   for (const [pom, o] of ma) if (!mb.has(pom)) add(`Measurement ${pom}${o.description ? ` (${o.description})` : ''}: removed`);
   // Checklist, by item
@@ -105,22 +108,27 @@ export function describeChanges(prev: TechFileSnapshot | null, next: TechFileSna
     const o = ca.get(c.key);
     if (!o) { add(`Checklist ${c.label}: added`); continue; }
     if (!same(o.value ?? '', c.value ?? '')) add(`Checklist ${c.label}: ${show(o.value)} → ${show(c.value)}`);
-    if (o.needsConfirmation && !c.needsConfirmation) add(`Checklist ${c.label}: confirmed`);
-    if (!o.needsConfirmation && c.needsConfirmation) add(`Checklist ${c.label}: needs confirmation again`);
+    if (!isStamped(o) && isStamped(c)) add(`Checklist ${c.label}: confirmed${by(c)}`);
+    if (isStamped(o) && !isStamped(c)) add(`Checklist ${c.label}: needs confirmation again`);
   }
   // Markings, seams, labels
   const mk = (a: Row) => (a.markings || []).map((m: Row) => `${m.kind}: ${m.text}`);
   const mka = mk(A), mkb = mk(B);
   for (const t of mkb) if (!mka.includes(t)) add(`Marking added: ${show(t)}`);
   for (const t of mka) if (!mkb.includes(t)) add(`Marking removed: ${show(t)}`);
-  const conf = (a: Row) => (a.markings || []).filter((m: Row) => !m.needsConfirmation).length;
-  if (conf(B) > conf(A)) add(`${conf(B) - conf(A)} marking${conf(B) - conf(A) > 1 ? 's' : ''} confirmed`);
+  const conf = (a: Row) => (a.markings || []).filter((m: Row) => isStamped(m)).length;
+  if (conf(B) > conf(A)) add(`${conf(B) - conf(A)} marking${conf(B) - conf(A) > 1 ? 's' : ''} confirmed${[...new Set((B.markings || []).filter(isStamped).map((m: Row) => m.confirmedBy))].map((e) => ` by ${e}`).join(',')}`);
   for (const [k, label] of [['construction', 'Seam'], ['labelPlacements', 'Label placement']] as const) {
     const xa: Row[] = A[k] || [], xb: Row[] = B[k] || [];
     for (let i = 0; i < Math.max(xa.length, xb.length); i++) {
       if (!xa[i]) add(`${label} ${i + 1}: added`);
       else if (!xb[i]) add(`${label} ${i + 1}: removed`);
-      else if (!same(xa[i], xb[i])) add(`${label} ${i + 1} changed`);
+      else {
+        // Content and confirmation are told apart: a person's confirmation is not an edit.
+        if (fingerprint(xa[i]) !== fingerprint(xb[i])) add(`${label} ${i + 1} changed`);
+        if (!isStamped(xa[i]) && isStamped(xb[i])) add(`${label} ${i + 1}: confirmed${by(xb[i])}`);
+        else if (isStamped(xa[i]) && !isStamped(xb[i])) add(`${label} ${i + 1}: needs confirmation again`);
+      }
     }
   }
   return out;

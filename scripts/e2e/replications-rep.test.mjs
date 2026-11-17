@@ -8,6 +8,7 @@ import { createRequire } from 'module'; const { createServerClient } = createReq
 import fs from 'fs';
 import { stepUp } from './mfa.mjs'; // task 8: admin sessions need the two-step sign-in
 import { deleteTestRequest, deleteTestCatalogChanges } from './cleanup.mjs'; // task 30: approved requests are archived, not deleted
+import { confirmAll } from './confirm.mjs'; // 2026-11-18: approvals need a person's explicit confirmations
 const env = Object.fromEntries(fs.readFileSync('.env.local','utf8').split('\n').filter(l=>l.includes('=')&&!l.startsWith('#')).map(l=>[l.slice(0,l.indexOf('=')),l.slice(l.indexOf('=')+1).trim().replace(/^["']|["']$/g,'')]));
 const U=env.NEXT_PUBLIC_SUPABASE_URL,A=(env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 const a=createClient(U,(env.SUPABASE_SECRET_KEY||env.SUPABASE_SERVICE_ROLE_KEY),{auth:{persistSession:false}});
@@ -100,7 +101,7 @@ try{
   const {data:nOther}=await a.from('notifications').select('id').eq('recipient_user_id',repBU.id).in('kind',['replication_message']); ok('a different rep got no chat notice',(nOther||[]).length===0);
 
   // --- admin approves: the rep is told; the admin gives a request to another rep
-  r=await call('PUT',`${B}/${A1}`,ad,{...cur,aiAnalysis:analysis,approve:true}); j=await r.json(); ok('the admin approves the rep request',r.status===200&&j.replication?.aiAnalysis?.review?.status==='approved'&&j.replication?.status==='spec_mapped',j.error||'');
+  r=await call('PUT',`${B}/${A1}`,ad,{...cur,aiAnalysis:analysis,approve:true,confirmations:confirmAll(analysis)}); j=await r.json(); ok('the admin approves the rep request',r.status===200&&j.replication?.aiAnalysis?.review?.status==='approved'&&j.replication?.status==='spec_mapped',j.error||'');
   const {data:nAppr}=await a.from('notifications').select('kind').eq('recipient_user_id',repAU.id).eq('kind','replication_approved'); ok('the rep was told it was approved',nAppr?.length===1);
   r=await call('PUT',`${B}/${A1}`,ad,{...j.replication,repId:repB.id}); j=await r.json(); ok('the admin hands the request to another rep',r.status===200&&j.replication?.repId===repB.id&&j.replication?.repName==='ZZ Rep Beta',j.error||'');
   r=await call('GET',`${B}/${A1}`,ra); ok('the first rep no longer sees it',r.status===404);

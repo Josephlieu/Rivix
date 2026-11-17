@@ -18,6 +18,7 @@ import { spawnSync } from 'child_process';
 import fs from 'fs';
 import { stepUp } from './mfa.mjs';
 import { deleteTestRequest } from './cleanup.mjs';
+import { confirmAll } from './confirm.mjs'; // 2026-11-18: approvals need a person's explicit confirmations
 const { createServerClient } = createRequire(import.meta.url)('@supabase/ssr');
 const ok = (n, c, x = '') => console.log(c ? 'PASS' : 'FAIL', n, x);
 const sha = (b) => createHash('sha256').update(b).digest('hex');
@@ -33,10 +34,14 @@ const base = (over = {}) => R.techFileSnapshot({ clientName: 'ZZ', productName: 
   analysis: { measurements: [{ pom: 'A', description: 'Chest', xs: '', s: '', m: '', l: '', xl: '', tolerance: '', needsConfirmation: true }], checklist: [{ key: 'colour', label: 'Colour and colour placement', value: '', required: true, needsConfirmation: true }], markings: [], flags: ['fabricAnalysis.material'], fabricAnalysis: { material: '' }, review: { status: 'draft', revision: 0 } }, ...over });
 const s0 = base();
 ok('a revision copy leaves out what is not the tech file (type confirmation, parcel)', !('typeCheck' in s0.specs) && !('garmentPosted' in s0.specs) && s0.specs.coreMaterial === 'Nylon');
-const s1 = { ...s0, garmentType: 'parka', specs: { ...s0.specs, coreMaterial: 'Polyester' }, analysis: { ...s0.analysis, flags: [], fabricAnalysis: { material: '100% nylon' }, measurements: [{ ...s0.analysis.measurements[0], m: '24', needsConfirmation: false }], checklist: [{ ...s0.analysis.checklist[0], value: 'Navy body', needsConfirmation: false }], markings: [{ kind: 'care', text: 'Wash cold', photo: 1, location: 'neck', needsConfirmation: true }] } };
+// Since 2026-11-18 a confirmation is a stamp the server writes for a person (checklist-confirm.ts); needsConfirmation:false alone is not.
+const STAMP = { needsConfirmation: false, confirmedBy: 'zz-admin@example.com', confirmedAt: '2026-11-18T10:00:00.000Z' };
+const s1 = { ...s0, garmentType: 'parka', specs: { ...s0.specs, coreMaterial: 'Polyester' }, analysis: { ...s0.analysis, flags: [], fabricAnalysis: { material: '100% nylon' }, measurements: [{ ...s0.analysis.measurements[0], m: '24', ...STAMP }], checklist: [{ ...s0.analysis.checklist[0], value: 'Navy body', ...STAMP }], markings: [{ kind: 'care', text: 'Wash cold', photo: 1, location: 'neck', needsConfirmation: true }] } };
 const ch = R.describeChanges(s0, s1);
+const unstamped = R.describeChanges(s0, { ...s0, analysis: { ...s0.analysis, measurements: [{ ...s0.analysis.measurements[0], needsConfirmation: false }], checklist: [{ ...s0.analysis.checklist[0], needsConfirmation: false }] } });
+ok('needsConfirmation:false without a person\'s stamp is not reported as a confirmation', !unstamped.some((l) => /confirmed/.test(l)), unstamped.join(' | '));
 const has = (re) => ch.some((l) => re.test(l));
-ok('what changed reads plainly: product type, spec fields, fabric, measurement, checklist, markings, confirmations', has(/^Product type: Jacket, parka and coat|^Product type: Jacket → Parka/) && has(/^Base material: "Nylon" → "Polyester"$/) && has(/^Fabric material: blank → "100% nylon"$/) && has(/^Fabric material: confirmed$/) && has(/^Measurement A \(Chest\), M: blank → "24"$/) && has(/^Measurement A \(Chest\): confirmed$/) && has(/^Checklist Colour and colour placement: blank → "Navy body"$/) && has(/^Checklist Colour and colour placement: confirmed$/) && has(/^Marking added: "care: Wash cold"$/), ch.join(' | '));
+ok('what changed reads plainly: product type, spec fields, fabric, measurement, checklist, markings, confirmations', has(/^Product type: Jacket, parka and coat|^Product type: Jacket → Parka/) && has(/^Base material: "Nylon" → "Polyester"$/) && has(/^Fabric material: blank → "100% nylon"$/) && has(/^Fabric material: confirmed$/) && has(/^Measurement A \(Chest\), M: blank → "24"$/) && has(/^Measurement A \(Chest\): confirmed by zz-admin@example\.com$/) && has(/^Checklist Colour and colour placement: blank → "Navy body"$/) && has(/^Checklist Colour and colour placement: confirmed by zz-admin@example\.com$/) && has(/^Marking added: "care: Wash cold"$/), ch.join(' | '));
 ok('the first revision says so; approving and starting a new draft are named', R.describeChanges(null, s0)[0].startsWith('First recorded revision') && R.describeChanges(s0, { ...s0, analysis: { ...s0.analysis, review: { status: 'approved', revision: 1 } } }).includes('Approved as Rev 1') && R.describeChanges({ ...s0, analysis: { ...s0.analysis, review: { status: 'approved', revision: 1 } } }, s0).includes('New draft started from Rev 1'));
 ok('a change only in what the server sets (approval, drawing stamp, scan time) is not a content change', R.contentKey(s0) === R.contentKey({ ...s0, analysis: { ...s0.analysis, review: { status: 'approved', revision: 3 }, drawing: { key: 'jacket', version: 1 }, analyzedAt: 'x' } }) && R.contentKey(s0) !== R.contentKey(s1));
 ok('revision labels: "Rev 2", "Draft (after Rev 2)", "Draft"', R.revisionLabel({ status: 'approved', revision: 2 }) === 'Rev 2' && R.revisionLabel({ status: 'draft', revision: 2 }) === 'Draft (after Rev 2)' && R.revisionLabel({ status: 'draft', revision: 0 }) === 'Draft');
@@ -98,7 +103,7 @@ try {
   r = await call('PUT', `/api/replications/${id}`, ac, { ...cur, aiAnalysis: { ...cur.aiAnalysis, measurements: cur.aiAnalysis.measurements.map((m, i) => (i === 0 ? { ...m, m: '25' } : m)) } }); j = await r.json(); cur = j.replication;
   h = await hist();
   ok('a change is a new revision with a readable list of what changed', h.length === 2 && h[0].seq === 2 && h[0].changes.some((c) => c === 'Measurement A (Chest), M: "24" → "25"'), JSON.stringify(h[0]?.changes));
-  r = await call('PUT', `/api/replications/${id}`, ac, { ...cur, approve: true }); j = await r.json(); cur = j.replication;
+  r = await call('PUT', `/api/replications/${id}`, ac, { ...cur, approve: true, confirmations: confirmAll(cur.aiAnalysis) }); j = await r.json(); cur = j.replication;
   h = await hist();
   const rev1 = h[0];
   ok('approving records "Rev 1", approved, with its PDF fingerprint (SHA-256)', r.status === 200 && rev1.seq === 3 && rev1.status === 'approved' && rev1.revision === 1 && /^[0-9a-f]{64}$/.test(rev1.pdf?.sha256 ?? '') && rev1.changes.includes('Approved as Rev 1') && !j.pdfWarning, j.pdfWarning || JSON.stringify(rev1?.changes));

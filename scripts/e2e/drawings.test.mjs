@@ -18,6 +18,7 @@ import os from 'os';
 import path from 'path';
 import { stepUp } from './mfa.mjs';
 import { deleteTestRequest } from './cleanup.mjs';
+import { confirmAll } from './confirm.mjs'; // 2026-11-18: approvals need a person's explicit confirmations
 const { createServerClient } = createRequire(import.meta.url)('@supabase/ssr');
 const ok = (n, c, x = '') => console.log(c ? 'PASS' : 'FAIL', n, x);
 
@@ -178,7 +179,7 @@ try {
   const r1 = await mk('parka');
   let r = await call('PUT', `/api/replications/${r1.id}`, { ...r1, aiAnalysis: done('parka') });
   ok('a draft saved with a drawing stamp from the browser: the stamp is dropped', r.status === 200 && (await row(r1.id)).drawing === undefined);
-  r = await call('PUT', `/api/replications/${r1.id}`, { ...r1, aiAnalysis: done('parka'), approve: true }); let j = await r.json();
+  r = await call('PUT', `/api/replications/${r1.id}`, { ...r1, aiAnalysis: done('parka'), approve: true, confirmations: confirmAll(done('parka')) }); let j = await r.json();
   ok('approving records the drawing on the server: jacket drawing version 1 (not the forged 99)', r.status === 200 && JSON.stringify((await row(r1.id)).drawing) === '{"key":"jacket","version":1}', j.error || '');
   const saved = j.replication;
   r = await call('PUT', `/api/replications/${r1.id}`, { ...saved, aiAnalysis: { ...saved.aiAnalysis, drawing: { key: 'jacket', version: 7 } } });
@@ -187,10 +188,10 @@ try {
   ok('editing it makes it a draft again, and the draft shows the current drawing (no stamp)', (await row(r1.id)).review?.status === 'draft' && (await row(r1.id)).drawing === undefined);
 
   const r2 = await mk('cut-resistant-gloves');
-  r = await call('PUT', `/api/replications/${r2.id}`, { ...r2, aiAnalysis: done('cut-resistant-gloves'), approve: true });
+  r = await call('PUT', `/api/replications/${r2.id}`, { ...r2, aiAnalysis: done('cut-resistant-gloves'), approve: true, confirmations: confirmAll(done('cut-resistant-gloves')) });
   ok('approving a glove records the glove drawing, version 1', r.status === 200 && JSON.stringify((await row(r2.id)).drawing) === '{"key":"glove","version":1}');
   const r3 = await mk('rain-suit');
-  r = await call('PUT', `/api/replications/${r3.id}`, { ...r3, aiAnalysis: done('rain-suit'), approve: true });
+  r = await call('PUT', `/api/replications/${r3.id}`, { ...r3, aiAnalysis: done('rain-suit'), approve: true, confirmations: confirmAll(done('rain-suit')) });
   const ks = (await row(r3.id))?.drawing;
   ok('approving a kit (rain suit) records each part\'s drawing', r.status === 200 && ks?.key === 'rain-suit' && ks.version === null && JSON.stringify(ks.parts?.map((p) => [p.key, p.version])) === '[["jacket",1],["trousers",1]]', `${r.status} ${JSON.stringify(ks)}`);
 

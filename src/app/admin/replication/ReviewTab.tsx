@@ -16,6 +16,8 @@ import { readWebSource, linkMissing, FROM_WEBSITE } from '@/lib/link-source';
 import WebFoundView from './WebFoundView';
 import StandardNote from '@/components/StandardNote';
 import { normalizeAnalysis } from '@/lib/analysis-shape';
+import { itemState, rowRef, isStamped, CONFIRMABLE_LISTS, type ConfirmationRef, type ConfirmableList } from '@/lib/checklist-confirm';
+import { formatDate } from '@/lib/format';
 
 type Analysis = PersistedGarmentAIAnalysis;
 type Measurement = Analysis['measurements'][number];
@@ -38,11 +40,16 @@ const stable = (v: unknown) => JSON.stringify(v);
 interface Props {
   rep: ReplicationRequest;
   // Saves the request; true when it worked (the page shows the reason when it did not).
-  onSave: (updated: ReplicationRequest, approve: boolean, opts?: { newDraft?: boolean }) => Promise<boolean>;
+  onSave: (updated: ReplicationRequest, approve: boolean, opts?: { newDraft?: boolean; confirmations?: ConfirmationRef[] }) => Promise<boolean>;
 }
 
 // Shown inside an empty box only (a placeholder): never saved as a value.
 export const NOT_FILLED_IN = 'Not filled in';
+// The confirmation state of a row (the server's: stamps, "read from photo"), left out when comparing content.
+const STATE_KEYS = ['needsConfirmation', 'confirmedBy', 'confirmedAt', 'readFromPhoto'];
+const withoutState = <T,>(v: T): T => JSON.parse(JSON.stringify(v ?? null, (k, x) => (STATE_KEYS.includes(k) ? undefined : x)));
+// A row a person has just edited: no confirmation, no "read from photo" (it needs a click again).
+const edited = <T extends object>(r: T): T => { const { confirmedBy: _b, confirmedAt: _t, readFromPhoto: _r, ...rest } = r as T & { confirmedBy?: string; confirmedAt?: string; readFromPhoto?: boolean }; return { ...rest, needsConfirmation: true } as T; }; // eslint-disable-line @typescript-eslint/no-unused-vars
 const input = 'w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30';
 const label = 'text-[10px] font-bold uppercase tracking-widest text-slate-500';
 
@@ -91,10 +98,12 @@ function Suggestion({ text, onUse }: { text: string; onUse: () => void }) {
   );
 }
 
-function ConfirmFlag({ onConfirm }: { onConfirm: () => void }) {
+function ConfirmFlag({ onConfirm, read }: { onConfirm: () => void; read?: boolean }) {
   return (
     <span className="flex items-center gap-2 text-[10px]">
-      <span className="rounded bg-amber-100 px-1.5 py-0.5 font-bold uppercase tracking-widest text-amber-800">Needs confirmation</span>
+      {read
+        ? <span className="rounded bg-sky-100 px-1.5 py-0.5 font-bold uppercase tracking-widest text-sky-800">Read from photo, not checked</span>
+        : <span className="rounded bg-amber-100 px-1.5 py-0.5 font-bold uppercase tracking-widest text-amber-800">Needs confirmation</span>}
       <button type="button" onClick={onConfirm} className="font-bold text-rivix hover:underline">Confirmed, it is correct</button>
     </span>
   );
@@ -150,20 +159,42 @@ export default function ReviewTab({ rep, onSave }: Props) {
   const [draft, setDraft] = useState(fromRep);
   const [saving, setSaving] = useState<'' | 'save' | 'approve'>('');
   const [problem, setProblem] = useState('');
-  // "dirty" = the person has typed something that is not saved yet. It is measured against what this form last loaded
-  // or saved (the baseline), never against the newest copy from the server, so a new scan result is not mistaken for edits.
-  const draftKey = (d: { specs: ReplicationSpec; analysis: Analysis }) => stable({ s: d.specs, a: { ...d.analysis, review: undefined, analyzedAt: undefined } });
+  // The rows the person confirmed since the last save (a single click or "Confirm all"). They are sent as the save's explicit
+  // `confirmations` list and the SERVER stamps exactly these with who and when; nothing else ever counts as confirmed.
+  const [pending, setPending] = useState<ConfirmationRef[]>([]);
+  // "dirty" = the person has typed or confirmed something that is not saved yet. Content is measured against what this form
+  // last loaded or saved (the baseline), never against the newest copy from the server, so a new scan is not mistaken for edits.
+  // Confirmation state (stamps, "read from photo") is the server's, so it is left out of the content key.
+  const draftKey = (d: { specs: ReplicationSpec; analysis: Analysis }) => stable({ s: d.specs, a: { ...withoutState(d.analysis), review: undefined, analyzedAt: undefined } });
+  const fullKey = (d: { specs: ReplicationSpec; analysis: Analysis }) => stable({ s: d.specs, a: { ...d.analysis, review: undefined, analyzedAt: undefined } });
   const [baseline, setBaseline] = useState(() => draftKey(draft));
-  const dirty = draftKey(draft) !== baseline;
-  const incomingKey = draftKey(fromRep());
+  const dirty = draftKey(draft) !== baseline || pending.length > 0;
+  const incoming = fromRep();
+  const incomingKey = draftKey(incoming);
+  const incomingFull = fullKey(incoming);
   useEffect(() => {
-    if (incomingKey === baseline) return; // nothing new from outside
-    if (draftKey(draft) === incomingKey) { setBaseline(incomingKey); return; } // our own save came back
+    // Same content as on screen (our own save came back, or only the confirmation stamps changed): show the server's copy.
+    if (draftKey(draft) === incomingKey) { setDraft(fromRep()); setBaseline(incomingKey); return; }
     if (!dirty) { setDraft(fromRep()); setBaseline(incomingKey); setProblem(''); } // new data from outside (a scan): load it
     // otherwise keep the unsaved edits
-  }, [incomingKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [incomingFull]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const a = draft.analysis;
+  // Confirmations: a person's click adds the row to `pending`; the server stamps it on save. Editing a row takes its
+  // confirmation away (it needs a click again).
+  const pendingSet = new Set(pending.map(p => `${p.list}\u0000${p.ref}`));
+  const isPending = (list: ConfirmableList, row: object, i: number) => pendingSet.has(`${list}\u0000${rowRef(list, row as Record<string, unknown>, i)}`);
+  const confirmRow = (list: ConfirmableList, row: object, i: number) => {
+    const ref = rowRef(list, row as Record<string, unknown>, i);
+    setPending(p => (p.some(x => x.list === list && x.ref === ref) ? p : [...p, { list, ref }]));
+  };
+  const unpend = (list: ConfirmableList, ref?: string) => setPending(p => p.filter(x => !(x.list === list && (ref === undefined || x.ref === ref))));
+  // What the screen checks before approving: as if the rows confirmed in this session were already stamped (the server stamps them).
+  const withPending = (an: Analysis): Analysis => {
+    const c = structuredClone(an) as unknown as Record<string, unknown>;
+    for (const list of CONFIRMABLE_LISTS) if (Array.isArray(c[list])) c[list] = (c[list] as Record<string, unknown>[]).map((r, i) => (isPending(list, r, i) ? { ...r, needsConfirmation: false, confirmedBy: 'you', confirmedAt: new Date().toISOString() } : r));
+    return c as unknown as Analysis;
+  };
   const setA = (patch: Partial<Analysis>) => setDraft(d => ({ ...d, analysis: { ...d.analysis, ...patch } }));
   const setSpec = (k: keyof ReplicationSpec, v: string) => setDraft(d => ({ ...d, specs: { ...d.specs, [k]: v } }));
   const flags = a.flags || [];
@@ -194,15 +225,15 @@ export default function ReviewTab({ rep, onSave }: Props) {
   const askList: string[] = [];
   if (['fabricAnalysis.material', 'fabricAnalysis.weight', 'fabricAnalysis.weaveType', 'washCare.instructions', 'bom.labels'].some(isFlagged)) askList.push('A clear photo of the inside label (fabric and care text), or the fabric spec sheet');
   if (isFlagged('fabricAnalysis.frRating')) askList.push('The safety standard or certification, if any (a brand certification does not transfer to a copy)');
-  if (a.measurements.some(m => m.needsConfirmation)) askList.push('A sample garment or the size chart with measurements');
+  if (a.measurements.some(m => !isStamped(m))) askList.push('A sample garment or the size chart with measurements');
   if (['colorway.threadColor', 'colorway.hardwareFinish', 'bom.hardware', 'bom.thread'].some(isFlagged)) askList.push('Close-up photos of the zipper, snaps and stitching');
-  if ((a.checklist || []).some(c => c.required && c.needsConfirmation)) askList.push('Photos from the back and the sides, if only the front was sent');
+  if ((a.checklist || []).some(c => c.required && itemState(c) === 'needs')) askList.push('Photos from the back and the sides, if only the front was sent');
   const approved = review?.status === 'approved';
   // Task 30: an approved tech file is locked until an admin starts a new draft (the server enforces it too).
   const [unlocked, setUnlocked] = useState(false);
   useEffect(() => { setUnlocked(false); }, [review?.status, review?.revision]);
   const locked = approved && !unlocked;
-  const missing = missingInformation(a);
+  const missing = missingInformation(withPending(a));
   // Task 29: the template's flat drawing (a draft: the current one; approved: the one it was approved with; approved before
   // drawings existed: none, so it looks as it did). Number N on the drawing = row "No." N in the measurement table.
   const drawing = drawingFor(rep.aiAnalysis, template);
@@ -214,15 +245,30 @@ export default function ReviewTab({ rep, onSave }: Props) {
   const rowInput = (v: string | number, on: (s: string) => void, cls = '') => (
     <input className={`${input} ${cls}`} value={String(v ?? '')} onChange={e => on(e.target.value)} maxLength={300} />
   );
-  const updateRow = <K extends 'measurements' | 'construction' | 'labelPlacements'>(key: K, i: number, patch: Partial<Analysis[K][number]>) =>
-    setA({ [key]: a[key].map((r, j) => (j === i ? { ...r, ...patch } : r)) } as Partial<Analysis>);
-  const removeRow = (key: 'measurements' | 'construction' | 'labelPlacements', i: number) =>
+  const updateRow = <K extends 'measurements' | 'construction' | 'labelPlacements'>(key: K, i: number, patch: Partial<Analysis[K][number]>) => {
+    unpend(key, String(i)); // an edit takes the row's confirmation away
+    setA({ [key]: a[key].map((r, j) => (j === i ? { ...edited(r), ...patch } : r)) } as Partial<Analysis>);
+  };
+  const removeRow = (key: 'measurements' | 'construction' | 'labelPlacements', i: number) => {
+    unpend(key); // positions change: clicks in this list are taken back
     setA({ [key]: a[key].filter((_, j) => j !== i) } as Partial<Analysis>);
+  };
+  // How a row shows its state: confirmed in this session (recorded on save), confirmed by a person (who and when), or a button.
+  const rowStatus = (list: ConfirmableList, row: object, i: number) => {
+    const r = row as { confirmedBy?: string; confirmedAt?: string };
+    if (isPending(list, row, i)) return <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-700">Confirmed, recorded when you save</span>;
+    if (isStamped(row)) return <span className="text-[10px] text-emerald-700"><b className="uppercase tracking-widest">Confirmed</b> by {r.confirmedBy} on {formatDate(r.confirmedAt!)}</span>;
+    return <ConfirmFlag read={itemState(row, list) === 'read'} onConfirm={() => confirmRow(list, row, i)} />;
+  };
+  const rowBox = (list: ConfirmableList, row: object, i: number) =>
+    isPending(list, row, i) || isStamped(row) ? 'border-slate-100' : itemState(row, list) === 'read' ? 'border-sky-200 bg-sky-50/40' : 'border-amber-200 bg-amber-50/50';
+  // "Confirm all read-from-photo items": only checklist items in the "read" state, never spec-sheet items (those are never "read").
+  const readItems = (a.checklist || []).map((c, i) => ({ c, i })).filter(({ c, i }) => itemState(c, 'checklist') === 'read' && !isPending('checklist', c, i));
 
   const problems = (): string => {
     if (a.measurements.length === 0) return 'Add at least one measurement before approving.';
     if (a.measurements.some(m => !m.pom.trim() || !m.description.trim())) return 'Every measurement needs a point code and a description.';
-    const open = outstandingConfirmations(a);
+    const open = outstandingConfirmations(withPending(a));
     if (open.length) return `${open.length} item${open.length > 1 ? 's' : ''} still need confirmation: ${open.slice(0, 5).join(', ')}${open.length > 5 ? '…' : ''}. Check each against the garment and confirm it.`;
     return '';
   };
@@ -232,7 +278,8 @@ export default function ReviewTab({ rep, onSave }: Props) {
     setProblem(p);
     if (p) return;
     setSaving(approve ? 'approve' : 'save');
-    const ok = await onSave({ ...rep, specs: draft.specs, aiAnalysis: { ...draft.analysis, review: undefined } }, approve, { newDraft: approved && unlocked });
+    const ok = await onSave({ ...rep, specs: draft.specs, aiAnalysis: { ...draft.analysis, review: undefined } }, approve, { newDraft: approved && unlocked, confirmations: pending });
+    if (ok) setPending([]); // stamped by the server; the saved copy (with who and when) comes back through the sync effect
     setSaving('');
     void ok; // the saved copy comes back through the sync effect above
   };
@@ -316,17 +363,15 @@ export default function ReviewTab({ rep, onSave }: Props) {
         <Section title="Labels and markings copied from the photos" hint="Copied exactly as printed, with the photo each was read from. They describe the ORIGINAL product: a printed rating or certification never carries over to the copy. Check each against the photo, then confirm it.">
           <div className="space-y-2">
             {markings.map((m, i) => (
-              <div key={i} className={`flex flex-wrap items-start justify-between gap-2 rounded-xl border p-3 ${m.needsConfirmation ? 'border-amber-200 bg-amber-50/50' : 'border-slate-100'}`}>
+              <div key={i} className={`flex flex-wrap items-start justify-between gap-2 rounded-xl border p-3 ${rowBox('markings', m, i)}`}>
                 <div className="min-w-0 text-xs">
                   <span className="mr-2 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-slate-500">{m.kind}</span>
                   <span className="whitespace-pre-wrap break-words font-mono text-slate-800">{m.text}</span>
                   <span className="block text-[11px] text-slate-400">{m.photo ? `Photo ${m.photo}` : 'Photo not known'}{m.location ? `, ${m.location}` : ''}</span>
                 </div>
                 <span className="flex shrink-0 items-center gap-2">
-                  {m.needsConfirmation
-                    ? <ConfirmFlag onConfirm={() => setA({ markings: markings.map((x, j) => (j === i ? { ...x, needsConfirmation: false } : x)) })} />
-                    : <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-700">Confirmed</span>}
-                  <button type="button" onClick={() => setA({ markings: markings.filter((_, j) => j !== i) })} className="text-[11px] font-bold text-slate-400 hover:text-rivix" aria-label={`Remove marking ${i + 1}`}>Remove</button>
+                  {rowStatus('markings', m, i)}
+                  <button type="button" onClick={() => { unpend('markings'); setA({ markings: markings.filter((_, j) => j !== i) }); }} className="text-[11px] font-bold text-slate-400 hover:text-rivix" aria-label={`Remove marking ${i + 1}`}>Remove</button>
                 </span>
               </div>
             ))}
@@ -335,17 +380,22 @@ export default function ReviewTab({ rep, onSave }: Props) {
       )}
 
       <Section title={`Checklist for ${template.family.label}${template.modules.length ? ' + ' + template.modules.map(m => m.label.toLowerCase()).join(', ') : ''}`} hint="From the garment type's template. Fill in what you know, then confirm each item. Items marked required must be confirmed before approval.">
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" disabled={readItems.length === 0} onClick={() => setPending(p => [...p, ...readItems.map(({ c, i }) => ({ list: 'checklist' as const, ref: rowRef('checklist', c, i) }))])}
+            className="rounded-lg border border-sky-300 bg-white px-3 py-1.5 text-[11px] font-bold text-sky-800 hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-50">
+            Confirm all read-from-photo items ({readItems.length})
+          </button>
+          <span className="text-[10px] text-slate-400">Only items read from a photo, never items that need a spec sheet. Your confirmation is recorded with your name and the time when you save.</span>
+        </div>
         <div className="space-y-2">
           {(a.checklist || []).map((item, i) => (
-            <div key={item.key} className={`rounded-xl border p-3 ${item.needsConfirmation ? 'border-amber-200 bg-amber-50/50' : 'border-slate-100'}`}>
+            <div key={item.key} className={`rounded-xl border p-3 ${rowBox('checklist', item, i)}`}>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-xs font-bold text-slate-700">{item.label}{item.required && <span className="ml-1 text-rivix">*</span>} <span className="font-normal text-slate-400">({item.source === 'photo' ? 'often visible in a photo' : 'needs a spec sheet or sample'}{item.photo ? `; seen in photo ${item.photo}` : ''})</span></span>
-                {item.needsConfirmation
-                  ? <ConfirmFlag onConfirm={() => setA({ checklist: (a.checklist || []).map((x, j) => (j === i ? { ...x, needsConfirmation: false } : x)) })} />
-                  : <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-700">Confirmed</span>}
+                {rowStatus('checklist', item, i)}
               </div>
               <input className={`${input} mt-1.5`} placeholder="What the garment has (blank = not known yet)" value={item.value} maxLength={500}
-                onChange={e => setA({ checklist: (a.checklist || []).map((x, j) => (j === i ? { ...x, value: e.target.value } : x)) })} />
+                onChange={e => { unpend('checklist', rowRef('checklist', item, i)); setA({ checklist: (a.checklist || []).map((x, j) => (j === i ? { ...edited(x), value: e.target.value } : x)) }); }} />
             </div>
           ))}
         </div>
@@ -426,7 +476,7 @@ export default function ReviewTab({ rep, onSave }: Props) {
                   {(['xs', 's', 'm', 'l', 'xl'] as const).map(k => <td key={k} className="pr-1 pb-1.5">{rowInput(m[k], v => updateRow('measurements', i, { [k]: v }), 'text-center')}</td>)}
                   <td className="pr-1 pb-1.5">{rowInput(m.tolerance, v => updateRow('measurements', i, { tolerance: v }), 'text-center')}</td>
                   <td className="pb-1.5"><button type="button" onClick={() => removeRow('measurements', i)} aria-label="Remove row" className="text-slate-400 hover:text-red-600">✕</button></td>
-                  <td className="pb-1.5 pl-2 whitespace-nowrap">{m.needsConfirmation && <ConfirmFlag onConfirm={() => updateRow('measurements', i, { needsConfirmation: false })} />}</td>
+                  <td className="pb-1.5 pl-2 whitespace-nowrap">{rowStatus('measurements', m, i)}</td>
                 </tr>
               ))}
             </tbody>
@@ -459,7 +509,7 @@ export default function ReviewTab({ rep, onSave }: Props) {
               <Field name="Stitches per inch" value={String(c.spiTop ?? '')} onChange={v => updateRow('construction', i, { spiTop: Number(v) || 0, spiBottom: Number(v) || 0 })} />
               <Field name="Seam allowance" value={c.seamAllowance} onChange={v => updateRow('construction', i, { seamAllowance: v })} />
               <div className="flex items-end justify-end"><button type="button" onClick={() => removeRow('construction', i)} className="text-xs font-bold text-slate-400 hover:text-red-600">Remove</button></div>
-              {c.needsConfirmation && <div className="col-span-2 sm:col-span-6"><ConfirmFlag onConfirm={() => updateRow('construction', i, { needsConfirmation: false })} /></div>}
+              <div className="col-span-2 sm:col-span-6">{rowStatus('construction', c, i)}</div>
               <Field wide name="Notes" value={c.notes} onChange={v => updateRow('construction', i, { notes: v })} />
             </div>
           ))}
@@ -477,7 +527,7 @@ export default function ReviewTab({ rep, onSave }: Props) {
               <Field name="Size" value={l.dimensions} onChange={v => updateRow('labelPlacements', i, { dimensions: v })} />
               <Field name="Material" value={l.material} onChange={v => updateRow('labelPlacements', i, { material: v })} />
               <div className="flex items-end justify-end"><button type="button" onClick={() => removeRow('labelPlacements', i)} className="text-xs font-bold text-slate-400 hover:text-red-600">Remove</button></div>
-              {l.needsConfirmation && <div className="col-span-2 sm:col-span-6"><ConfirmFlag onConfirm={() => updateRow('labelPlacements', i, { needsConfirmation: false })} /></div>}
+              <div className="col-span-2 sm:col-span-6">{rowStatus('labelPlacements', l, i)}</div>
             </div>
           ))}
         </div>

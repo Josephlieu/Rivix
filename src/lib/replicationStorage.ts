@@ -2,6 +2,7 @@ import type { PersistedGarmentAIAnalysis } from './garmentAiAnalysis';
 import type { GarmentCategory, GarmentType } from './garment-types-data';
 import type { TemplateCatalog } from './template-catalog';
 import type { WebFound } from './link-source';
+import type { ConfirmationRef } from './checklist-confirm';
 
 export interface ReplicationSpec {
   fabricWeight: string;
@@ -105,12 +106,14 @@ export const createReplication = async (
 };
 
 /** Save changes to a request. Returns the saved request (fresh photo links included). */
-export const saveReplication = async (replication: ReplicationRequest, opts: { approve?: boolean; newDraft?: boolean } = {}): Promise<ReplicationRequest> => {
+// `scan`: this save stores a new AI scan result (it confirms nothing). `confirmations`: exactly the rows the person confirmed in
+// this save (the server stamps them with who and when; nothing else counts as confirmed).
+export const saveReplication = async (replication: ReplicationRequest, opts: { approve?: boolean; newDraft?: boolean; scan?: boolean; confirmations?: ConfirmationRef[] } = {}): Promise<ReplicationRequest> => {
   const { pdfWarning: _w, ...rest } = replication; // eslint-disable-line @typescript-eslint/no-unused-vars
   const res = await fetch(`${API}/${encodeURIComponent(replication.id)}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...rest, approve: opts.approve === true, newDraft: opts.newDraft === true }),
+    body: JSON.stringify({ ...rest, approve: opts.approve === true, newDraft: opts.newDraft === true, scan: opts.scan === true, confirmations: opts.confirmations ?? [] }),
   });
   if (!res.ok) await fail(res, 'Could not save the request.');
   const j = await res.json();
@@ -119,7 +122,9 @@ export const saveReplication = async (replication: ReplicationRequest, opts: { a
 
 // ---- Task 30: revision history, customer approvals, archive (admin only) ----------------------------------------------------
 export interface RevisionApproval { id: string; fileName: string; fileType: string; fileSize: number; sha256: string; approvedBy: string; approvedOn: string; note: string; uploadedBy: string; at: string }
-export interface RevisionEntry { id: string; seq: number; status: 'draft' | 'approved'; revision: number; changes: string[]; templateVersions: Array<{ key: string; version: number }>; drawing: { key: string; version: number | null; parts?: Array<{ key: string; version: number | null }> } | null; pdf: { sha256: string } | null; by: string; at: string; approvals: RevisionApproval[] }
+export interface RevisionEntry { id: string; seq: number; status: 'draft' | 'approved'; revision: number; changes: string[]; templateVersions: Array<{ key: string; version: number }>; drawing: { key: string; version: number | null; parts?: Array<{ key: string; version: number | null }> } | null; pdf: { sha256: string } | null; by: string; at: string; approvals: RevisionApproval[];
+  /** What made the revision (2026-11-18 on); null for older revisions. */
+  source?: { kind: 'scan' | 'edit'; by: string } | null }
 export const getRevisions = async (id: string): Promise<{ revisions: RevisionEntry[]; missing?: boolean }> => {
   const res = await fetch(`${API}/${encodeURIComponent(id)}/revisions`, { cache: 'no-store' });
   if (!res.ok) await fail(res, 'Could not load the revision history.');

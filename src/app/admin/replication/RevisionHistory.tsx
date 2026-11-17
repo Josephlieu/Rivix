@@ -70,7 +70,7 @@ export default function RevisionHistory({ repId, refreshKey }: { repId: string; 
           <div key={r.id} className={`rounded-xl border p-3 text-xs ${r.status === 'approved' ? 'border-emerald-200 bg-emerald-50/40' : 'border-slate-100 bg-white'}`}>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="font-bold text-slate-800">#{r.seq} · {revisionLabel(r)} {r.status === 'approved' && <span className="ml-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-emerald-700">Locked</span>}</p>
-              <p className="text-slate-500">{r.by || 'unknown'} · {when(r.at)}</p>
+              <p className="text-slate-500">{r.source ? (r.source.kind === 'scan' ? `AI scan, started by ${r.source.by}` : `Edited by ${r.source.by}`) : `${r.by || 'unknown'} (source not recorded)`} · {when(r.at)}</p>
             </div>
             <ul className="mt-1.5 list-disc space-y-0.5 pl-5 text-slate-700">{changes.map((c, i) => <li key={i}>{c}</li>)}</ul>
             {r.changes.length > 4 && <button type="button" onClick={() => setOpen(o => ({ ...o, [r.seq]: !all }))} className="mt-1 text-[11px] font-bold text-rivix hover:underline">{all ? 'Show less' : `Show all ${r.changes.length} changes`}</button>}

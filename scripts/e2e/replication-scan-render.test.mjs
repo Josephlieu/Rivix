@@ -22,6 +22,7 @@ import path from 'path';
 import { spawnSync } from 'child_process';
 import { stepUp } from './mfa.mjs';
 import { deleteTestRequest } from './cleanup.mjs';
+import { confirmAll } from './confirm.mjs'; // 2026-11-18: approvals need a person's explicit confirmations
 const require = createRequire(import.meta.url);
 const { createServerClient } = require('@supabase/ssr');
 const ok = (n, c, x = '') => console.log(c ? 'PASS' : 'FAIL', n, x);
@@ -161,7 +162,7 @@ try {
     const cmp = await (await call('GET', `/api/replications/${id}/revisions/compare?from=1&to=2`, ac)).json();
     ok(`DEV ${label}: compare lists the real edit only`, h.length === 2 && Array.isArray(cmp.changes) && cmp.changes.length === 1 && /Body colour/.test(cmp.changes[0]), JSON.stringify(cmp.changes ?? cmp));
     // c) approve (the PDF is made on the server from this boot or glove)
-    r = await call('PUT', `/api/replications/${id}`, ac, { ...j.replication, aiAnalysis: confirmedAll(j.replication.aiAnalysis), approve: true }); j = await r.json();
+    r = await call('PUT', `/api/replications/${id}`, ac, { ...j.replication, aiAnalysis: confirmedAll(j.replication.aiAnalysis), approve: true, confirmations: confirmAll(confirmedAll(j.replication.aiAnalysis)) }); j = await r.json();
     h = await hist();
     ok(`DEV ${label}: approval stores Rev 1 with its PDF`, r.status === 200 && h[0]?.status === 'approved' && /^[0-9a-f]{64}$/.test(h[0]?.pdf?.sha256 ?? ''), JSON.stringify(j.error ?? j.replication?.pdfWarning ?? ''));
     // d) the old shape, as RQ-0635 was saved: BOM with packaging only (service role, a ZZ row)

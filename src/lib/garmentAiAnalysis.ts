@@ -3,6 +3,7 @@ import type { ResolvedTemplate } from './template-catalog';
 import { MARKING_KINDS } from './garmentAiSchema';
 import type { DrawingStamp } from './drawings';
 import { defaultSizeRun, type SizeRun } from './size-run';
+import { unconfirmedRows, itemState } from './checklist-confirm';
 
 /** Clothing uses the full garment scan; gloves, footwear and other PPE (the product base template) a shorter one (task 28). */
 export type ScanKind = 'garment' | 'product';
@@ -15,6 +16,8 @@ export interface Marking {
   photo: number; // 1-based photo number it was read from; 0 = not known
   location: string;
   needsConfirmation: boolean;
+  confirmedBy?: string; // set by the server for a person's confirmation
+  confirmedAt?: string;
 }
 
 /** Set by the server only: a person has checked the draft. Any later edit turns it back into a draft. */
@@ -66,6 +69,8 @@ export interface PersistedGarmentAIAnalysis {
     xl: string;
     tolerance: string;
     needsConfirmation?: boolean;
+    confirmedBy?: string; // set by the server for a person's confirmation
+    confirmedAt?: string;
   }>;
   bom: {
     hardware: string[];
@@ -87,6 +92,8 @@ export interface PersistedGarmentAIAnalysis {
     seamAllowance: string;
     notes: string;
     needsConfirmation?: boolean;
+    confirmedBy?: string; // set by the server for a person's confirmation
+    confirmedAt?: string;
   }>;
   stitchReference: Array<{
     code: string;
@@ -102,6 +109,8 @@ export interface PersistedGarmentAIAnalysis {
     dimensions: string;
     material: string;
     needsConfirmation?: boolean;
+    confirmedBy?: string; // set by the server for a person's confirmation
+    confirmedAt?: string;
   }>;
   colorway: {
     bodyColor: string;
@@ -146,6 +155,11 @@ export interface ChecklistEntry {
   source: 'photo' | 'document';
   value: string; // what the AI saw or a person typed; blank when nothing is known
   needsConfirmation: boolean;
+  /** The AI read this value from a photo; not checked by a person yet. */
+  readFromPhoto?: boolean;
+  /** Set by the SERVER only, for a person's confirmation (checklist-confirm.ts): the admin's email and when. */
+  confirmedBy?: string;
+  confirmedAt?: string;
   photo?: number; // task 28: the photo the AI saw it in (1-based)
 }
 
@@ -219,7 +233,10 @@ export function checklistFor(template: ResolvedTemplate, fromAi?: unknown, photo
     const raw = typeof hit?.value === 'string' ? cleanCopied(hit.value, 500) : '';
     const value = isNotVisible(raw) ? '' : raw;
     const photo = value ? photoNumber(hit?.photo, photoCount) : 0;
-    return { key: item.key, label: item.label, required: item.required, source: item.source, value, needsConfirmation: item.source === 'document' || !value || hit?.needsConfirmation === true, ...(photo ? { photo } : {}) };
+    // The AI never confirms (2026-11-18): every item needs a person. A value the AI read from a photo and is sure of is marked
+    // "read from photo" (readFromPhoto); an empty item, an unsure one or a spec-sheet item simply needs confirmation.
+    const read = item.source !== 'document' && !!value && hit?.needsConfirmation !== true;
+    return { key: item.key, label: item.label, required: item.required, source: item.source, value, needsConfirmation: true, ...(read ? { readFromPhoto: true } : {}), ...(photo ? { photo } : {}) };
   });
 }
 
@@ -282,7 +299,9 @@ export function applyTemplate(aiData: Row, template: ResolvedTemplate, given: Gi
   out.fromCustomer = fromCustomer;
   out.fromWebsite = fromWebsite;
 
-  const rows = (list: unknown): Row[] => (Array.isArray(list) ? list : []).filter((r) => r && typeof r === 'object');
+  // AI rows never carry a confirmation: any stamp or "read" mark the AI writes is dropped (only the server stamps a person's click).
+  const rows = (list: unknown): Row[] => (Array.isArray(list) ? list : []).filter((r) => r && typeof r === 'object')
+    .map(({ confirmedBy: _b, confirmedAt: _t, readFromPhoto: _p, ...r }: Row) => r); // eslint-disable-line @typescript-eslint/no-unused-vars
   // Measurement points come from the template (a photo gives no sizes); the AI's rows are used only when the template has none.
   const points = templateMeasurements(template);
   out.measurements = points.length ? points : rows(aiData.measurements).map((r) => ({ ...r, xs: '', s: '', m: '', l: '', xl: '', tolerance: '', needsConfirmation: true }));
@@ -324,9 +343,12 @@ export function outstandingConfirmations(a: Row | null | undefined): string[] {
   if (!a) return [];
   const out: string[] = [];
   for (const f of Array.isArray(a.flags) ? a.flags : []) if (typeof f === 'string' && FLAGGABLE[f]) out.push(FLAGGABLE[f]);
-  const rows = (key: string, name: string) => (Array.isArray(a[key]) ? a[key] : []).forEach((r: Row, i: number) => { if (r?.needsConfirmation === true) out.push(`${name} ${i + 1}`); });
-  rows('measurements', 'Measurement'); rows('construction', 'Seam'); rows('labelPlacements', 'Label'); rows('markings', 'Marking');
-  for (const c of Array.isArray(a.checklist) ? a.checklist : []) if (c?.required === true && c?.needsConfirmation === true) out.push(String(c.label ?? c.key));
+  // Rows and required checklist items count as done only with a person's stamp (checklist-confirm.ts): never on the AI's word,
+  // never on `needsConfirmation: false` alone.
+  const names: Record<string, string> = { measurements: 'Measurement', construction: 'Seam', labelPlacements: 'Label', markings: 'Marking' };
+  const open = unconfirmedRows(a);
+  for (const list of ['measurements', 'construction', 'labelPlacements', 'markings'] as const) for (const u of open) if (u.list === list) out.push(`${names[list]} ${u.index + 1}`);
+  for (const u of open) if (u.list === 'checklist') out.push(String(u.row.label ?? u.row.key));
   return out;
 }
 
@@ -338,12 +360,9 @@ export function outstandingConfirmations(a: Row | null | undefined): string[] {
 export function missingInformation(a: Row | null | undefined): string[] {
   if (!a) return [];
   const out: string[] = [];
-  for (const c of Array.isArray(a.checklist) ? a.checklist : []) {
-    if (c?.required !== true || c?.needsConfirmation !== true) continue;
-    out.push(`${String(c.label ?? c.key)}: ${String(c.value ?? '').trim() ? 'needs confirmation' : 'not known yet'}`);
-  }
-  for (const m of Array.isArray(a.measurements) ? a.measurements : []) {
-    if (m?.needsConfirmation === true) out.push(`Measurement ${String(m.pom ?? '').trim()}${m.description ? ` (${String(m.description)})` : ''}: needs measuring`);
+  for (const u of unconfirmedRows(a)) {
+    if (u.list === 'checklist') out.push(`${String(u.row.label ?? u.row.key)}: ${String(u.row.value ?? '').trim() ? (itemState(u.row) === 'read' ? 'read from photo, not confirmed' : 'needs confirmation') : 'not known yet'}`);
+    if (u.list === 'measurements') out.push(`Measurement ${String(u.row.pom ?? '').trim()}${u.row.description ? ` (${String(u.row.description)})` : ''}: needs measuring`);
   }
   return out;
 }
