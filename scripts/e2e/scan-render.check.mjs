@@ -28,6 +28,9 @@ for (const c of cases) {
     out.review = 'ok';
     out.reviewNotFilledIn = html.includes('placeholder="Not filled in"');
     out.boxes = { hardware: box(html, 'Hardware'), thread: box(html, 'Thread'), labels: box(html, 'Labels') };
+    out.unsaved = html.includes('Unsaved changes');
+    out.confirmedBy = (html.match(/Confirmed<\/b> by /g) || []).length; // rows showing a person's stamp
+    out.unconfirmedButtons = (html.match(/Confirmed, it is correct/g) || []).length;
   } catch (e) { out.review = 'CRASH: ' + (e instanceof Error ? e.message : String(e)); }
   try {
     // Exactly what the page passes in: the saved scan through the clean-up, then the page's mapping for display.

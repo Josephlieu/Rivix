@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { PersistedGarmentAIAnalysis } from '@/lib/garmentAiAnalysis';
 import type { ReplicationRequest, ReplicationSpec } from '@/lib/replicationStorage';
 import { suggestedTests, suggestFrenchCare, prefillSpecs, HIVIS_STANDARDS, TAPE_OPTIONS } from '@/lib/techFileStandards';
@@ -18,6 +18,7 @@ import StandardNote from '@/components/StandardNote';
 import { normalizeAnalysis } from '@/lib/analysis-shape';
 import { itemState, rowRef, isStamped, CONFIRMABLE_LISTS, type ConfirmationRef, type ConfirmableList } from '@/lib/checklist-confirm';
 import { formatDate } from '@/lib/format';
+import { contentKeyOf, isDirty, nextReviewState, type ReviewDraft, type SentSave } from '@/lib/review-sync';
 
 type Analysis = PersistedGarmentAIAnalysis;
 type Measurement = Analysis['measurements'][number];
@@ -45,9 +46,6 @@ interface Props {
 
 // Shown inside an empty box only (a placeholder): never saved as a value.
 export const NOT_FILLED_IN = 'Not filled in';
-// The confirmation state of a row (the server's: stamps, "read from photo"), left out when comparing content.
-const STATE_KEYS = ['needsConfirmation', 'confirmedBy', 'confirmedAt', 'readFromPhoto'];
-const withoutState = <T,>(v: T): T => JSON.parse(JSON.stringify(v ?? null, (k, x) => (STATE_KEYS.includes(k) ? undefined : x)));
 // A row a person has just edited: no confirmation, no "read from photo" (it needs a click again).
 const edited = <T extends object>(r: T): T => { const { confirmedBy: _b, confirmedAt: _t, readFromPhoto: _r, ...rest } = r as T & { confirmedBy?: string; confirmedAt?: string; readFromPhoto?: boolean }; return { ...rest, needsConfirmation: true } as T; }; // eslint-disable-line @typescript-eslint/no-unused-vars
 const input = 'w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30';
@@ -162,22 +160,27 @@ export default function ReviewTab({ rep, onSave }: Props) {
   // The rows the person confirmed since the last save (a single click or "Confirm all"). They are sent as the save's explicit
   // `confirmations` list and the SERVER stamps exactly these with who and when; nothing else ever counts as confirmed.
   const [pending, setPending] = useState<ConfirmationRef[]>([]);
-  // "dirty" = the person has typed or confirmed something that is not saved yet. Content is measured against what this form
-  // last loaded or saved (the baseline), never against the newest copy from the server, so a new scan is not mistaken for edits.
-  // Confirmation state (stamps, "read from photo") is the server's, so it is left out of the content key.
-  const draftKey = (d: { specs: ReplicationSpec; analysis: Analysis }) => stable({ s: d.specs, a: { ...withoutState(d.analysis), review: undefined, analyzedAt: undefined } });
-  const fullKey = (d: { specs: ReplicationSpec; analysis: Analysis }) => stable({ s: d.specs, a: { ...d.analysis, review: undefined, analyzedAt: undefined } });
+  // "dirty" = the person has typed or confirmed something that is not saved yet, measured against what this form last loaded
+  // or saved (the baseline). What only the server sets (review, scan time, drawing stamp, confirmation state) is left out.
+  // When a new copy arrives, review-sync.ts decides what to show; a person's work is never dropped silently.
+  const draftKey = (d: { specs: ReplicationSpec; analysis: Analysis }) => contentKeyOf(d as unknown as ReviewDraft);
+  const fullKey = (d: { specs: ReplicationSpec; analysis: Analysis }) => stable({ s: d.specs, a: d.analysis });
   const [baseline, setBaseline] = useState(() => draftKey(draft));
-  const dirty = draftKey(draft) !== baseline || pending.length > 0;
-  const incoming = fromRep();
-  const incomingKey = draftKey(incoming);
-  const incomingFull = fullKey(incoming);
+  const dirty = isDirty(draft as unknown as ReviewDraft, baseline, pending);
+  const incomingFull = fullKey(fromRep());
+  // The save on its way: what the screen held when it was sent, the clicks it carried, and how to tell its reply has arrived.
+  const sentRef = useRef<(SentSave & { incomingAtSend: string; tick: number }) | null>(null);
+  const [saveTick, setSaveTick] = useState(0);
+  const [syncNotice, setSyncNotice] = useState<string | null>(null);
   useEffect(() => {
-    // Same content as on screen (our own save came back, or only the confirmation stamps changed): show the server's copy.
-    if (draftKey(draft) === incomingKey) { setDraft(fromRep()); setBaseline(incomingKey); return; }
-    if (!dirty) { setDraft(fromRep()); setBaseline(incomingKey); setProblem(''); } // new data from outside (a scan): load it
-    // otherwise keep the unsaved edits
-  }, [incomingFull]); // eslint-disable-line react-hooks/exhaustive-deps
+    const sent = sentRef.current;
+    const afterSave = !!sent && (incomingFull !== sent.incomingAtSend || saveTick > sent.tick);
+    if (sent && !afterSave) return; // our save is still on its way: wait for the server's copy
+    const r = nextReviewState({ draft: draft as unknown as ReviewDraft, baseline, pending, sent: afterSave ? sent : null, server: fromRep() as unknown as ReviewDraft });
+    if (afterSave) sentRef.current = null;
+    setDraft(r.draft as unknown as typeof draft); setBaseline(r.baseline); setPending(r.pending); setSyncNotice(r.notice);
+    if (r.kind === 'load' && !afterSave) setProblem('');
+  }, [incomingFull, saveTick]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const a = draft.analysis;
   // Confirmations: a person's click adds the row to `pending`; the server stamps it on save. Editing a row takes its
@@ -278,10 +281,12 @@ export default function ReviewTab({ rep, onSave }: Props) {
     setProblem(p);
     if (p) return;
     setSaving(approve ? 'approve' : 'save');
+    // Remember what this save carries; the reply (the server's copy, with who and when) is shown by the sync effect above.
+    sentRef.current = { key: draftKey(draft), pending: [...pending], incomingAtSend: incomingFull, tick: saveTick };
     const ok = await onSave({ ...rep, specs: draft.specs, aiAnalysis: { ...draft.analysis, review: undefined } }, approve, { newDraft: approved && unlocked, confirmations: pending });
-    if (ok) setPending([]); // stamped by the server; the saved copy (with who and when) comes back through the sync effect
+    if (ok) setSaveTick(t => t + 1); // also covers a reply identical to what was on screen
+    else sentRef.current = null; // not saved: everything stays on screen, the clicks stay pending
     setSaving('');
-    void ok; // the saved copy comes back through the sync effect above
   };
 
   const addMeasurement = () => setA({ measurements: [...a.measurements, { pom: '', description: '', xs: '', s: '', m: '', l: '', xl: '', tolerance: '' }] });
@@ -314,6 +319,11 @@ export default function ReviewTab({ rep, onSave }: Props) {
         </div>
         {locked && <button type="button" onClick={() => setUnlocked(true)} className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-700">Start a new draft (Rev {revNo + 1})</button>}
         {dirty && <span className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest text-rivix">Unsaved changes</span>}
+        {syncNotice && (
+          <p role="status" className="w-full rounded-lg bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-900">
+            {syncNotice} <button type="button" onClick={() => setSyncNotice(null)} className="ml-1 font-bold underline">Dismiss</button>
+          </p>
+        )}
       </div>
 
       <fieldset disabled={locked} className="min-w-0 space-y-5">
@@ -581,7 +591,7 @@ export default function ReviewTab({ rep, onSave }: Props) {
       </fieldset>
 
       <Section title="History" hint="Every save that changed this tech file, newest first. Approved revisions are locked and keep their PDF; attach the customer's approval to one of them.">
-        <RevisionHistory repId={rep.id} refreshKey={incomingKey} />
+        <RevisionHistory repId={rep.id} refreshKey={incomingFull} />
       </Section>
 
       {problem && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-800">{problem}</p>}
