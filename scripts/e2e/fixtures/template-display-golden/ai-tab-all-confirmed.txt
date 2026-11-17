@@ -1,0 +1,545 @@
+<div class="space-y-6">
+<div class="bg-gradient-to-r from-violet-50 via-indigo-50 to-purple-50 border border-violet-100 rounded-3xl p-6 space-y-4">
+<div class="flex items-start justify-between">
+<div class="flex items-start gap-4">
+<div class="p-3 bg-violet-100 text-violet-600 rounded-2xl shrink-0">
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-scan-line">
+<path d="M3 7V5a2 2 0 0 1 2-2h2">
+</path>
+<path d="M17 3h2a2 2 0 0 1 2 2v2">
+</path>
+<path d="M21 17v2a2 2 0 0 1-2 2h-2">
+</path>
+<path d="M7 21H5a2 2 0 0 1-2-2v-2">
+</path>
+<path d="M7 12h10">
+</path>
+</svg>
+</div>
+<div>
+<h3 class="text-base font-semibold text-slate-900">AI garment analysis</h3>
+<p class="text-sm text-slate-600 mt-1 leading-relaxed max-w-xl">Reads the customer&#x27;s photos and drafts the tech file. It only describes what it can see; anything else is left blank for you to confirm.</p>
+</div>
+</div>
+<div class="flex shrink-0 flex-col items-end gap-2">
+<div class="flex items-center gap-2 bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-full text-xs font-bold">
+<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-circle-check-big">
+<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14">
+</path>
+<path d="m9 11 3 3L22 4">
+</path>
+</svg> Analysis complete</div>
+<button class="disabled:cursor-not-allowed disabled:opacity-50 flex items-center gap-1.5 rounded-lg border border-violet-200 bg-white px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-50 active:scale-95" title="Scan the photos again. This replaces the current draft and any corrections.">
+<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-zap">
+<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z">
+</path>
+</svg> Run again</button>
+</div>
+</div>
+<div class="rounded-2xl border p-4 space-y-3 border-emerald-200 bg-emerald-50/60">
+<div class="flex flex-wrap items-start justify-between gap-3">
+<div>
+<p class="text-[11px] font-black uppercase tracking-widest text-slate-500">Product type</p>
+<p class="text-sm font-bold text-slate-900">Jacket <span class="font-normal text-slate-500">(General Workwear)</span>
+</p>
+<p class="text-[12px] text-emerald-700">Used for the earlier scan (counts as confirmed).</p>
+</div>
+<button type="button" disabled="" title="Add photos first" class="flex items-center gap-1.5 rounded-lg border border-violet-200 bg-white px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-50 disabled:opacity-50">
+<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sparkles">
+<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z">
+</path>
+<path d="M20 3v4">
+</path>
+<path d="M22 5h-4">
+</path>
+<path d="M4 17v2">
+</path>
+<path d="M5 18H3">
+</path>
+</svg> Suggest type from photos</button>
+</div>
+<div class="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+<label class="block space-y-1">
+<span class="text-[11px] font-bold uppercase tracking-widest text-slate-500">Category</span>
+<select class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rivix/30">
+<option value="workwear" selected="">General Workwear</option>
+<option value="hivis">High Visibility Workwear</option>
+<option value="fr-arc">Flame Resistant and Arc Rated Clothing</option>
+<option value="outerwear">Winter and Outdoor Workwear</option>
+<option value="protective">Specialized Protective Clothing</option>
+<option value="corporate">Corporate Apparel and Uniforms</option>
+<option value="gloves">Gloves and Hand Protection</option>
+<option value="footwear">Footwear</option>
+<option value="ppe">Other PPE and Accessories</option>
+</select>
+</label>
+<label class="block space-y-1">
+<span class="text-[11px] font-bold uppercase tracking-widest text-slate-500">Type</span>
+<select class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rivix/30">
+<option value="jacket" selected="">Jacket</option>
+<option value="coat">Coat</option>
+<option value="pants">Work Pants</option>
+<option value="cargo-pants">Cargo Pants</option>
+<option value="coveralls">Coveralls</option>
+<option value="overalls">Bib Overalls</option>
+<option value="work-shirt">Work Shirt</option>
+<option value="work-shorts">Work Shorts</option>
+<option value="vest">Vest</option>
+<option value="jacket-trouser-set">Jacket and Trouser Set</option>
+</select>
+</label>
+<button type="button" class="flex items-center justify-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-700 disabled:opacity-50">
+<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-circle-check-big">
+<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14">
+</path>
+<path d="m9 11 3 3L22 4">
+</path>
+</svg> Confirm this type</button>
+</div>
+</div>
+</div>
+<div role="note" class="flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3 border-amber-200 bg-amber-50">
+<div class="flex items-start gap-3">
+<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-circle-alert mt-0.5 shrink-0 text-amber-600">
+<circle cx="12" cy="12" r="10">
+</circle>
+<line x1="12" x2="12" y1="8" y2="12">
+</line>
+<line x1="12" x2="12.01" y1="16" y2="16">
+</line>
+</svg>
+<p class="text-sm leading-relaxed text-amber-900">
+<b>1 item still need confirmation.</b> This is a draft from photos: blank means the AI could not see it. Confirm each item on the Review tab.</p>
+</div>
+<button class="rounded-lg bg-slate-900 px-3.5 py-2 text-xs font-semibold text-white hover:bg-slate-800">Review and approve →</button>
+</div>
+<div class="bg-white border border-slate-200 shadow-sm rounded-xl overflow-clip flex flex-col">
+<div class="bg-slate-900 text-white p-6 border-b border-slate-800 flex flex-col md:flex-row md:items-start justify-between gap-4">
+<div>
+<div class="flex items-center gap-3 mb-2">
+<h2 class="text-xl font-black tracking-tight text-white">TECH PACK: AI DRAFT</h2>
+<span class="bg-violet-500/20 text-[13px] font-bold px-2.5 py-0.5 rounded-sm uppercase tracking-widest text-violet-300 border border-violet-500/30 flex items-center gap-1.5">
+<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sparkles">
+<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z">
+</path>
+<path d="M20 3v4">
+</path>
+<path d="M22 5h-4">
+</path>
+<path d="M4 17v2">
+</path>
+<path d="M5 18H3">
+</path>
+</svg> AI Inferred Spec</span>
+</div>
+<div class="grid grid-cols-2 md:grid-cols-4 gap-x-12 gap-y-3 mt-5 text-xs">
+<div>
+<span class="text-slate-400 block text-[12px] uppercase tracking-wider mb-0.5">Brand</span> <span class="font-semibold text-slate-200">ZZ Client</span>
+</div>
+<div>
+<span class="text-slate-400 block text-[12px] uppercase tracking-wider mb-0.5">Style</span> <span class="font-semibold text-slate-200">JACKET</span>
+</div>
+<div>
+<span class="text-slate-400 block text-[12px] uppercase tracking-wider mb-0.5">Date</span> <span class="font-semibold text-slate-200">[TODAY]</span>
+</div>
+<div>
+<span class="text-slate-400 block text-[12px] uppercase tracking-wider mb-0.5">Size Range</span> <span class="font-semibold text-slate-200">XS - XL [SAMPLE: M]</span>
+</div>
+<div>
+<span class="text-slate-400 block text-[12px] uppercase tracking-wider mb-0.5">Season</span> <span class="font-semibold text-slate-200">FW26</span>
+</div>
+</div>
+</div>
+<button class="bg-emerald-500 hover:bg-emerald-400 disabled:opacity-60 text-white font-bold text-xs px-6 py-3 rounded-lg flex items-center gap-2.5 transition-all shadow-lg shadow-emerald-500/20 shrink-0">
+<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-text">
+<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z">
+</path>
+<path d="M14 2v4a2 2 0 0 0 2 2h4">
+</path>
+<path d="M10 9H8">
+</path>
+<path d="M16 13H8">
+</path>
+<path d="M16 17H8">
+</path>
+</svg> DOWNLOAD TECH FILE (PDF)</button>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-12 bg-slate-50">
+<div class="lg:col-span-5 bg-white p-6 lg:p-8 border-r border-slate-200 flex flex-col">
+<div class="lg:sticky lg:top-24 flex flex-col">
+<h3 class="text-sm font-semibold text-slate-900 border-b border-slate-200 pb-2 mb-4 flex items-center justify-between">Garment photos<span class="text-xs font-normal text-slate-400">0 uploaded</span>
+</h3>
+<p class="mb-3 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">Front and back drawings for each garment type are planned. Use the photos and the checklist on the Review tab.</p>
+<div class="grid grid-cols-1 gap-6 mt-8">
+<div>
+<h3 class="text-sm font-semibold text-slate-900 border-b border-slate-200 pb-2 mb-3 flex items-center gap-2">
+<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-eye text-violet-500">
+<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z">
+</path>
+<circle cx="12" cy="12" r="3">
+</circle>
+</svg>Colours</h3>
+<div class="bg-white border border-slate-200 rounded-lg p-5 shadow-sm space-y-3">
+<div class="grid grid-cols-1 gap-2 text-[14px]">
+<div class="flex justify-between">
+<span class="text-slate-400 font-bold uppercase text-[12px]">Body</span>
+<span class="font-semibold text-slate-800">Navy</span>
+</div>
+<div class="flex justify-between">
+<span class="text-slate-400 font-bold uppercase text-[12px]">Contrast</span>
+<span class="font-semibold text-slate-800">Black</span>
+</div>
+<div class="flex justify-between">
+<span class="text-slate-400 font-bold uppercase text-[12px]">Thread</span>
+<span class="font-semibold text-slate-800">Navy</span>
+</div>
+<div class="flex justify-between">
+<span class="text-slate-400 font-bold uppercase text-[12px]">Hardware</span>
+<span class="font-semibold text-slate-800">Black matte</span>
+</div>
+</div>
+</div>
+</div>
+<div>
+<h3 class="text-sm font-semibold text-slate-900 border-b border-slate-200 pb-2 mb-3 flex items-center gap-2">
+<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-shield-check text-violet-500">
+<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z">
+</path>
+<path d="m9 12 2 2 4-4">
+</path>
+</svg>Wash and care</h3>
+<div class="bg-white border border-slate-200 rounded-lg p-5 shadow-sm space-y-3">
+<ul class="text-[14px] font-medium text-slate-700 space-y-1.5">
+<li class="flex items-start gap-2">
+<span class="w-1.5 h-1.5 mt-1.5 bg-slate-300 rounded-full shrink-0">
+</span>Machine wash cold</li>
+<li class="flex items-start gap-2">
+<span class="w-1.5 h-1.5 mt-1.5 bg-slate-300 rounded-full shrink-0">
+</span>Do not bleach</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="lg:col-span-7 p-6 lg:p-8 space-y-8 bg-slate-50/50">
+<div>
+<h3 class="text-sm font-semibold text-slate-900 border-b border-slate-200 pb-2 mb-3 flex items-center gap-2">
+<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sliders-vertical text-violet-500">
+<line x1="4" x2="4" y1="21" y2="14">
+</line>
+<line x1="4" x2="4" y1="10" y2="3">
+</line>
+<line x1="12" x2="12" y1="21" y2="12">
+</line>
+<line x1="12" x2="12" y1="8" y2="3">
+</line>
+<line x1="20" x2="20" y1="21" y2="16">
+</line>
+<line x1="20" x2="20" y1="12" y2="3">
+</line>
+<line x1="2" x2="6" y1="14" y2="14">
+</line>
+<line x1="10" x2="14" y1="8" y2="8">
+</line>
+<line x1="18" x2="22" y1="16" y2="16">
+</line>
+</svg>Measurements (inches)</h3>
+<div class="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+<table class="w-full text-left text-[13px]">
+<thead class="bg-slate-100 text-slate-600 font-bold border-b border-slate-200">
+<tr>
+<th class="px-4 py-3 w-10 text-center">POM</th>
+<th class="px-4 py-3">DESCRIPTION</th>
+<th class="px-3 py-3 text-center border-l border-slate-200">XS</th>
+<th class="px-3 py-3 text-center border-l border-slate-200">S</th>
+<th class="px-3 py-3 text-center border-l-2 border-r-2 border-violet-200 bg-violet-50 text-violet-900">[M]</th>
+<th class="px-3 py-3 text-center border-r border-slate-200">L</th>
+<th class="px-3 py-3 text-center border-r border-slate-200">XL</th>
+<th class="px-3 py-3 text-center text-slate-400">TOL +/-</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-100 text-slate-700 font-medium">
+<tr class="hover:bg-slate-50 transition-colors">
+<td class="px-4 py-3 text-center font-bold text-slate-900 bg-slate-50">A</td>
+<td class="px-4 py-3">Chest</td>
+<td class="px-3 py-3 text-center border-l border-slate-100">22</td>
+<td class="px-3 py-3 text-center border-l border-slate-100">23</td>
+<td class="px-3 py-3 text-center border-l-2 border-r-2 border-violet-200 bg-violet-50/50 font-bold text-violet-900">24</td>
+<td class="px-3 py-3 text-center border-r border-slate-100">25</td>
+<td class="px-3 py-3 text-center border-r border-slate-100">26</td>
+<td class="px-3 py-3 text-center text-slate-400">0.5</td>
+</tr>
+<tr class="hover:bg-slate-50 transition-colors">
+<td class="px-4 py-3 text-center font-bold text-slate-900 bg-slate-50">B</td>
+<td class="px-4 py-3">Waist</td>
+<td class="px-3 py-3 text-center border-l border-slate-100">22</td>
+<td class="px-3 py-3 text-center border-l border-slate-100">23</td>
+<td class="px-3 py-3 text-center border-l-2 border-r-2 border-violet-200 bg-violet-50/50 font-bold text-violet-900">24</td>
+<td class="px-3 py-3 text-center border-r border-slate-100">25</td>
+<td class="px-3 py-3 text-center border-r border-slate-100">26</td>
+<td class="px-3 py-3 text-center text-slate-400">0.5</td>
+</tr>
+<tr class="hover:bg-slate-50 transition-colors">
+<td class="px-4 py-3 text-center font-bold text-slate-900 bg-slate-50">C</td>
+<td class="px-4 py-3">Hem sweep</td>
+<td class="px-3 py-3 text-center border-l border-slate-100">22</td>
+<td class="px-3 py-3 text-center border-l border-slate-100">23</td>
+<td class="px-3 py-3 text-center border-l-2 border-r-2 border-violet-200 bg-violet-50/50 font-bold text-violet-900">24</td>
+<td class="px-3 py-3 text-center border-r border-slate-100">25</td>
+<td class="px-3 py-3 text-center border-r border-slate-100">26</td>
+<td class="px-3 py-3 text-center text-slate-400">0.5</td>
+</tr>
+<tr class="hover:bg-slate-50 transition-colors">
+<td class="px-4 py-3 text-center font-bold text-slate-900 bg-slate-50">D</td>
+<td class="px-4 py-3">Shoulder</td>
+<td class="px-3 py-3 text-center border-l border-slate-100">22</td>
+<td class="px-3 py-3 text-center border-l border-slate-100">23</td>
+<td class="px-3 py-3 text-center border-l-2 border-r-2 border-violet-200 bg-violet-50/50 font-bold text-violet-900">24</td>
+<td class="px-3 py-3 text-center border-r border-slate-100">25</td>
+<td class="px-3 py-3 text-center border-r border-slate-100">26</td>
+<td class="px-3 py-3 text-center text-slate-400">0.5</td>
+</tr>
+<tr class="hover:bg-slate-50 transition-colors">
+<td class="px-4 py-3 text-center font-bold text-slate-900 bg-slate-50">E</td>
+<td class="px-4 py-3">Body length</td>
+<td class="px-3 py-3 text-center border-l border-slate-100">22</td>
+<td class="px-3 py-3 text-center border-l border-slate-100">23</td>
+<td class="px-3 py-3 text-center border-l-2 border-r-2 border-violet-200 bg-violet-50/50 font-bold text-violet-900">24</td>
+<td class="px-3 py-3 text-center border-r border-slate-100">25</td>
+<td class="px-3 py-3 text-center border-r border-slate-100">26</td>
+<td class="px-3 py-3 text-center text-slate-400">0.5</td>
+</tr>
+<tr class="hover:bg-slate-50 transition-colors">
+<td class="px-4 py-3 text-center font-bold text-slate-900 bg-slate-50">F</td>
+<td class="px-4 py-3">Sleeve length</td>
+<td class="px-3 py-3 text-center border-l border-slate-100">22</td>
+<td class="px-3 py-3 text-center border-l border-slate-100">23</td>
+<td class="px-3 py-3 text-center border-l-2 border-r-2 border-violet-200 bg-violet-50/50 font-bold text-violet-900">24</td>
+<td class="px-3 py-3 text-center border-r border-slate-100">25</td>
+<td class="px-3 py-3 text-center border-r border-slate-100">26</td>
+<td class="px-3 py-3 text-center text-slate-400">0.5</td>
+</tr>
+<tr class="hover:bg-slate-50 transition-colors">
+<td class="px-4 py-3 text-center font-bold text-slate-900 bg-slate-50">G</td>
+<td class="px-4 py-3">Armhole</td>
+<td class="px-3 py-3 text-center border-l border-slate-100">22</td>
+<td class="px-3 py-3 text-center border-l border-slate-100">23</td>
+<td class="px-3 py-3 text-center border-l-2 border-r-2 border-violet-200 bg-violet-50/50 font-bold text-violet-900">24</td>
+<td class="px-3 py-3 text-center border-r border-slate-100">25</td>
+<td class="px-3 py-3 text-center border-r border-slate-100">26</td>
+<td class="px-3 py-3 text-center text-slate-400">0.5</td>
+</tr>
+<tr class="hover:bg-slate-50 transition-colors">
+<td class="px-4 py-3 text-center font-bold text-slate-900 bg-slate-50">H</td>
+<td class="px-4 py-3">Bicep</td>
+<td class="px-3 py-3 text-center border-l border-slate-100">22</td>
+<td class="px-3 py-3 text-center border-l border-slate-100">23</td>
+<td class="px-3 py-3 text-center border-l-2 border-r-2 border-violet-200 bg-violet-50/50 font-bold text-violet-900">24</td>
+<td class="px-3 py-3 text-center border-r border-slate-100">25</td>
+<td class="px-3 py-3 text-center border-r border-slate-100">26</td>
+<td class="px-3 py-3 text-center text-slate-400">0.5</td>
+</tr>
+<tr class="hover:bg-slate-50 transition-colors">
+<td class="px-4 py-3 text-center font-bold text-slate-900 bg-slate-50">I</td>
+<td class="px-4 py-3">Cuff opening</td>
+<td class="px-3 py-3 text-center border-l border-slate-100">22</td>
+<td class="px-3 py-3 text-center border-l border-slate-100">23</td>
+<td class="px-3 py-3 text-center border-l-2 border-r-2 border-violet-200 bg-violet-50/50 font-bold text-violet-900">24</td>
+<td class="px-3 py-3 text-center border-r border-slate-100">25</td>
+<td class="px-3 py-3 text-center border-r border-slate-100">26</td>
+<td class="px-3 py-3 text-center text-slate-400">0.5</td>
+</tr>
+<tr class="hover:bg-slate-50 transition-colors">
+<td class="px-4 py-3 text-center font-bold text-slate-900 bg-slate-50">J</td>
+<td class="px-4 py-3">Neck opening</td>
+<td class="px-3 py-3 text-center border-l border-slate-100">22</td>
+<td class="px-3 py-3 text-center border-l border-slate-100">23</td>
+<td class="px-3 py-3 text-center border-l-2 border-r-2 border-violet-200 bg-violet-50/50 font-bold text-violet-900">24</td>
+<td class="px-3 py-3 text-center border-r border-slate-100">25</td>
+<td class="px-3 py-3 text-center border-r border-slate-100">26</td>
+<td class="px-3 py-3 text-center text-slate-400">0.5</td>
+</tr>
+<tr class="hover:bg-slate-50 transition-colors">
+<td class="px-4 py-3 text-center font-bold text-slate-900 bg-slate-50">K</td>
+<td class="px-4 py-3">Hood height</td>
+<td class="px-3 py-3 text-center border-l border-slate-100">22</td>
+<td class="px-3 py-3 text-center border-l border-slate-100">23</td>
+<td class="px-3 py-3 text-center border-l-2 border-r-2 border-violet-200 bg-violet-50/50 font-bold text-violet-900">24</td>
+<td class="px-3 py-3 text-center border-r border-slate-100">25</td>
+<td class="px-3 py-3 text-center border-r border-slate-100">26</td>
+<td class="px-3 py-3 text-center text-slate-400">0.5</td>
+</tr>
+<tr class="hover:bg-slate-50 transition-colors">
+<td class="px-4 py-3 text-center font-bold text-slate-900 bg-slate-50">L</td>
+<td class="px-4 py-3">Hood width</td>
+<td class="px-3 py-3 text-center border-l border-slate-100">22</td>
+<td class="px-3 py-3 text-center border-l border-slate-100">23</td>
+<td class="px-3 py-3 text-center border-l-2 border-r-2 border-violet-200 bg-violet-50/50 font-bold text-violet-900">24</td>
+<td class="px-3 py-3 text-center border-r border-slate-100">25</td>
+<td class="px-3 py-3 text-center border-r border-slate-100">26</td>
+<td class="px-3 py-3 text-center text-slate-400">0.5</td>
+</tr>
+<tr class="hover:bg-slate-50 transition-colors">
+<td class="px-4 py-3 text-center font-bold text-slate-900 bg-slate-50">M</td>
+<td class="px-4 py-3">Pocket opening</td>
+<td class="px-3 py-3 text-center border-l border-slate-100">22</td>
+<td class="px-3 py-3 text-center border-l border-slate-100">23</td>
+<td class="px-3 py-3 text-center border-l-2 border-r-2 border-violet-200 bg-violet-50/50 font-bold text-violet-900">24</td>
+<td class="px-3 py-3 text-center border-r border-slate-100">25</td>
+<td class="px-3 py-3 text-center border-r border-slate-100">26</td>
+<td class="px-3 py-3 text-center text-slate-400">0.5</td>
+</tr>
+</tbody>
+</table>
+<div class="bg-slate-100/50 px-4 py-2.5 text-[11.5px] text-slate-500 uppercase tracking-widest border-t border-slate-200 font-bold">* ALL ABOVE MEASUREMENTS ARE AI-ESTIMATED IN INCHES AND TAKEN FLAT. IT IS RECOMMENDED THAT ALL SIZES ARE SAMPLED BEFORE PRODUCTION.</div>
+</div>
+</div>
+<div>
+<h3 class="text-sm font-semibold text-slate-900 border-b border-slate-200 pb-2 mb-3 flex items-center gap-2">
+<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-book-open text-violet-500">
+<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z">
+</path>
+<path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z">
+</path>
+</svg>Bill of materials</h3>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<div class="bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
+<h4 class="text-[12.5px] font-black text-slate-400 uppercase mb-3 tracking-widest">Main Fabric</h4>
+<p class="text-sm font-bold text-slate-800 mb-1">Polyester</p>
+<div class="grid grid-cols-2 gap-x-4 gap-y-1 mt-2">
+<p class="text-[14px] text-slate-500 font-medium">Weight: <span class="text-slate-700 font-semibold">200 gsm</span>
+</p>
+<p class="text-[14px] text-slate-500 font-medium">Weave: <span class="text-slate-700 font-semibold">Twill</span>
+</p>
+<p class="text-[14px] text-slate-500 font-medium">Finish: <span class="text-slate-700 font-semibold">DWR</span>
+</p>
+</div>
+</div>
+<div class="bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
+<h4 class="text-[12.5px] font-black text-slate-400 uppercase mb-3 tracking-widest">Zippers &amp; Hardware</h4>
+<ul class="text-xs font-semibold text-slate-700 space-y-2">
+<li class="flex items-start gap-2">
+<span class="w-1.5 h-1.5 mt-1 bg-slate-300 rounded-full shrink-0">
+</span> #5 coil zipper</li>
+</ul>
+</div>
+<div class="bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
+<h4 class="text-[12.5px] font-black text-slate-400 uppercase mb-3 tracking-widest">Thread &amp; Labels</h4>
+<ul class="text-xs font-semibold text-slate-700 space-y-2">
+<li class="flex items-start gap-2">
+<span class="w-1.5 h-1.5 mt-1 bg-violet-300 rounded-full shrink-0">
+</span> Tex 40 poly</li>
+<li class="flex items-start gap-2">
+<span class="w-1.5 h-1.5 mt-1 bg-slate-300 rounded-full shrink-0">
+</span> Woven main label</li>
+</ul>
+</div>
+<div class="bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
+<h4 class="text-[12.5px] font-black text-slate-400 uppercase mb-3 tracking-widest">Folding &amp; Packaging</h4>
+<p class="text-xs text-amber-700 italic">Not given yet (a person fills in packaging)</p>
+</div>
+</div>
+</div>
+<div>
+<h3 class="text-sm font-semibold text-slate-900 border-b border-slate-200 pb-2 mb-3 flex items-center gap-2">
+<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-layers text-violet-500">
+<path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z">
+</path>
+<path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65">
+</path>
+<path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65">
+</path>
+</svg>Construction and seams</h3>
+<div class="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+<table class="w-full text-left text-[13px]">
+<thead class="bg-slate-100 text-slate-600 font-bold border-b border-slate-200">
+<tr>
+<th class="px-3 py-2.5">SEAM LOCATION</th>
+<th class="px-3 py-2.5 border-l border-slate-200">SEAM TYPE</th>
+<th class="px-3 py-2.5 border-l border-slate-200">STITCH</th>
+<th class="px-3 py-2.5 border-l border-slate-200 text-center">SPI (T/B)</th>
+<th class="px-3 py-2.5 border-l border-slate-200 text-center">S/A</th>
+<th class="px-3 py-2.5 border-l border-slate-200">NOTES</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-100 text-slate-700 font-medium">
+<tr class="hover:bg-slate-50 transition-colors">
+<td class="px-3 py-2.5 font-bold text-slate-900">Side seam</td>
+<td class="px-3 py-2.5 border-l border-slate-100">Safety stitch</td>
+<td class="px-3 py-2.5 border-l border-slate-100 font-mono text-violet-700">516</td>
+<td class="px-3 py-2.5 border-l border-slate-100 text-center">10/10</td>
+<td class="px-3 py-2.5 border-l border-slate-100 text-center font-bold">3/8&quot;</td>
+<td class="px-3 py-2.5 border-l border-slate-100 text-slate-500 text-[12px]">
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div>
+<h3 class="text-sm font-semibold text-slate-900 border-b border-slate-200 pb-2 mb-3 flex items-center gap-2">
+<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-activity text-violet-500">
+<path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2">
+</path>
+</svg>Stitch reference</h3>
+<div class="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+<table class="w-full text-left text-[13px]">
+<thead class="bg-slate-100 text-slate-600 font-bold border-b border-slate-200">
+<tr>
+<th class="px-3 py-2.5 w-16 text-center">ISO CODE</th>
+<th class="px-3 py-2.5 border-l border-slate-200">STITCH NAME</th>
+<th class="px-3 py-2.5 border-l border-slate-200">MACHINE TYPE</th>
+<th class="px-3 py-2.5 border-l border-slate-200 text-center w-16">SPI</th>
+<th class="px-3 py-2.5 border-l border-slate-200">USAGE ON GARMENT</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-100 text-slate-700 font-medium">
+<tr class="hover:bg-slate-50 transition-colors">
+<td class="px-3 py-2.5 text-center font-mono font-bold text-violet-700 bg-violet-50/50">301</td>
+<td class="px-3 py-2.5 border-l border-slate-100 font-bold text-slate-900">Lockstitch</td>
+<td class="px-3 py-2.5 border-l border-slate-100 text-[12px] text-slate-600">Single needle</td>
+<td class="px-3 py-2.5 border-l border-slate-100 text-center font-bold">10</td>
+<td class="px-3 py-2.5 border-l border-slate-100 text-[12px] text-slate-500">Topstitch</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div>
+<h3 class="text-sm font-semibold text-slate-900 border-b border-slate-200 pb-2 mb-3 flex items-center gap-2">
+<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-target text-violet-500">
+<circle cx="12" cy="12" r="10">
+</circle>
+<circle cx="12" cy="12" r="6">
+</circle>
+<circle cx="12" cy="12" r="2">
+</circle>
+</svg>Labels</h3>
+<div class="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+<table class="w-full text-left text-[13px]">
+<thead class="bg-slate-100 text-slate-600 font-bold border-b border-slate-200">
+<tr>
+<th class="px-3 py-2.5">LABEL TYPE</th>
+<th class="px-3 py-2.5 border-l border-slate-200">PLACEMENT</th>
+<th class="px-3 py-2.5 border-l border-slate-200">ATTACHMENT</th>
+<th class="px-3 py-2.5 border-l border-slate-200 text-center">SIZE</th>
+<th class="px-3 py-2.5 border-l border-slate-200">MATERIAL</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-100 text-slate-700 font-medium">
+<tr class="hover:bg-slate-50 transition-colors">
+<td class="px-3 py-2.5 font-bold text-slate-900">Main label</td>
+<td class="px-3 py-2.5 border-l border-slate-100 text-[12px]">Inside back neck</td>
+<td class="px-3 py-2.5 border-l border-slate-100 text-[12px]">Sewn</td>
+<td class="px-3 py-2.5 border-l border-slate-100 text-center font-mono">2 x 1 in</td>
+<td class="px-3 py-2.5 border-l border-slate-100 text-[12px] text-slate-500">Woven</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>

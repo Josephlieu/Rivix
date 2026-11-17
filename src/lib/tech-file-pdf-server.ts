@@ -7,7 +7,7 @@ import path from 'path';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { renderToBuffer } from '@react-pdf/renderer';
 import { TechPackPDF, buildTechFileData } from '@/lib/TechPackPDF';
-import { resolveTemplateChecked, TemplateUnavailableError } from '@/lib/template-catalog';
+import { requestTemplate, TemplateUnavailableError } from '@/lib/template-catalog';
 import { getTemplateCatalog } from '@/lib/template-store';
 import { REPLICATION_BUCKET } from '@/lib/replication-server';
 import type { ReplicationRequest } from '@/lib/replicationStorage';
@@ -38,15 +38,14 @@ export async function renderRevisionPdf(admin: SupabaseClient, row: Record<strin
   const { data: gt, error: gtErr } = await admin.from('garment_types').select('template_family, template_modules').eq('key', snap.garmentType).maybeSingle();
   if (gtErr) throw new TemplateUnavailableError();
   // The template versions the tech file was made with (task 31); never quietly a different template.
-  const t = resolveTemplateChecked(snap.garmentType, (gt?.template_family as string | null) ?? null, await getTemplateCatalog(admin), snap.analysis?.template?.versions, gt ? { family: gt.template_family ?? null, modules: gt.template_modules ?? null } : null);
+  // The shared lookup (template-catalog.ts requestTemplate), the same as the Review tab, the download and the New request form.
+  const t = requestTemplate(snap.garmentType, await getTemplateCatalog(admin), { savedFamily: (gt?.template_family as string | null) ?? null, versions: snap.analysis?.template?.versions, dbType: gt ? { family: gt.template_family ?? null, modules: gt.template_modules ?? null } : null });
   const rep = {
     id: String(row.id), requestCode: (row.request_code as string) || String(row.id), clientName: snap.clientName, productName: snap.productName,
     garmentType: snap.garmentType, status: row.status, submissionDate: (row.submission_date as string) || String(row.created_at || '').slice(0, 10),
     images: [], specs: snap.specs, messages: [], aiAnalysis: snap.analysis, repName,
   } as unknown as ReplicationRequest;
-  const d = buildTechFileData(rep, await photoDataUrls(admin, row.images), await logoDataUrl(), {
-    family: { key: t.family.key }, parts: t.parts.map((p) => ({ key: p.key, label: p.label, points: p.points.map((x) => ({ code: x.code, name: x.name })) })),
-  });
+  const d = buildTechFileData(rep, await photoDataUrls(admin, row.images), await logoDataUrl(), t);
   return renderToBuffer(TechPackPDF({ d }));
 }
 

@@ -1,0 +1,1419 @@
+<div class="space-y-5">
+<div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-5 py-4 border-amber-200 bg-amber-50">
+<div>
+<p class="text-xs font-black uppercase tracking-widest text-amber-700">Draft: not approved yet</p>
+<p class="text-[11px] text-slate-600">The AI’s numbers are guesses from photos. Check every value against the real garment, correct it, then approve. A request can only move past “Received” once approved.</p>
+</div>
+</div>
+<fieldset class="min-w-0 space-y-5">
+<p class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-[13px] text-amber-900">
+<span class="font-bold">The AI can make mistakes.</span> Check every value carefully, especially the safety standard (use the one the customer asked for), fabric and weight, and measurements.</p>
+<section class="rounded-2xl border border-rose-200 bg-rose-50 p-5">
+<h3 class="text-xs font-black uppercase tracking-widest text-rose-900">Missing information (25)</h3>
+<p class="mb-2 text-[11px] text-rose-800">Required for this product type and not known or not confirmed yet. Fill in what you can, then confirm each item. Also printed in the PDF.</p>
+<ul class="list-disc space-y-0.5 pl-5 text-xs text-rose-900">
+<li>Main fabric: composition, weight and construction: not known yet</li>
+<li>Colour and colour placement: not known yet</li>
+<li>Thread, zippers, buttons, snaps and other trims: not known yet</li>
+<li>Labels: main, care, size, and where each is placed: not known yet</li>
+<li>Seam types, stitching and reinforcement: not known yet</li>
+<li>Finished garment measurements for every size: not known yet</li>
+<li>Front closure: zipper, snaps or buttons, and any storm flap: read from photo, not confirmed</li>
+<li>Pockets: chest, hand, inner. Position and construction: not known yet</li>
+<li>Collar and hood: adjusters, detachable or fixed: read from photo, not confirmed</li>
+<li>Sleeve construction and cuff finish (rib, elastic, tab): not known yet</li>
+<li>Hem finish and drawcord: read from photo, not confirmed</li>
+<li>Lining and body panels (yokes, back vents): not known yet</li>
+<li>Measurement A (Chest): needs measuring</li>
+<li>Measurement B (Waist): needs measuring</li>
+<li>Measurement C (Hem sweep): needs measuring</li>
+<li>Measurement D (Shoulder): needs measuring</li>
+<li>Measurement E (Body length): needs measuring</li>
+<li>Measurement F (Sleeve length): needs measuring</li>
+<li>Measurement G (Armhole): needs measuring</li>
+<li>Measurement H (Bicep): needs measuring</li>
+<li>Measurement I (Cuff opening): needs measuring</li>
+<li>Measurement J (Neck opening): needs measuring</li>
+<li>Measurement K (Hood height): needs measuring</li>
+<li>Measurement L (Hood width): needs measuring</li>
+<li>Measurement M (Pocket opening): needs measuring</li>
+</ul>
+</section>
+<section class="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+<h3 class="text-xs font-black uppercase tracking-widest text-amber-900">Ask the customer for</h3>
+<p class="mb-2 text-[11px] text-amber-800">The photos do not show these. If the customer cannot send them, fill the fields yourself, or use the AI&#x27;s suggestion and confirm it.</p>
+<ul class="list-disc space-y-0.5 pl-5 text-xs text-amber-900">
+<li>A sample garment or the size chart with measurements</li>
+<li>Close-up photos of the zipper, snaps and stitching</li>
+<li>Photos from the back and the sides, if only the front was sent</li>
+</ul>
+</section>
+<section class="space-y-3 rounded-2xl border border-slate-100 bg-white p-5">
+<div>
+<h3 class="text-xs font-black uppercase tracking-widest text-slate-800">Checklist for Jacket, parka and coat</h3>
+<p class="text-[11px] text-slate-400">From the garment type&#x27;s template. Fill in what you know, then confirm each item. Items marked required must be confirmed before approval.</p>
+</div>
+<div class="flex flex-wrap items-center gap-2">
+<button type="button" class="rounded-lg border border-sky-300 bg-white px-3 py-1.5 text-[11px] font-bold text-sky-800 hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-50">Confirm all read-from-photo items (5)</button>
+<span class="text-[10px] text-slate-400">Only items read from a photo, never items that need a spec sheet. Your confirmation is recorded with your name and the time when you save.</span>
+</div>
+<div class="space-y-2">
+<div class="rounded-xl border p-3 border-amber-200 bg-amber-50/50">
+<div class="flex flex-wrap items-center justify-between gap-2">
+<span class="text-xs font-bold text-slate-700">Main fabric: composition, weight and construction<span class="ml-1 text-rivix">*</span> <span class="font-normal text-slate-400">(needs a spec sheet or sample)</span>
+</span>
+<span class="flex items-center gap-2 text-[10px]">
+<span class="rounded bg-amber-100 px-1.5 py-0.5 font-bold uppercase tracking-widest text-amber-800">Needs confirmation</span>
+<button type="button" class="font-bold text-rivix hover:underline">Confirmed, it is correct</button>
+</span>
+</div>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 mt-1.5" placeholder="What the garment has (blank = not known yet)" maxLength="500" value=""/>
+</div>
+<div class="rounded-xl border p-3 border-amber-200 bg-amber-50/50">
+<div class="flex flex-wrap items-center justify-between gap-2">
+<span class="text-xs font-bold text-slate-700">Colour and colour placement<span class="ml-1 text-rivix">*</span> <span class="font-normal text-slate-400">(often visible in a photo)</span>
+</span>
+<span class="flex items-center gap-2 text-[10px]">
+<span class="rounded bg-amber-100 px-1.5 py-0.5 font-bold uppercase tracking-widest text-amber-800">Needs confirmation</span>
+<button type="button" class="font-bold text-rivix hover:underline">Confirmed, it is correct</button>
+</span>
+</div>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 mt-1.5" placeholder="What the garment has (blank = not known yet)" maxLength="500" value=""/>
+</div>
+<div class="rounded-xl border p-3 border-amber-200 bg-amber-50/50">
+<div class="flex flex-wrap items-center justify-between gap-2">
+<span class="text-xs font-bold text-slate-700">Thread, zippers, buttons, snaps and other trims<span class="ml-1 text-rivix">*</span> <span class="font-normal text-slate-400">(needs a spec sheet or sample)</span>
+</span>
+<span class="flex items-center gap-2 text-[10px]">
+<span class="rounded bg-amber-100 px-1.5 py-0.5 font-bold uppercase tracking-widest text-amber-800">Needs confirmation</span>
+<button type="button" class="font-bold text-rivix hover:underline">Confirmed, it is correct</button>
+</span>
+</div>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 mt-1.5" placeholder="What the garment has (blank = not known yet)" maxLength="500" value=""/>
+</div>
+<div class="rounded-xl border p-3 border-amber-200 bg-amber-50/50">
+<div class="flex flex-wrap items-center justify-between gap-2">
+<span class="text-xs font-bold text-slate-700">Labels: main, care, size, and where each is placed<span class="ml-1 text-rivix">*</span> <span class="font-normal text-slate-400">(often visible in a photo)</span>
+</span>
+<span class="flex items-center gap-2 text-[10px]">
+<span class="rounded bg-amber-100 px-1.5 py-0.5 font-bold uppercase tracking-widest text-amber-800">Needs confirmation</span>
+<button type="button" class="font-bold text-rivix hover:underline">Confirmed, it is correct</button>
+</span>
+</div>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 mt-1.5" placeholder="What the garment has (blank = not known yet)" maxLength="500" value=""/>
+</div>
+<div class="rounded-xl border p-3 border-sky-200 bg-sky-50/40">
+<div class="flex flex-wrap items-center justify-between gap-2">
+<span class="text-xs font-bold text-slate-700">Logo and branding placement, size and method (embroidery, print) <span class="font-normal text-slate-400">(often visible in a photo)</span>
+</span>
+<span class="flex items-center gap-2 text-[10px]">
+<span class="rounded bg-sky-100 px-1.5 py-0.5 font-bold uppercase tracking-widest text-sky-800">Read from photo, not checked</span>
+<button type="button" class="font-bold text-rivix hover:underline">Confirmed, it is correct</button>
+</span>
+</div>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 mt-1.5" placeholder="What the garment has (blank = not known yet)" maxLength="500" value="ZZ branding"/>
+</div>
+<div class="rounded-xl border p-3 border-amber-200 bg-amber-50/50">
+<div class="flex flex-wrap items-center justify-between gap-2">
+<span class="text-xs font-bold text-slate-700">Seam types, stitching and reinforcement<span class="ml-1 text-rivix">*</span> <span class="font-normal text-slate-400">(often visible in a photo)</span>
+</span>
+<span class="flex items-center gap-2 text-[10px]">
+<span class="rounded bg-amber-100 px-1.5 py-0.5 font-bold uppercase tracking-widest text-amber-800">Needs confirmation</span>
+<button type="button" class="font-bold text-rivix hover:underline">Confirmed, it is correct</button>
+</span>
+</div>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 mt-1.5" placeholder="What the garment has (blank = not known yet)" maxLength="500" value=""/>
+</div>
+<div class="rounded-xl border p-3 border-amber-200 bg-amber-50/50">
+<div class="flex flex-wrap items-center justify-between gap-2">
+<span class="text-xs font-bold text-slate-700">Finished garment measurements for every size<span class="ml-1 text-rivix">*</span> <span class="font-normal text-slate-400">(needs a spec sheet or sample)</span>
+</span>
+<span class="flex items-center gap-2 text-[10px]">
+<span class="rounded bg-amber-100 px-1.5 py-0.5 font-bold uppercase tracking-widest text-amber-800">Needs confirmation</span>
+<button type="button" class="font-bold text-rivix hover:underline">Confirmed, it is correct</button>
+</span>
+</div>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 mt-1.5" placeholder="What the garment has (blank = not known yet)" maxLength="500" value=""/>
+</div>
+<div class="rounded-xl border p-3 border-amber-200 bg-amber-50/50">
+<div class="flex flex-wrap items-center justify-between gap-2">
+<span class="text-xs font-bold text-slate-700">Folding, packing and carton instructions <span class="font-normal text-slate-400">(needs a spec sheet or sample)</span>
+</span>
+<span class="flex items-center gap-2 text-[10px]">
+<span class="rounded bg-amber-100 px-1.5 py-0.5 font-bold uppercase tracking-widest text-amber-800">Needs confirmation</span>
+<button type="button" class="font-bold text-rivix hover:underline">Confirmed, it is correct</button>
+</span>
+</div>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 mt-1.5" placeholder="What the garment has (blank = not known yet)" maxLength="500" value=""/>
+</div>
+<div class="rounded-xl border p-3 border-sky-200 bg-sky-50/40">
+<div class="flex flex-wrap items-center justify-between gap-2">
+<span class="text-xs font-bold text-slate-700">Front closure: zipper, snaps or buttons, and any storm flap<span class="ml-1 text-rivix">*</span> <span class="font-normal text-slate-400">(often visible in a photo)</span>
+</span>
+<span class="flex items-center gap-2 text-[10px]">
+<span class="rounded bg-sky-100 px-1.5 py-0.5 font-bold uppercase tracking-widest text-sky-800">Read from photo, not checked</span>
+<button type="button" class="font-bold text-rivix hover:underline">Confirmed, it is correct</button>
+</span>
+</div>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 mt-1.5" placeholder="What the garment has (blank = not known yet)" maxLength="500" value="ZZ front-closure"/>
+</div>
+<div class="rounded-xl border p-3 border-amber-200 bg-amber-50/50">
+<div class="flex flex-wrap items-center justify-between gap-2">
+<span class="text-xs font-bold text-slate-700">Pockets: chest, hand, inner. Position and construction<span class="ml-1 text-rivix">*</span> <span class="font-normal text-slate-400">(often visible in a photo)</span>
+</span>
+<span class="flex items-center gap-2 text-[10px]">
+<span class="rounded bg-amber-100 px-1.5 py-0.5 font-bold uppercase tracking-widest text-amber-800">Needs confirmation</span>
+<button type="button" class="font-bold text-rivix hover:underline">Confirmed, it is correct</button>
+</span>
+</div>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 mt-1.5" placeholder="What the garment has (blank = not known yet)" maxLength="500" value=""/>
+</div>
+<div class="rounded-xl border p-3 border-sky-200 bg-sky-50/40">
+<div class="flex flex-wrap items-center justify-between gap-2">
+<span class="text-xs font-bold text-slate-700">Collar and hood: adjusters, detachable or fixed<span class="ml-1 text-rivix">*</span> <span class="font-normal text-slate-400">(often visible in a photo)</span>
+</span>
+<span class="flex items-center gap-2 text-[10px]">
+<span class="rounded bg-sky-100 px-1.5 py-0.5 font-bold uppercase tracking-widest text-sky-800">Read from photo, not checked</span>
+<button type="button" class="font-bold text-rivix hover:underline">Confirmed, it is correct</button>
+</span>
+</div>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 mt-1.5" placeholder="What the garment has (blank = not known yet)" maxLength="500" value="ZZ collar-hood"/>
+</div>
+<div class="rounded-xl border p-3 border-amber-200 bg-amber-50/50">
+<div class="flex flex-wrap items-center justify-between gap-2">
+<span class="text-xs font-bold text-slate-700">Sleeve construction and cuff finish (rib, elastic, tab)<span class="ml-1 text-rivix">*</span> <span class="font-normal text-slate-400">(often visible in a photo)</span>
+</span>
+<span class="flex items-center gap-2 text-[10px]">
+<span class="rounded bg-amber-100 px-1.5 py-0.5 font-bold uppercase tracking-widest text-amber-800">Needs confirmation</span>
+<button type="button" class="font-bold text-rivix hover:underline">Confirmed, it is correct</button>
+</span>
+</div>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 mt-1.5" placeholder="What the garment has (blank = not known yet)" maxLength="500" value=""/>
+</div>
+<div class="rounded-xl border p-3 border-sky-200 bg-sky-50/40">
+<div class="flex flex-wrap items-center justify-between gap-2">
+<span class="text-xs font-bold text-slate-700">Hem finish and drawcord<span class="ml-1 text-rivix">*</span> <span class="font-normal text-slate-400">(often visible in a photo)</span>
+</span>
+<span class="flex items-center gap-2 text-[10px]">
+<span class="rounded bg-sky-100 px-1.5 py-0.5 font-bold uppercase tracking-widest text-sky-800">Read from photo, not checked</span>
+<button type="button" class="font-bold text-rivix hover:underline">Confirmed, it is correct</button>
+</span>
+</div>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 mt-1.5" placeholder="What the garment has (blank = not known yet)" maxLength="500" value="ZZ hem"/>
+</div>
+<div class="rounded-xl border p-3 border-amber-200 bg-amber-50/50">
+<div class="flex flex-wrap items-center justify-between gap-2">
+<span class="text-xs font-bold text-slate-700">Lining and body panels (yokes, back vents)<span class="ml-1 text-rivix">*</span> <span class="font-normal text-slate-400">(needs a spec sheet or sample)</span>
+</span>
+<span class="flex items-center gap-2 text-[10px]">
+<span class="rounded bg-amber-100 px-1.5 py-0.5 font-bold uppercase tracking-widest text-amber-800">Needs confirmation</span>
+<button type="button" class="font-bold text-rivix hover:underline">Confirmed, it is correct</button>
+</span>
+</div>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 mt-1.5" placeholder="What the garment has (blank = not known yet)" maxLength="500" value=""/>
+</div>
+<div class="rounded-xl border p-3 border-sky-200 bg-sky-50/40">
+<div class="flex flex-wrap items-center justify-between gap-2">
+<span class="text-xs font-bold text-slate-700">Reflective tape or trims: placement and width, if any <span class="font-normal text-slate-400">(often visible in a photo)</span>
+</span>
+<span class="flex items-center gap-2 text-[10px]">
+<span class="rounded bg-sky-100 px-1.5 py-0.5 font-bold uppercase tracking-widest text-sky-800">Read from photo, not checked</span>
+<button type="button" class="font-bold text-rivix hover:underline">Confirmed, it is correct</button>
+</span>
+</div>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 mt-1.5" placeholder="What the garment has (blank = not known yet)" maxLength="500" value="ZZ reflective"/>
+</div>
+</div>
+</section>
+<section class="space-y-3 rounded-2xl border border-slate-100 bg-white p-5">
+<div>
+<h3 class="text-xs font-black uppercase tracking-widest text-slate-800">Basic specification</h3>
+<p class="text-[11px] text-slate-400">What the customer’s garment is made of. Shown on the Client Spec Review tab.</p>
+</div>
+<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+<div class="block space-y-1 ">
+<label class="block space-y-1">
+<span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Safety rating</span>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="500" list="list-Safety-rating" placeholder="Not filled in" value=""/>
+</label>
+<datalist id="list-Safety-rating">
+<option value="ANSI/ISEA 107-2015 Type R Class 3">
+</option>
+<option value="ANSI/ISEA 107-2015 Type R Class 2">
+</option>
+<option value="ANSI/ISEA 107-2015 Type O Class 1">
+</option>
+<option value="ANSI/ISEA 107-2015 Type P Class 2">
+</option>
+<option value="EN ISO 20471:2013 Class 3">
+</option>
+<option value="EN ISO 20471:2013 Class 2">
+</option>
+<option value="EN ISO 20471:2013 Class 1">
+</option>
+<option value="CSA Z96:22 Class 3">
+</option>
+<option value="CSA Z96:22 Class 2">
+</option>
+</datalist>
+</div>
+<div class="block space-y-1 ">
+<label class="block space-y-1">
+<span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Base material</span>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="500" placeholder="Not filled in" value="Polyester"/>
+</label>
+</div>
+<div class="block space-y-1 ">
+<label class="block space-y-1">
+<span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Lining</span>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="500" placeholder="Not filled in" value="Quilted"/>
+</label>
+</div>
+<div class="block space-y-1 ">
+<label class="block space-y-1">
+<span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Fabric weight</span>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="500" placeholder="Not filled in" value="200 gsm"/>
+</label>
+</div>
+<div class="block space-y-1 ">
+<label class="block space-y-1">
+<span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Zippers</span>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="500" placeholder="Not filled in" value="#5 coil"/>
+</label>
+</div>
+<div class="block space-y-1 ">
+<label class="block space-y-1">
+<span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Buttons / snaps</span>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="500" placeholder="Not filled in" value="Snaps at storm flap"/>
+</label>
+</div>
+<div class="block space-y-1 ">
+<label class="block space-y-1">
+<span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Reflective striping</span>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="500" list="list-Reflective-striping" placeholder="Not filled in" value=""/>
+</label>
+<datalist id="list-Reflective-striping">
+<option value="25 mm (1 in) silver reflective tape">
+</option>
+<option value="50 mm (2 in) silver reflective tape">
+</option>
+<option value="25 mm (1 in) dual silver reflective tape">
+</option>
+<option value="50 mm (2 in) dual silver reflective tape">
+</option>
+<option value="25 mm (1 in) silver fr (flame-resistant) tape reflective tape">
+</option>
+<option value="50 mm (2 in) silver fr (flame-resistant) tape reflective tape">
+</option>
+</datalist>
+</div>
+<div class="block space-y-1 ">
+<label class="block space-y-1">
+<span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Pockets</span>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="500" placeholder="Not filled in" value="4"/>
+</label>
+</div>
+<div class="block space-y-1 ">
+<label class="block space-y-1">
+<span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Seam construction</span>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="500" placeholder="Not filled in" value="Safety stitch"/>
+</label>
+</div>
+<div class="block space-y-1 sm:col-span-2">
+<label class="block space-y-1">
+<span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Special instructions</span>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="500" placeholder="Not filled in" value="ZZ note"/>
+</label>
+</div>
+</div>
+<div class="flex flex-wrap items-center gap-3">
+<button type="button" class="text-xs font-bold text-rivix hover:underline">Fill empty fields from the AI analysis</button>
+</div>
+</section>
+<section class="space-y-3 rounded-2xl border border-slate-100 bg-white p-5">
+<div>
+<h3 class="text-xs font-black uppercase tracking-widest text-slate-800">Fabric</h3>
+</div>
+<div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+<div class="block space-y-1 ">
+<label class="block space-y-1">
+<span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Material</span>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="500" placeholder="Not filled in" value="Polyester"/>
+</label>
+</div>
+<div class="block space-y-1 ">
+<label class="block space-y-1">
+<span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Weight</span>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="500" placeholder="Not filled in" value="200 gsm"/>
+</label>
+</div>
+<div class="block space-y-1 ">
+<label class="block space-y-1">
+<span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Weave</span>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="500" placeholder="Not filled in" value="Twill"/>
+</label>
+</div>
+<div class="block space-y-1 ">
+<label class="block space-y-1">
+<span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Flame-resistance rating</span>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="500" placeholder="Not filled in" value="None"/>
+</label>
+</div>
+<div class="block space-y-1 ">
+<label class="block space-y-1">
+<span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Finish</span>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="500" placeholder="Not filled in" value="DWR"/>
+</label>
+</div>
+<div class="block space-y-1 ">
+<label class="block space-y-1">
+<span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Shrinkage</span>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="500" placeholder="Not filled in" value=""/>
+</label>
+</div>
+</div>
+</section>
+<section class="space-y-3 rounded-2xl border border-slate-100 bg-white p-5">
+<div>
+<h3 class="text-xs font-black uppercase tracking-widest text-slate-800">Colours</h3>
+<p class="text-[11px] text-slate-400">Pantone references are best (for example PANTONE 19-4052 TCX).</p>
+</div>
+<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+<div class="block space-y-1 ">
+<label class="block space-y-1">
+<span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Body colour</span>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="500" placeholder="Not filled in" value="Navy"/>
+</label>
+</div>
+<div class="block space-y-1 ">
+<label class="block space-y-1">
+<span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Thread colour</span>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 border-amber-400 bg-amber-50" maxLength="500" placeholder="Not filled in" value="Navy"/>
+</label>
+<span class="flex items-center gap-2 text-[10px]">
+<span class="rounded bg-amber-100 px-1.5 py-0.5 font-bold uppercase tracking-widest text-amber-800">Needs confirmation</span>
+<button type="button" class="font-bold text-rivix hover:underline">Confirmed, it is correct</button>
+</span>
+</div>
+<div class="block space-y-1 ">
+<label class="block space-y-1">
+<span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Hardware finish</span>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="500" placeholder="Not filled in" value="Black matte"/>
+</label>
+</div>
+<div class="block space-y-1 ">
+<label class="block space-y-1">
+<span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Reflective tape</span>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="500" list="list-Reflective-tape" placeholder="Not filled in" value="N/A"/>
+</label>
+<datalist id="list-Reflective-tape">
+<option value="25 mm (1 in) silver reflective tape">
+</option>
+<option value="50 mm (2 in) silver reflective tape">
+</option>
+<option value="25 mm (1 in) dual silver reflective tape">
+</option>
+<option value="50 mm (2 in) dual silver reflective tape">
+</option>
+<option value="25 mm (1 in) silver fr (flame-resistant) tape reflective tape">
+</option>
+<option value="50 mm (2 in) silver fr (flame-resistant) tape reflective tape">
+</option>
+</datalist>
+</div>
+<div class="block space-y-1 sm:col-span-2">
+<label class="block space-y-1">
+<span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Contrast colours (separate with commas)</span>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="500" placeholder="Not filled in" value="Black"/>
+</label>
+</div>
+</div>
+</section>
+<section class="space-y-3 rounded-2xl border border-slate-100 bg-white p-5">
+<div>
+<h3 class="text-xs font-black uppercase tracking-widest text-slate-800">Technical drawing</h3>
+<p class="text-[11px] text-slate-400">A template drawing for this product type, the same for every request of this type. It is not traced from the customer&#x27;s photos.</p>
+</div>
+<div class="space-y-2">
+<div class="space-y-3">
+<p class="text-[11px] font-semibold text-slate-500">Template drawing: not traced from the photos. Red numbers are the measurement points: number N is row N in the measurement table. Violet markers show where the AI placed the details it found.</p>
+<div class="overflow-x-auto rounded-xl border border-slate-100 bg-white">
+<svg viewBox="0 0 820 356" class="h-auto w-full min-w-[560px]" role="img" aria-label="Jacket, parka and coat: flat drawing with measurement points">
+<text x="210" y="332" font-size="9" font-weight="700" text-anchor="middle" fill="#64748b" font-family="Helvetica, Arial, sans-serif">FRONT</text>
+<path d="M 187.6 100 L 156.8 110.1 L 19.8 242.4 L 41.2 264.5 L 142.8 160 L 142.8 293 L 277.2 293 L 277.2 160 L 378.8 264.5 L 400.2 242.4 L 263.2 110.1 L 232.4 100 L 231.5 86 Q 210 82 188.5 86 L 187.6 100 Z" fill="none" stroke="#1e293b" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 156.8 110.1 Q 150.8 139 142.8 160" fill="none" stroke="#1e293b" stroke-width="0.9" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 263.2 110.1 Q 269.2 139 277.2 160" fill="none" stroke="#1e293b" stroke-width="0.9" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 29.9 232.6 L 51.3 254.8" fill="none" stroke="#1e293b" stroke-width="0.9" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 390.1 232.6 L 368.7 254.8" fill="none" stroke="#1e293b" stroke-width="0.9" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 22.7 239.6 L 44.1 261.7" fill="none" stroke="#1e293b" stroke-width="0.6" stroke-dasharray="2.5 2" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 397.3 239.6 L 375.9 261.7" fill="none" stroke="#1e293b" stroke-width="0.6" stroke-dasharray="2.5 2" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 142.8 281.8 L 277.2 281.8" fill="none" stroke="#1e293b" stroke-width="0.9" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 142.8 290 L 277.2 290" fill="none" stroke="#1e293b" stroke-width="0.6" stroke-dasharray="2.5 2" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 187.6 100 Q 210 110 232.4 100" fill="none" stroke="#1e293b" stroke-width="0.9" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 210 84 L 210 293" fill="none" stroke="#1e293b" stroke-width="0.9" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 206 104 L 206 291" fill="none" stroke="#1e293b" stroke-width="0.6" stroke-dasharray="2.5 2" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 214 104 L 214 291" fill="none" stroke="#1e293b" stroke-width="0.6" stroke-dasharray="2.5 2" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 207.5 106 L 212.5 106 L 212.5 118 L 207.5 118 Z" fill="none" stroke="#1e293b" stroke-width="0.9" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 151 128 L 206 133" fill="none" stroke="#1e293b" stroke-width="0.9" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 269 128 L 214 133" fill="none" stroke="#1e293b" stroke-width="0.9" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 160 134 L 196 134 L 196 143 Q 178 148 160 143 Z" fill="none" stroke="#1e293b" stroke-width="0.9" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 260 134 L 224 134 L 224 143 Q 242 148 260 143 Z" fill="none" stroke="#1e293b" stroke-width="0.9" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 162 144 L 162 159 L 194 159 L 194 144" fill="none" stroke="#1e293b" stroke-width="0.9" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 258 144 L 258 159 L 226 159 L 226 144" fill="none" stroke="#1e293b" stroke-width="0.9" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 165 146 L 165 156 L 191 156 L 191 146" fill="none" stroke="#1e293b" stroke-width="0.6" stroke-dasharray="2.5 2" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 255 146 L 255 156 L 229 156 L 229 146" fill="none" stroke="#1e293b" stroke-width="0.6" stroke-dasharray="2.5 2" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 160 230 L 170 268" fill="none" stroke="#1e293b" stroke-width="0.9" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 260 230 L 250 268" fill="none" stroke="#1e293b" stroke-width="0.9" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 164 229 L 174 267" fill="none" stroke="#1e293b" stroke-width="0.9" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 256 229 L 246 267" fill="none" stroke="#1e293b" stroke-width="0.9" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<circle cx="178" cy="142" r="1.6" fill="#1e293b" stroke="#1e293b" stroke-width="0.5">
+</circle>
+<circle cx="242" cy="142" r="1.6" fill="#1e293b" stroke="#1e293b" stroke-width="0.5">
+</circle>
+<text x="610" y="332" font-size="9" font-weight="700" text-anchor="middle" fill="#64748b" font-family="Helvetica, Arial, sans-serif">BACK</text>
+<path d="M 587.6 100 L 556.8 110.1 L 419.8 242.4 L 441.2 264.5 L 542.8 160 L 542.8 293 L 677.2 293 L 677.2 160 L 778.8 264.5 L 800.2 242.4 L 663.2 110.1 L 632.4 100 L 631.5 86 Q 610 82 588.5 86 L 587.6 100 Z" fill="none" stroke="#1e293b" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 556.8 110.1 Q 550.8 139 542.8 160" fill="none" stroke="#1e293b" stroke-width="0.9" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 663.2 110.1 Q 669.2 139 677.2 160" fill="none" stroke="#1e293b" stroke-width="0.9" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 429.9 232.6 L 451.3 254.8" fill="none" stroke="#1e293b" stroke-width="0.9" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 790.1 232.6 L 768.7 254.8" fill="none" stroke="#1e293b" stroke-width="0.9" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 422.7 239.6 L 444.1 261.7" fill="none" stroke="#1e293b" stroke-width="0.6" stroke-dasharray="2.5 2" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 797.3 239.6 L 775.9 261.7" fill="none" stroke="#1e293b" stroke-width="0.6" stroke-dasharray="2.5 2" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 542.8 281.8 L 677.2 281.8" fill="none" stroke="#1e293b" stroke-width="0.9" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 542.8 290 L 677.2 290" fill="none" stroke="#1e293b" stroke-width="0.6" stroke-dasharray="2.5 2" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 587.6 100 Q 610 106 632.4 100" fill="none" stroke="#1e293b" stroke-width="0.9" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 606 101 L 606 108 L 614 108 L 614 101" fill="none" stroke="#1e293b" stroke-width="0.9" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 550 132 Q 610 142 670 132" fill="none" stroke="#1e293b" stroke-width="0.9" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 549.4 135.5 Q 610 145.5 670.6 135.5" fill="none" stroke="#1e293b" stroke-width="0.6" stroke-dasharray="2.5 2" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 587.6 100 C 566 56 578 20 610 20 C 642 20 654 56 632.4 100" fill="none" stroke="#1e293b" stroke-width="0.8" stroke-dasharray="1 2.5" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 610 20 L 610 84" fill="none" stroke="#1e293b" stroke-width="0.8" stroke-dasharray="1 2.5" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<text x="410" y="350" font-size="8" font-weight="400" text-anchor="middle" fill="#475569" font-family="Helvetica, Arial, sans-serif">Length varies by style (parkas and coats are longer); use the measurements, not the drawing, for length.</text>
+<path d="M 143.5 166 L 276.5 166" fill="none" stroke="#c61213" stroke-width="0.8" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 147.5 164.2 L 143.5 166 L 147.5 167.8 Z" fill="#c61213" stroke="#c61213" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 272.5 167.8 L 276.5 166 L 272.5 164.2 Z" fill="#c61213" stroke="#c61213" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<circle cx="210" cy="166" r="7.5" fill="#ffffff" stroke="#c61213" stroke-width="1">
+</circle>
+<text x="210" y="169.2" font-size="8.5" font-weight="700" text-anchor="middle" fill="#c61213" font-family="Helvetica, Arial, sans-serif">1</text>
+<path d="M 143.5 202 L 276.5 202" fill="none" stroke="#c61213" stroke-width="0.8" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 147.5 200.2 L 143.5 202 L 147.5 203.8 Z" fill="#c61213" stroke="#c61213" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 272.5 203.8 L 276.5 202 L 272.5 200.2 Z" fill="#c61213" stroke="#c61213" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<circle cx="210" cy="202" r="7.5" fill="#ffffff" stroke="#c61213" stroke-width="1">
+</circle>
+<text x="210" y="205.2" font-size="8.5" font-weight="700" text-anchor="middle" fill="#c61213" font-family="Helvetica, Arial, sans-serif">2</text>
+<path d="M 143.5 304 L 276.5 304" fill="none" stroke="#c61213" stroke-width="0.8" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 147.5 302.2 L 143.5 304 L 147.5 305.8 Z" fill="#c61213" stroke="#c61213" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 272.5 305.8 L 276.5 304 L 272.5 302.2 Z" fill="#c61213" stroke="#c61213" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<circle cx="210" cy="304" r="7.5" fill="#ffffff" stroke="#c61213" stroke-width="1">
+</circle>
+<text x="210" y="307.2" font-size="8.5" font-weight="700" text-anchor="middle" fill="#c61213" font-family="Helvetica, Arial, sans-serif">3</text>
+<path d="M 556.8 110.1 L 663.2 110.1" fill="none" stroke="#c61213" stroke-width="0.8" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 560.8 108.3 L 556.8 110.1 L 560.8 111.9 Z" fill="#c61213" stroke="#c61213" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 659.2 111.9 L 663.2 110.1 L 659.2 108.3 Z" fill="#c61213" stroke="#c61213" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<circle cx="588.72" cy="110.1" r="7.5" fill="#ffffff" stroke="#c61213" stroke-width="1">
+</circle>
+<text x="588.72" y="113.3" font-size="8.5" font-weight="700" text-anchor="middle" fill="#c61213" font-family="Helvetica, Arial, sans-serif">4</text>
+<path d="M 632.4 100 L 632.4 293" fill="none" stroke="#c61213" stroke-width="0.8" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 634.2 104 L 632.4 100 L 630.6 104 Z" fill="#c61213" stroke="#c61213" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 630.6 289 L 632.4 293 L 634.2 289 Z" fill="#c61213" stroke="#c61213" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<circle cx="632.4" cy="215.8" r="7.5" fill="#ffffff" stroke="#c61213" stroke-width="1">
+</circle>
+<text x="632.4" y="219" font-size="8.5" font-weight="700" text-anchor="middle" fill="#c61213" font-family="Helvetica, Arial, sans-serif">5</text>
+<path d="M 551.2 104.3 L 414.3 236.6" fill="none" stroke="#c61213" stroke-width="0.8" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 549.57 108.37 L 551.2 104.3 L 547.07 105.79 Z" fill="#c61213" stroke="#c61213" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 415.93 232.53 L 414.3 236.6 L 418.43 235.11 Z" fill="#c61213" stroke="#c61213" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<circle cx="489.6" cy="163.84" r="7.5" fill="#ffffff" stroke="#c61213" stroke-width="1">
+</circle>
+<text x="489.6" y="167.04" font-size="8.5" font-weight="700" text-anchor="middle" fill="#c61213" font-family="Helvetica, Arial, sans-serif">6</text>
+<path d="M 663.2 110.1 L 677.2 160" fill="none" stroke="#c61213" stroke-width="0.8" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 666.01 113.47 L 663.2 110.1 L 662.55 114.44 Z" fill="#c61213" stroke="#c61213" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 674.39 156.63 L 677.2 160 L 677.85 155.66 Z" fill="#c61213" stroke="#c61213" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 653 146 L 670.2 135.05" fill="none" stroke="#c61213" stroke-width="0.5" stroke-dasharray="1.5 1.5" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<circle cx="653" cy="146" r="7.5" fill="#ffffff" stroke="#c61213" stroke-width="1">
+</circle>
+<text x="653" y="149.2" font-size="8.5" font-weight="700" text-anchor="middle" fill="#c61213" font-family="Helvetica, Arial, sans-serif">7</text>
+<path d="M 520.6 145 L 538.9 164" fill="none" stroke="#c61213" stroke-width="0.8" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 524.67 146.63 L 520.6 145 L 522.08 149.13 Z" fill="#c61213" stroke="#c61213" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 534.83 162.37 L 538.9 164 L 537.42 159.87 Z" fill="#c61213" stroke="#c61213" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<circle cx="529.75" cy="154.5" r="7.5" fill="#ffffff" stroke="#c61213" stroke-width="1">
+</circle>
+<text x="529.75" y="157.7" font-size="8.5" font-weight="700" text-anchor="middle" fill="#c61213" font-family="Helvetica, Arial, sans-serif">8</text>
+<path d="M 412.6 249.3 L 434 271.5" fill="none" stroke="#c61213" stroke-width="0.8" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 416.67 250.93 L 412.6 249.3 L 414.08 253.43 Z" fill="#c61213" stroke="#c61213" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 429.93 269.87 L 434 271.5 L 432.52 267.37 Z" fill="#c61213" stroke="#c61213" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<circle cx="423.3" cy="260.4" r="7.5" fill="#ffffff" stroke="#c61213" stroke-width="1">
+</circle>
+<text x="423.3" y="263.6" font-size="8.5" font-weight="700" text-anchor="middle" fill="#c61213" font-family="Helvetica, Arial, sans-serif">9</text>
+<path d="M 187.6 100 L 232.4 100" fill="none" stroke="#c61213" stroke-width="0.8" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 191.6 98.2 L 187.6 100 L 191.6 101.8 Z" fill="#c61213" stroke="#c61213" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 228.4 101.8 L 232.4 100 L 228.4 98.2 Z" fill="#c61213" stroke="#c61213" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 252 74 L 210 100" fill="none" stroke="#c61213" stroke-width="0.5" stroke-dasharray="1.5 1.5" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<circle cx="252" cy="74" r="7.5" fill="#ffffff" stroke="#c61213" stroke-width="1">
+</circle>
+<text x="252" y="77.2" font-size="8.5" font-weight="700" text-anchor="middle" fill="#c61213" font-family="Helvetica, Arial, sans-serif">10</text>
+<path d="M 660 100 L 660 20" fill="none" stroke="#c61213" stroke-width="0.8" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 658.2 96 L 660 100 L 661.8 96 Z" fill="#c61213" stroke="#c61213" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 661.8 24 L 660 20 L 658.2 24 Z" fill="#c61213" stroke="#c61213" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<circle cx="660" cy="60" r="7.5" fill="#ffffff" stroke="#c61213" stroke-width="1">
+</circle>
+<text x="660" y="63.2" font-size="8.5" font-weight="700" text-anchor="middle" fill="#c61213" font-family="Helvetica, Arial, sans-serif">11</text>
+<path d="M 576.7 58.5 L 643.3 58.5" fill="none" stroke="#c61213" stroke-width="0.8" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 580.7 56.7 L 576.7 58.5 L 580.7 60.3 Z" fill="#c61213" stroke="#c61213" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 639.3 60.3 L 643.3 58.5 L 639.3 56.7 Z" fill="#c61213" stroke="#c61213" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<circle cx="610" cy="58.5" r="7.5" fill="#ffffff" stroke="#c61213" stroke-width="1">
+</circle>
+<text x="610" y="61.7" font-size="8.5" font-weight="700" text-anchor="middle" fill="#c61213" font-family="Helvetica, Arial, sans-serif">12</text>
+<path d="M 153.2 231.8 L 163.2 269.8" fill="none" stroke="#c61213" stroke-width="0.8" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 155.96 235.21 L 153.2 231.8 L 152.48 236.13 Z" fill="#c61213" stroke="#c61213" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 160.44 266.39 L 163.2 269.8 L 163.92 265.47 Z" fill="#c61213" stroke="#c61213" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<path d="M 128 254 L 158.2 250.8" fill="none" stroke="#c61213" stroke-width="0.5" stroke-dasharray="1.5 1.5" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<circle cx="128" cy="254" r="7.5" fill="#ffffff" stroke="#c61213" stroke-width="1">
+</circle>
+<text x="128" y="257.2" font-size="8.5" font-weight="700" text-anchor="middle" fill="#c61213" font-family="Helvetica, Arial, sans-serif">13</text>
+<path d="M 210 242 L 216 248 L 210 254 L 204 248 Z" fill="#7c3aed" stroke="#7c3aed" stroke-width="0.8" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<text x="210" y="250.6" font-size="7" font-weight="700" text-anchor="middle" fill="#ffffff" font-family="Helvetica, Arial, sans-serif">a</text>
+<path d="M 242 146 L 248 152 L 242 158 L 236 152 Z" fill="#7c3aed" stroke="#7c3aed" stroke-width="0.8" stroke-linejoin="round" stroke-linecap="round">
+</path>
+<text x="242" y="154.6" font-size="7" font-weight="700" text-anchor="middle" fill="#ffffff" font-family="Helvetica, Arial, sans-serif">b</text>
+</svg>
+</div>
+<div class="grid gap-x-6 gap-y-1 text-[12px] text-slate-600 sm:grid-cols-2">
+<p>
+<span class="mr-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full border border-rivix px-0.5 text-[9px] font-black text-rivix">1</span>A Chest</p>
+<p>
+<span class="mr-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full border border-rivix px-0.5 text-[9px] font-black text-rivix">2</span>B Waist</p>
+<p>
+<span class="mr-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full border border-rivix px-0.5 text-[9px] font-black text-rivix">3</span>C Hem sweep</p>
+<p>
+<span class="mr-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full border border-rivix px-0.5 text-[9px] font-black text-rivix">4</span>D Shoulder</p>
+<p>
+<span class="mr-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full border border-rivix px-0.5 text-[9px] font-black text-rivix">5</span>E Body length</p>
+<p>
+<span class="mr-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full border border-rivix px-0.5 text-[9px] font-black text-rivix">6</span>F Sleeve length</p>
+<p>
+<span class="mr-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full border border-rivix px-0.5 text-[9px] font-black text-rivix">7</span>G Armhole</p>
+<p>
+<span class="mr-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full border border-rivix px-0.5 text-[9px] font-black text-rivix">8</span>H Bicep</p>
+<p>
+<span class="mr-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full border border-rivix px-0.5 text-[9px] font-black text-rivix">9</span>I Cuff opening</p>
+<p>
+<span class="mr-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full border border-rivix px-0.5 text-[9px] font-black text-rivix">10</span>J Neck opening</p>
+<p>
+<span class="mr-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full border border-rivix px-0.5 text-[9px] font-black text-rivix">11</span>K Hood height</p>
+<p>
+<span class="mr-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full border border-rivix px-0.5 text-[9px] font-black text-rivix">12</span>L Hood width</p>
+<p>
+<span class="mr-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full border border-rivix px-0.5 text-[9px] font-black text-rivix">13</span>M Pocket opening</p>
+</div>
+<div class="space-y-0.5 text-[12px] text-slate-600">
+<p class="text-[10px] font-black uppercase tracking-widest text-slate-400">Details the AI found</p>
+<p>
+<span class="mr-1.5 font-black" style="color:#7c3aed">a</span>Centre front zipper<span class="text-slate-400"> (front, front)</span>
+</p>
+<p>
+<span class="mr-1.5 font-black" style="color:#7c3aed">b</span>Chest pocket<span class="text-slate-400"> (wearer&#x27;s left chest, front)</span>
+</p>
+</div>
+</div>
+</div>
+</section>
+<section class="space-y-3 rounded-2xl border border-slate-100 bg-white p-5">
+<div>
+<h3 class="text-xs font-black uppercase tracking-widest text-slate-800">Measurements (inches, flat on the half)</h3>
+<p class="text-[11px] text-slate-400">The AI cannot take real measurements from a photo: measure the physical garment and correct these.</p>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full min-w-[760px] text-xs">
+<thead>
+<tr class="text-left text-[10px] uppercase tracking-widest text-slate-400">
+<th class="w-10 pb-2 text-center">No.</th>
+<th class="w-16 pb-2">Point</th>
+<th class="pb-2">Description</th>
+<th class="w-16 pb-2 text-center">XS</th>
+<th class="w-16 pb-2 text-center">S</th>
+<th class="w-16 pb-2 text-center">M</th>
+<th class="w-16 pb-2 text-center">L</th>
+<th class="w-16 pb-2 text-center">XL</th>
+<th class="w-20 pb-2 text-center">Tol. ±</th>
+<th class="w-8">
+</th>
+<th>
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="pb-1.5 pr-1 text-center text-xs font-black text-rivix">1</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="300" value="A"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="300" value="Chest"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="22"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="23"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="24"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="25"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="26"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="0.5"/>
+</td>
+<td class="pb-1.5">
+<button type="button" aria-label="Remove row" class="text-slate-400 hover:text-red-600">✕</button>
+</td>
+<td class="pb-1.5 pl-2 whitespace-nowrap">
+<span class="flex items-center gap-2 text-[10px]">
+<span class="rounded bg-amber-100 px-1.5 py-0.5 font-bold uppercase tracking-widest text-amber-800">Needs confirmation</span>
+<button type="button" class="font-bold text-rivix hover:underline">Confirmed, it is correct</button>
+</span>
+</td>
+</tr>
+<tr>
+<td class="pb-1.5 pr-1 text-center text-xs font-black text-rivix">2</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="300" value="B"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="300" value="Waist"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="22"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="23"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="24"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="25"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="26"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="0.5"/>
+</td>
+<td class="pb-1.5">
+<button type="button" aria-label="Remove row" class="text-slate-400 hover:text-red-600">✕</button>
+</td>
+<td class="pb-1.5 pl-2 whitespace-nowrap">
+<span class="flex items-center gap-2 text-[10px]">
+<span class="rounded bg-amber-100 px-1.5 py-0.5 font-bold uppercase tracking-widest text-amber-800">Needs confirmation</span>
+<button type="button" class="font-bold text-rivix hover:underline">Confirmed, it is correct</button>
+</span>
+</td>
+</tr>
+<tr>
+<td class="pb-1.5 pr-1 text-center text-xs font-black text-rivix">3</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="300" value="C"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="300" value="Hem sweep"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="22"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="23"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="24"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="25"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="26"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="0.5"/>
+</td>
+<td class="pb-1.5">
+<button type="button" aria-label="Remove row" class="text-slate-400 hover:text-red-600">✕</button>
+</td>
+<td class="pb-1.5 pl-2 whitespace-nowrap">
+<span class="flex items-center gap-2 text-[10px]">
+<span class="rounded bg-amber-100 px-1.5 py-0.5 font-bold uppercase tracking-widest text-amber-800">Needs confirmation</span>
+<button type="button" class="font-bold text-rivix hover:underline">Confirmed, it is correct</button>
+</span>
+</td>
+</tr>
+<tr>
+<td class="pb-1.5 pr-1 text-center text-xs font-black text-rivix">4</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="300" value="D"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="300" value="Shoulder"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="22"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="23"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="24"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="25"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="26"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="0.5"/>
+</td>
+<td class="pb-1.5">
+<button type="button" aria-label="Remove row" class="text-slate-400 hover:text-red-600">✕</button>
+</td>
+<td class="pb-1.5 pl-2 whitespace-nowrap">
+<span class="flex items-center gap-2 text-[10px]">
+<span class="rounded bg-amber-100 px-1.5 py-0.5 font-bold uppercase tracking-widest text-amber-800">Needs confirmation</span>
+<button type="button" class="font-bold text-rivix hover:underline">Confirmed, it is correct</button>
+</span>
+</td>
+</tr>
+<tr>
+<td class="pb-1.5 pr-1 text-center text-xs font-black text-rivix">5</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="300" value="E"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="300" value="Body length"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="22"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="23"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="24"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="25"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="26"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="0.5"/>
+</td>
+<td class="pb-1.5">
+<button type="button" aria-label="Remove row" class="text-slate-400 hover:text-red-600">✕</button>
+</td>
+<td class="pb-1.5 pl-2 whitespace-nowrap">
+<span class="flex items-center gap-2 text-[10px]">
+<span class="rounded bg-amber-100 px-1.5 py-0.5 font-bold uppercase tracking-widest text-amber-800">Needs confirmation</span>
+<button type="button" class="font-bold text-rivix hover:underline">Confirmed, it is correct</button>
+</span>
+</td>
+</tr>
+<tr>
+<td class="pb-1.5 pr-1 text-center text-xs font-black text-rivix">6</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="300" value="F"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="300" value="Sleeve length"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="22"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="23"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="24"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="25"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="26"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="0.5"/>
+</td>
+<td class="pb-1.5">
+<button type="button" aria-label="Remove row" class="text-slate-400 hover:text-red-600">✕</button>
+</td>
+<td class="pb-1.5 pl-2 whitespace-nowrap">
+<span class="flex items-center gap-2 text-[10px]">
+<span class="rounded bg-amber-100 px-1.5 py-0.5 font-bold uppercase tracking-widest text-amber-800">Needs confirmation</span>
+<button type="button" class="font-bold text-rivix hover:underline">Confirmed, it is correct</button>
+</span>
+</td>
+</tr>
+<tr>
+<td class="pb-1.5 pr-1 text-center text-xs font-black text-rivix">7</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="300" value="G"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="300" value="Armhole"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="22"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="23"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="24"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="25"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="26"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="0.5"/>
+</td>
+<td class="pb-1.5">
+<button type="button" aria-label="Remove row" class="text-slate-400 hover:text-red-600">✕</button>
+</td>
+<td class="pb-1.5 pl-2 whitespace-nowrap">
+<span class="flex items-center gap-2 text-[10px]">
+<span class="rounded bg-amber-100 px-1.5 py-0.5 font-bold uppercase tracking-widest text-amber-800">Needs confirmation</span>
+<button type="button" class="font-bold text-rivix hover:underline">Confirmed, it is correct</button>
+</span>
+</td>
+</tr>
+<tr>
+<td class="pb-1.5 pr-1 text-center text-xs font-black text-rivix">8</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="300" value="H"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="300" value="Bicep"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="22"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="23"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="24"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="25"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="26"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="0.5"/>
+</td>
+<td class="pb-1.5">
+<button type="button" aria-label="Remove row" class="text-slate-400 hover:text-red-600">✕</button>
+</td>
+<td class="pb-1.5 pl-2 whitespace-nowrap">
+<span class="flex items-center gap-2 text-[10px]">
+<span class="rounded bg-amber-100 px-1.5 py-0.5 font-bold uppercase tracking-widest text-amber-800">Needs confirmation</span>
+<button type="button" class="font-bold text-rivix hover:underline">Confirmed, it is correct</button>
+</span>
+</td>
+</tr>
+<tr>
+<td class="pb-1.5 pr-1 text-center text-xs font-black text-rivix">9</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="300" value="I"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="300" value="Cuff opening"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="22"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="23"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="24"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="25"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="26"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="0.5"/>
+</td>
+<td class="pb-1.5">
+<button type="button" aria-label="Remove row" class="text-slate-400 hover:text-red-600">✕</button>
+</td>
+<td class="pb-1.5 pl-2 whitespace-nowrap">
+<span class="flex items-center gap-2 text-[10px]">
+<span class="rounded bg-amber-100 px-1.5 py-0.5 font-bold uppercase tracking-widest text-amber-800">Needs confirmation</span>
+<button type="button" class="font-bold text-rivix hover:underline">Confirmed, it is correct</button>
+</span>
+</td>
+</tr>
+<tr>
+<td class="pb-1.5 pr-1 text-center text-xs font-black text-rivix">10</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="300" value="J"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="300" value="Neck opening"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="22"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="23"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="24"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="25"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="26"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="0.5"/>
+</td>
+<td class="pb-1.5">
+<button type="button" aria-label="Remove row" class="text-slate-400 hover:text-red-600">✕</button>
+</td>
+<td class="pb-1.5 pl-2 whitespace-nowrap">
+<span class="flex items-center gap-2 text-[10px]">
+<span class="rounded bg-amber-100 px-1.5 py-0.5 font-bold uppercase tracking-widest text-amber-800">Needs confirmation</span>
+<button type="button" class="font-bold text-rivix hover:underline">Confirmed, it is correct</button>
+</span>
+</td>
+</tr>
+<tr>
+<td class="pb-1.5 pr-1 text-center text-xs font-black text-rivix">11</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="300" value="K"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="300" value="Hood height"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="22"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="23"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="24"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="25"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="26"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="0.5"/>
+</td>
+<td class="pb-1.5">
+<button type="button" aria-label="Remove row" class="text-slate-400 hover:text-red-600">✕</button>
+</td>
+<td class="pb-1.5 pl-2 whitespace-nowrap">
+<span class="flex items-center gap-2 text-[10px]">
+<span class="rounded bg-amber-100 px-1.5 py-0.5 font-bold uppercase tracking-widest text-amber-800">Needs confirmation</span>
+<button type="button" class="font-bold text-rivix hover:underline">Confirmed, it is correct</button>
+</span>
+</td>
+</tr>
+<tr>
+<td class="pb-1.5 pr-1 text-center text-xs font-black text-rivix">12</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="300" value="L"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="300" value="Hood width"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="22"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="23"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="24"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="25"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="26"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="0.5"/>
+</td>
+<td class="pb-1.5">
+<button type="button" aria-label="Remove row" class="text-slate-400 hover:text-red-600">✕</button>
+</td>
+<td class="pb-1.5 pl-2 whitespace-nowrap">
+<span class="flex items-center gap-2 text-[10px]">
+<span class="rounded bg-amber-100 px-1.5 py-0.5 font-bold uppercase tracking-widest text-amber-800">Needs confirmation</span>
+<button type="button" class="font-bold text-rivix hover:underline">Confirmed, it is correct</button>
+</span>
+</td>
+</tr>
+<tr>
+<td class="pb-1.5 pr-1 text-center text-xs font-black text-rivix">13</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="300" value="M"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="300" value="Pocket opening"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="22"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="23"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="24"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="25"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="26"/>
+</td>
+<td class="pr-1 pb-1.5">
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 text-center" maxLength="300" value="0.5"/>
+</td>
+<td class="pb-1.5">
+<button type="button" aria-label="Remove row" class="text-slate-400 hover:text-red-600">✕</button>
+</td>
+<td class="pb-1.5 pl-2 whitespace-nowrap">
+<span class="flex items-center gap-2 text-[10px]">
+<span class="rounded bg-amber-100 px-1.5 py-0.5 font-bold uppercase tracking-widest text-amber-800">Needs confirmation</span>
+<button type="button" class="font-bold text-rivix hover:underline">Confirmed, it is correct</button>
+</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<button type="button" class="text-xs font-bold text-rivix hover:underline">+ Add measurement</button>
+</section>
+<section class="space-y-3 rounded-2xl border border-slate-100 bg-white p-5">
+<div>
+<h3 class="text-xs font-black uppercase tracking-widest text-slate-800">Bill of materials</h3>
+<p class="text-[11px] text-slate-400">One item per line.</p>
+</div>
+<div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+<label class="block space-y-1">
+<span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Hardware</span>
+<textarea class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " rows="4" placeholder="Not filled in">#5 coil zipper</textarea>
+</label>
+<label class="block space-y-1">
+<span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Thread</span>
+<textarea class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " rows="4" placeholder="Not filled in">Tex 40 poly</textarea>
+</label>
+<label class="block space-y-1">
+<span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Labels</span>
+<textarea class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " rows="4" placeholder="Not filled in">Woven main label</textarea>
+</label>
+</div>
+<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+<div class="block space-y-1 ">
+<label class="block space-y-1">
+<span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Fold</span>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="500" placeholder="Not filled in" value=""/>
+</label>
+</div>
+<div class="block space-y-1 ">
+<label class="block space-y-1">
+<span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Polybag size</span>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="500" placeholder="Not filled in" value=""/>
+</label>
+</div>
+<div class="block space-y-1 ">
+<label class="block space-y-1">
+<span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Carton size</span>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="500" placeholder="Not filled in" value=""/>
+</label>
+</div>
+<div class="block space-y-1 ">
+<label class="block space-y-1">
+<span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Hangtag</span>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="500" placeholder="Not filled in" value=""/>
+</label>
+</div>
+</div>
+</section>
+<section class="space-y-3 rounded-2xl border border-slate-100 bg-white p-5">
+<div>
+<h3 class="text-xs font-black uppercase tracking-widest text-slate-800">Seams and construction</h3>
+</div>
+<div class="space-y-3">
+<div class="grid grid-cols-2 gap-2 rounded-xl border border-slate-100 p-3 sm:grid-cols-6">
+<div class="block space-y-1 ">
+<label class="block space-y-1">
+<span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Location</span>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="500" placeholder="Not filled in" value="Side seam"/>
+</label>
+</div>
+<div class="block space-y-1 ">
+<label class="block space-y-1">
+<span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Seam type</span>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="500" placeholder="Not filled in" value="Safety stitch"/>
+</label>
+</div>
+<div class="block space-y-1 ">
+<label class="block space-y-1">
+<span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Stitch</span>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="500" placeholder="Not filled in" value="516"/>
+</label>
+</div>
+<div class="block space-y-1 ">
+<label class="block space-y-1">
+<span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Stitches per inch</span>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="500" placeholder="Not filled in" value="10"/>
+</label>
+</div>
+<div class="block space-y-1 ">
+<label class="block space-y-1">
+<span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Seam allowance</span>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="500" placeholder="Not filled in" value="3/8&quot;"/>
+</label>
+</div>
+<div class="flex items-end justify-end">
+<button type="button" class="text-xs font-bold text-slate-400 hover:text-red-600">Remove</button>
+</div>
+<div class="col-span-2 sm:col-span-6">
+<span class="flex items-center gap-2 text-[10px]">
+<span class="rounded bg-amber-100 px-1.5 py-0.5 font-bold uppercase tracking-widest text-amber-800">Needs confirmation</span>
+<button type="button" class="font-bold text-rivix hover:underline">Confirmed, it is correct</button>
+</span>
+</div>
+<div class="block space-y-1 sm:col-span-2">
+<label class="block space-y-1">
+<span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Notes</span>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="500" placeholder="Not filled in" value=""/>
+</label>
+</div>
+</div>
+</div>
+<button type="button" class="text-xs font-bold text-rivix hover:underline">+ Add seam</button>
+</section>
+<section class="space-y-3 rounded-2xl border border-slate-100 bg-white p-5">
+<div>
+<h3 class="text-xs font-black uppercase tracking-widest text-slate-800">Labels</h3>
+<p class="text-[11px] text-slate-400">Care and brand labels: type, where, how attached, size, material.</p>
+</div>
+<div class="space-y-3">
+<div class="grid grid-cols-2 gap-2 rounded-xl border border-slate-100 p-3 sm:grid-cols-6">
+<div class="block space-y-1 ">
+<label class="block space-y-1">
+<span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Type</span>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="500" placeholder="Not filled in" value="Main label"/>
+</label>
+</div>
+<div class="block space-y-1 ">
+<label class="block space-y-1">
+<span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Location</span>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="500" placeholder="Not filled in" value="Inside back neck"/>
+</label>
+</div>
+<div class="block space-y-1 ">
+<label class="block space-y-1">
+<span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Attachment</span>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="500" placeholder="Not filled in" value="Sewn"/>
+</label>
+</div>
+<div class="block space-y-1 ">
+<label class="block space-y-1">
+<span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Size</span>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="500" placeholder="Not filled in" value="2 x 1 in"/>
+</label>
+</div>
+<div class="block space-y-1 ">
+<label class="block space-y-1">
+<span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Material</span>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="500" placeholder="Not filled in" value="Woven"/>
+</label>
+</div>
+<div class="flex items-end justify-end">
+<button type="button" class="text-xs font-bold text-slate-400 hover:text-red-600">Remove</button>
+</div>
+<div class="col-span-2 sm:col-span-6">
+<span class="flex items-center gap-2 text-[10px]">
+<span class="rounded bg-amber-100 px-1.5 py-0.5 font-bold uppercase tracking-widest text-amber-800">Needs confirmation</span>
+<button type="button" class="font-bold text-rivix hover:underline">Confirmed, it is correct</button>
+</span>
+</div>
+</div>
+</div>
+<button type="button" class="text-xs font-bold text-rivix hover:underline">+ Add label</button>
+</section>
+<section class="space-y-3 rounded-2xl border border-slate-100 bg-white p-5">
+<div>
+<h3 class="text-xs font-black uppercase tracking-widest text-slate-800">Wash and care</h3>
+<p class="text-[11px] text-slate-400">English and French (Canadian labels need both).</p>
+</div>
+<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+<label class="block space-y-1">
+<span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Care instructions (English)</span>
+<textarea class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " rows="4" placeholder="Not filled in">Machine wash cold
+Do not bleach</textarea>
+<span class="block text-[10px] text-slate-400">One per line.</span>
+</label>
+<label class="block space-y-1">
+<span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Instructions de lavage (français)</span>
+<textarea class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " rows="4" placeholder="Not filled in">
+</textarea>
+<span class="block text-[10px] text-slate-400">One per line, same order as the English.</span>
+</label>
+</div>
+<div class="flex flex-wrap items-center gap-3">
+<button type="button" class="text-xs font-bold text-rivix hover:underline">Fill French from standard care phrases</button>
+</div>
+<label class="block space-y-1">
+<span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Special notes</span>
+<textarea class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30" rows="2">
+</textarea>
+</label>
+<div class="block space-y-1 sm:col-span-2">
+<label class="block space-y-1">
+<span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Country of origin (printed on the label, for example Canada)</span>
+<input class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " maxLength="500" placeholder="Not filled in" value="Canada"/>
+</label>
+</div>
+</section>
+<section class="space-y-3 rounded-2xl border border-slate-100 bg-white p-5">
+<div>
+<h3 class="text-xs font-black uppercase tracking-widest text-slate-800">Artwork</h3>
+<p class="text-[11px] text-slate-400">Logos and prints: what, where, how big, how applied.</p>
+</div>
+<div class="space-y-3">
+</div>
+<button type="button" class="text-xs font-bold text-rivix hover:underline">+ Add artwork</button>
+</section>
+<section class="space-y-3 rounded-2xl border border-slate-100 bg-white p-5">
+<div>
+<h3 class="text-xs font-black uppercase tracking-widest text-slate-800">Testing</h3>
+<p class="text-[11px] text-slate-400">Tests the factory&#x27;s fabric and garments must pass. One per line.</p>
+</div>
+<label class="block space-y-1">
+<span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Tests</span>
+<textarea class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rivix/30 " rows="4" placeholder="Not filled in">Colourfastness to laundering: AATCC 61</textarea>
+</label>
+<button type="button" class="text-xs font-bold text-rivix hover:underline">Add the standard tests for this garment</button>
+<p class="text-[10px] text-slate-400">The standard list is a starting point (it adds hi-vis and flame-resistance tests when the garment looks like it needs them). Confirm it with the testing lab: the tech file says so.</p>
+</section>
+</fieldset>
+<section class="space-y-3 rounded-2xl border border-slate-100 bg-white p-5">
+<div>
+<h3 class="text-xs font-black uppercase tracking-widest text-slate-800">History</h3>
+<p class="text-[11px] text-slate-400">Every save that changed this tech file, newest first. Approved revisions are locked and keep their PDF; attach the customer&#x27;s approval to one of them.</p>
+</div>
+<p class="text-xs text-slate-400">Loading the history…</p>
+</section>
+<div class="sticky bottom-3 flex flex-wrap items-center justify-end gap-3 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur">
+<span class="mr-auto text-[11px] text-slate-500">Stitch types and detected components are not editable here yet.</span>
+<button type="button" disabled="" class="rounded-xl border border-slate-200 px-5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40">Save changes</button>
+<button type="button" class="rounded-xl bg-rivix px-5 py-2 text-xs font-bold text-white shadow-lg shadow-rivix/30 hover:bg-rivix-dark disabled:opacity-40">Approve specification</button>
+</div>
+</div>

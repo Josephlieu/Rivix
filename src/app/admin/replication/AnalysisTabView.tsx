@@ -8,6 +8,8 @@ import TypeCheckPanel from './TypeCheckPanel';
 import { isTypeConfirmed } from '@/lib/type-check';
 import { outstandingConfirmations } from '@/lib/garmentAiAnalysis';
 import type { ReplicationRequest } from '@/lib/replicationStorage';
+import type { ResolvedTemplate } from '@/lib/template-catalog';
+import { isProduct, itemWord, measurementFootnote, sizeColumns, sizeRange } from '@/lib/template-display';
 import { ShieldCheck, CheckCircle, FileText, AlertCircle, ScanLine, Zap, Eye, Layers, Target, Activity, Sparkles, Camera, Sliders, BookOpen } from 'lucide-react';
 
 // AI Analysis Types
@@ -165,10 +167,17 @@ export interface AnalysisTabViewProps {
   setError: (message: string) => void;
   setReplications: Dispatch<SetStateAction<ReplicationRequest[]>>;
   setSelectedRep: Dispatch<SetStateAction<ReplicationRequest | null>>;
+  /** The request's template (the shared lookup), or null when it could not be read: then the tab reads as for clothing. */
+  template?: ResolvedTemplate | null;
 }
 
-export default function AnalysisTabView({ selectedRep, getAIAnalysis, isAdmin, building, handleDownload, handleStartAIAnalysis, setActiveTab, setError, setReplications, setSelectedRep }: AnalysisTabViewProps) {
+export default function AnalysisTabView({ selectedRep, getAIAnalysis, isAdmin, building, handleDownload, handleStartAIAnalysis, setActiveTab, setError, setReplications, setSelectedRep, template = null }: AnalysisTabViewProps) {
+  // 2026-11-18: gloves, footwear and PPE (template-display.ts): their sizes, words and notes. Clothing reads as before.
+  const product = isProduct(template);
               const analysis = getAIAnalysis(selectedRep.id);
+              // The size columns and the measurement note: the template's sizes (saved size run, else the template's own).
+              const sizing = { sizeRun: selectedRep.aiAnalysis?.sizeRun, measurements: analysis.measurements };
+              const cols = sizeColumns(sizing, template);
               const componentTypeIcon = (type: string) => {
                 switch(type) {
                   case 'zipper': return '⚡';
@@ -465,7 +474,7 @@ export default function AnalysisTabView({ selectedRep, getAIAnalysis, isAdmin, b
                             <div><span className="text-slate-400 block text-[12px] uppercase tracking-wider mb-0.5">Brand</span> <span className="font-semibold text-slate-200">{selectedRep.clientName}</span></div>
                             <div><span className="text-slate-400 block text-[12px] uppercase tracking-wider mb-0.5">Style</span> <span className="font-semibold text-slate-200">{selectedRep.garmentType.toUpperCase()}</span></div>
                             <div><span className="text-slate-400 block text-[12px] uppercase tracking-wider mb-0.5">Date</span> <span className="font-semibold text-slate-200">{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span></div>
-                            <div><span className="text-slate-400 block text-[12px] uppercase tracking-wider mb-0.5">Size Range</span> <span className="font-semibold text-slate-200">XS - XL [SAMPLE: M]</span></div>
+                            <div><span className="text-slate-400 block text-[12px] uppercase tracking-wider mb-0.5">Size Range</span> <span className="font-semibold text-slate-200">{sizeRange(sizing, template)}</span></div>
                             {analysis.season && <div><span className="text-slate-400 block text-[12px] uppercase tracking-wider mb-0.5">Season</span> <span className="font-semibold text-slate-200">{analysis.season}</span></div>}
                           </div>
                         </div>
@@ -838,7 +847,7 @@ export default function AnalysisTabView({ selectedRep, getAIAnalysis, isAdmin, b
                             </svg>
                           </div>
                           ) : (
-                            <p className="mb-3 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">Front and back drawings for each garment type are planned. Use the photos and the checklist on the Review tab.</p>
+                            <p className="mb-3 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">The technical drawing for this {itemWord(template)} type is on the Review &amp; Approve tab.{isAdmin && <> <button type="button" onClick={() => setActiveTab('review')} className="font-bold text-rivix hover:underline">Open it →</button></>}</p>
                           )}
 
                           {/* Photos the AI read: first one large, the rest as a grid */}
@@ -921,11 +930,11 @@ export default function AnalysisTabView({ selectedRep, getAIAnalysis, isAdmin, b
                                   <tr>
                                     <th className="px-4 py-3 w-10 text-center">POM</th>
                                     <th className="px-4 py-3">DESCRIPTION</th>
-                                    <th className="px-3 py-3 text-center border-l border-slate-200">XS</th>
-                                    <th className="px-3 py-3 text-center border-l border-slate-200">S</th>
-                                    <th className="px-3 py-3 text-center border-l-2 border-r-2 border-violet-200 bg-violet-50 text-violet-900">[M]</th>
-                                    <th className="px-3 py-3 text-center border-r border-slate-200">L</th>
-                                    <th className="px-3 py-3 text-center border-r border-slate-200">XL</th>
+                                    <th className="px-3 py-3 text-center border-l border-slate-200">{cols.labels[0]}</th>
+                                    <th className="px-3 py-3 text-center border-l border-slate-200">{cols.labels[1]}</th>
+                                    <th className="px-3 py-3 text-center border-l-2 border-r-2 border-violet-200 bg-violet-50 text-violet-900">{cols.sample ? `[${cols.labels[2]}]` : cols.labels[2]}</th>
+                                    <th className="px-3 py-3 text-center border-r border-slate-200">{cols.labels[3]}</th>
+                                    <th className="px-3 py-3 text-center border-r border-slate-200">{cols.labels[4]}</th>
                                     <th className="px-3 py-3 text-center text-slate-400">TOL +/-</th>
                                   </tr>
                                 </thead>
@@ -947,7 +956,7 @@ export default function AnalysisTabView({ selectedRep, getAIAnalysis, isAdmin, b
                                 </tbody>
                               </table>
                               <div className="bg-slate-100/50 px-4 py-2.5 text-[11.5px] text-slate-500 uppercase tracking-widest border-t border-slate-200 font-bold">
-                                * ALL ABOVE MEASUREMENTS ARE AI-ESTIMATED IN INCHES AND TAKEN FLAT. IT IS RECOMMENDED THAT ALL SIZES ARE SAMPLED BEFORE PRODUCTION.
+                                {measurementFootnote(sizing, template)}
                               </div>
                             </div>
                           </div>
@@ -975,7 +984,7 @@ export default function AnalysisTabView({ selectedRep, getAIAnalysis, isAdmin, b
                                 )}
                               </div>
                               <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
-                                <h4 className="text-[12.5px] font-black text-slate-400 uppercase mb-3 tracking-widest">Zippers & Hardware</h4>
+                                <h4 className="text-[12.5px] font-black text-slate-400 uppercase mb-3 tracking-widest">{product ? 'Hardware' : 'Zippers & Hardware'}</h4>
                                 <ul className="text-xs font-semibold text-slate-700 space-y-2">
                                   {analysis.bom?.hardware?.length ? analysis.bom.hardware.map((item, i) => (
                                     <li key={i} className="flex items-start gap-2"><span className="w-1.5 h-1.5 mt-1 bg-slate-300 rounded-full shrink-0" /> {item}</li>
@@ -1133,10 +1142,12 @@ export default function AnalysisTabView({ selectedRep, getAIAnalysis, isAdmin, b
                       </div>
                       <h3 className="text-lg font-bold text-slate-800">Ready for AI Analysis</h3>
                       <p className="text-xs text-slate-400 max-w-sm leading-relaxed">
-                        Click &ldquo;Run AI Scan&rdquo; above to process the client&apos;s uploaded garment photos. The AI engine will detect every component — snaps, zippers, seams, reflective striping — and auto-generate a production-ready CAD wireframe.
+                        {product
+                          ? <>Click &ldquo;Run AI Scan&rdquo; above to read the client&apos;s uploaded product photos. The AI fills in the {template?.family.label.toLowerCase()} checklist, copies the printed labels and markings, and drafts the measurement points. Blank means it could not see it; a person checks every value on the Review tab.</>
+                          : <>Click &ldquo;Run AI Scan&rdquo; above to process the client&apos;s uploaded garment photos. The AI engine will detect every component — snaps, zippers, seams, reflective striping — and auto-generate a production-ready CAD wireframe.</>}
                       </p>
                       <div className="flex items-center gap-4 mt-2">
-                        {['Fabric Detection', 'Hardware ID', 'Seam Mapping', 'Wireframe Gen'].map(step => (
+                        {(product ? ['Checklist', 'Labels and markings', 'Measurement points'] : ['Fabric Detection', 'Hardware ID', 'Seam Mapping', 'Wireframe Gen']).map(step => (
                           <div key={step} className="flex items-center gap-1.5 text-[12px] font-bold text-slate-400">
                             <div className="w-1.5 h-1.5 rounded-full bg-violet-300" />
                             {step}

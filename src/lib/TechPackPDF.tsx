@@ -9,6 +9,7 @@
 import { garmentTypeLabel } from './garment-types-data';
 import { missingInformation } from './garmentAiAnalysis';
 import { sizeLabels, sizeNote, withDefaultSizes } from './size-run';
+import { isProduct, itemWord, measuredFlat, pdfMeasurementWarning, showSpecField, type DisplayTemplate } from './template-display';
 import { readWebSource } from './link-source';
 import { canonicalAnalysis, itemState } from './checklist-confirm';
 import React from 'react';
@@ -91,8 +92,9 @@ export interface TechFileData {
   logo?: string;
   /** The sales rep who owns the request (internal only). */
   repName?: string | null;
-  /** Task 29: the template (its family and parts with their measurement points), for the drawings and the "No." column. */
-  template?: DrawingTemplate | null;
+  /** Task 29: the template (its family and parts with their measurement points), for the drawings and the "No." column.
+   *  2026-11-18: the full template when the caller has it (template-display.ts: clothing or product, its fields). */
+  template?: (DrawingTemplate & Partial<DisplayTemplate>) | null;
 }
 
 export function buildTechFileData(rep: ReplicationRequest, photos: string[], logo?: string, template?: TechFileData['template']): TechFileData {
@@ -242,6 +244,11 @@ export const TechPackPDF = ({ d }: { d: TechFileData }) => {
   const drawing = d.template ? drawingFor(a, d.template) : { show: 'none' as const };
   const numbers = d.template ? rowNumbers(d.template) : new Map<string, number>();
   const showNo = drawing.show !== 'none';
+  // 2026-11-18: gloves, footwear and PPE (template-display.ts): their own words and fields; clothing prints as before.
+  const tpl = d.template;
+  const product = isProduct(tpl);
+  const word = itemWord(tpl);
+  const show = (key: string, v: unknown) => showSpecField(tpl, key, v);
 
   return (
     <Document title={`${d.requestCode} ${d.productName} tech file`} author="RIVIX">
@@ -254,7 +261,7 @@ export const TechPackPDF = ({ d }: { d: TechFileData }) => {
           <View style={s.chipRow}>
             <Text style={d.approved ? s.chip : s.chipGrey}>{d.approved ? `Rev ${d.revision} approved` : 'Draft: not approved'}</Text>
             <Text style={s.chipGrey}>{garmentTypeLabel(d.garmentType)}</Text>
-            <Text style={s.chipGrey}>Sizes {sizes[0]} – {sizes[4]}{sz.sizeRun?.system === 'shoe' ? ` (${sizeNote(sz)})` : ''}</Text>
+            <Text style={s.chipGrey}>{product && !sz.sizeRun ? 'Sizes: Not filled in' : <>Sizes {sizes[0]} – {sizes[4]}{sz.sizeRun?.system === 'shoe' ? ` (${sizeNote(sz)})` : ''}</>}</Text>
           </View>
         </View>
         <View style={s.detailCard}>
@@ -273,7 +280,7 @@ export const TechPackPDF = ({ d }: { d: TechFileData }) => {
         {d.photos[0] ? <Image style={s.photo} src={d.photos[0]} /> : <Text style={s.none}>No reference photo.</Text>}
         {/* Task 21: a request started from a product page says so (only then; older files print as before). Plain text. */}
         {(() => { const ws = readWebSource((d.specs as { webSource?: unknown } | undefined)?.webSource); return ws ? <Text style={s.warn}>{`Started from a website link: ${ws.url}${ws.readAt ? ` (read ${ws.readAt.slice(0, 10)})` : ''}. Photos taken from ${ws.site} are reference images from that site. What the site says is from the website and not confirmed; the original's certification does not carry over to a copy.`}</Text> : null; })()}
-        {!d.approved && <Text style={s.warn}>DRAFT. This specification has not been approved. Values were drafted by AI from photos and must be checked against the physical garment before this file goes to a factory.</Text>}
+        {!d.approved && <Text style={s.warn}>DRAFT. This specification has not been approved. Values were drafted by AI from photos and must be checked against the physical {word} before this file goes to a factory.</Text>}
       </Sheet>
 
       {/* 2 — Colour & fabric */}
@@ -294,7 +301,7 @@ export const TechPackPDF = ({ d }: { d: TechFileData }) => {
           <Field name="Flame-resistance rating" v={fab?.frRating} flag={fl('fabricAnalysis.frRating')} />
           <Field name="Finish" v={fab?.finish} flag={fl('fabricAnalysis.finish')} />
           <Field name="Shrinkage" v={fab?.shrinkage} flag={fl('fabricAnalysis.shrinkage')} />
-          <Field name="Lining" v={sp.liningMaterial} />
+          {show('liningMaterial', sp.liningMaterial) && <Field name="Lining" v={sp.liningMaterial} />}
           <Field name="Safety rating" v={sp.safetyRating} />
         </View>
       </Sheet>
@@ -303,15 +310,15 @@ export const TechPackPDF = ({ d }: { d: TechFileData }) => {
       <Sheet d={d} no={3} title="Product details & call-outs">
         <Text style={s.h2}>Specification</Text>
         <View style={s.grid}>
-          <Field name="Zippers" v={sp.zippers} />
-          <Field name="Buttons / snaps" v={sp.buttonsSnaps} />
-          <Field name="Reflective striping" v={sp.reflectiveStriping} />
-          <Field name="Pockets" v={sp.pocketsCount} />
-          <Field name="Seam construction" v={sp.seamConstruction} />
-          <Field name="Hood" v={a.hasHood == null ? null : a.hasHood ? 'Yes' : 'No'} />
+          {show('zippers', sp.zippers) && <Field name="Zippers" v={sp.zippers} />}
+          {show('buttonsSnaps', sp.buttonsSnaps) && <Field name="Buttons / snaps" v={sp.buttonsSnaps} />}
+          {show('reflectiveStriping', sp.reflectiveStriping) && <Field name="Reflective striping" v={sp.reflectiveStriping} />}
+          {show('pocketsCount', sp.pocketsCount) && <Field name="Pockets" v={sp.pocketsCount} />}
+          {show('seamConstruction', sp.seamConstruction) && <Field name="Seam construction" v={sp.seamConstruction} />}
+          {(!product || a.hasHood != null) && <Field name="Hood" v={a.hasHood == null ? null : a.hasHood ? 'Yes' : 'No'} />}
           <Field name="Special instructions" v={sp.specialInstructions} wide />
         </View>
-        <Text style={s.h2}>4. Call-outs (features detected on the garment)</Text>
+        <Text style={s.h2}>4. Call-outs (features detected on the {word})</Text>
         <Table
           cols={[{ h: 'No.', w: '8%' }, { h: 'Feature', w: '34%' }, { h: 'Type', w: '18%' }, { h: 'Location', w: '40%' }]}
           rows={(a.components || []).map((c, i) => [String(i + 1), c.label, c.type, c.location])}
@@ -319,7 +326,7 @@ export const TechPackPDF = ({ d }: { d: TechFileData }) => {
         />
         {(a.checklist || []).length > 0 && (
           <>
-            <Text style={s.h2}>Checklist for this garment type</Text>
+            <Text style={s.h2}>Checklist for this {word} type</Text>
             <Table
               cols={[{ h: 'Item', w: '46%' }, { h: 'Status', w: '16%' }, { h: 'Value', w: '38%' }]}
               rows={(a.checklist || []).map(c => [c.label + (c.required ? ' *' : ''), checklistStatus(c), c.value])}
@@ -395,7 +402,7 @@ export const TechPackPDF = ({ d }: { d: TechFileData }) => {
       </Sheet>
 
       {/* 8 — Measurements (wide page) */}
-      <Sheet d={d} no={8} title="Measurement specification (inches, flat on the half)" landscape>
+      <Sheet d={d} no={8} title={measuredFlat(tpl) ? 'Measurement specification (inches, flat on the half)' : 'Measurement specification (inches)'} landscape>
         {drawing.show === 'parts' && drawing.parts.map((p, i) => (p.def
           ? <PdfDrawing key={i} def={p.def} numbers={p.numbers} components={drawing.parts.length === 1 ? a.components : []} title={p.label} />
           : <Text key={i} style={s.warn}>{p.label ? `${p.label}: ` : ''}{p.placeholder}</Text>))}
@@ -415,7 +422,7 @@ export const TechPackPDF = ({ d }: { d: TechFileData }) => {
           />
         )}
         {sizeNote(sz) ? <Text style={s.note}>Size columns: {sizeNote(sz)} ({sizes.join(', ')}).</Text> : null}
-        {!d.approved && <Text style={s.warn}>Measurements are estimates until approved. Measure the physical garment.</Text>}
+        {!d.approved && <Text style={s.warn}>{pdfMeasurementWarning(a, tpl)}</Text>}
       </Sheet>
 
       {/* 9 — Testing */}

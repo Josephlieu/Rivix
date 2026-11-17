@@ -1,0 +1,118 @@
+<div class="space-y-6">
+<div class="bg-gradient-to-r from-violet-50 via-indigo-50 to-purple-50 border border-violet-100 rounded-3xl p-6 space-y-4">
+<div class="flex items-start justify-between">
+<div class="flex items-start gap-4">
+<div class="p-3 bg-violet-100 text-violet-600 rounded-2xl shrink-0">
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-scan-line">
+<path d="M3 7V5a2 2 0 0 1 2-2h2">
+</path>
+<path d="M17 3h2a2 2 0 0 1 2 2v2">
+</path>
+<path d="M21 17v2a2 2 0 0 1-2 2h-2">
+</path>
+<path d="M7 21H5a2 2 0 0 1-2-2v-2">
+</path>
+<path d="M7 12h10">
+</path>
+</svg>
+</div>
+<div>
+<h3 class="text-base font-semibold text-slate-900">AI garment analysis</h3>
+<p class="text-sm text-slate-600 mt-1 leading-relaxed max-w-xl">Reads the customer&#x27;s photos and drafts the tech file. It only describes what it can see; anything else is left blank for you to confirm.</p>
+</div>
+</div>
+<button disabled="" title="Confirm the product type first (below)." class="disabled:cursor-not-allowed disabled:opacity-50 bg-violet-600 text-white px-5 py-3 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-violet-700 transition-all flex items-center gap-2 shrink-0 active:scale-95 shadow-lg shadow-violet-200">
+<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-zap">
+<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z">
+</path>
+</svg> Run AI Scan</button>
+</div>
+<div class="rounded-2xl border p-4 space-y-3 border-amber-200 bg-amber-50/60">
+<div class="flex flex-wrap items-start justify-between gap-3">
+<div>
+<p class="text-[11px] font-black uppercase tracking-widest text-slate-500">Product type</p>
+<p class="text-sm font-bold text-slate-900">Jacket <span class="font-normal text-slate-500">(General Workwear)</span>
+</p>
+<p class="text-[12px] text-amber-800">Not confirmed yet. The type on the request form is only a starting guess: confirm it, or pick another, before the AI scan.</p>
+</div>
+<button type="button" disabled="" title="Add photos first" class="flex items-center gap-1.5 rounded-lg border border-violet-200 bg-white px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-50 disabled:opacity-50">
+<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sparkles">
+<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z">
+</path>
+<path d="M20 3v4">
+</path>
+<path d="M22 5h-4">
+</path>
+<path d="M4 17v2">
+</path>
+<path d="M5 18H3">
+</path>
+</svg> Suggest type from photos</button>
+</div>
+<div class="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+<label class="block space-y-1">
+<span class="text-[11px] font-bold uppercase tracking-widest text-slate-500">Category</span>
+<select class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rivix/30">
+<option value="workwear" selected="">General Workwear</option>
+<option value="hivis">High Visibility Workwear</option>
+<option value="fr-arc">Flame Resistant and Arc Rated Clothing</option>
+<option value="outerwear">Winter and Outdoor Workwear</option>
+<option value="protective">Specialized Protective Clothing</option>
+<option value="corporate">Corporate Apparel and Uniforms</option>
+<option value="gloves">Gloves and Hand Protection</option>
+<option value="footwear">Footwear</option>
+<option value="ppe">Other PPE and Accessories</option>
+</select>
+</label>
+<label class="block space-y-1">
+<span class="text-[11px] font-bold uppercase tracking-widest text-slate-500">Type</span>
+<select class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rivix/30">
+<option value="jacket" selected="">Jacket</option>
+<option value="coat">Coat</option>
+<option value="pants">Work Pants</option>
+<option value="cargo-pants">Cargo Pants</option>
+<option value="coveralls">Coveralls</option>
+<option value="overalls">Bib Overalls</option>
+<option value="work-shirt">Work Shirt</option>
+<option value="work-shorts">Work Shorts</option>
+<option value="vest">Vest</option>
+<option value="jacket-trouser-set">Jacket and Trouser Set</option>
+</select>
+</label>
+<button type="button" class="flex items-center justify-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-700 disabled:opacity-50">
+<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-circle-check-big">
+<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14">
+</path>
+<path d="m9 11 3 3L22 4">
+</path>
+</svg> Confirm this type</button>
+</div>
+</div>
+</div>
+<div class="bg-white border border-slate-100 rounded-3xl p-12 flex flex-col items-center justify-center text-center space-y-4">
+<div class="w-20 h-20 rounded-full bg-violet-50 flex items-center justify-center text-violet-400">
+<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-camera">
+<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z">
+</path>
+<circle cx="12" cy="13" r="3">
+</circle>
+</svg>
+</div>
+<h3 class="text-lg font-bold text-slate-800">Ready for AI Analysis</h3>
+<p class="text-xs text-slate-400 max-w-sm leading-relaxed">Click “Run AI Scan” above to process the client&#x27;s uploaded garment photos. The AI engine will detect every component — snaps, zippers, seams, reflective striping — and auto-generate a production-ready CAD wireframe.</p>
+<div class="flex items-center gap-4 mt-2">
+<div class="flex items-center gap-1.5 text-[12px] font-bold text-slate-400">
+<div class="w-1.5 h-1.5 rounded-full bg-violet-300">
+</div>Fabric Detection</div>
+<div class="flex items-center gap-1.5 text-[12px] font-bold text-slate-400">
+<div class="w-1.5 h-1.5 rounded-full bg-violet-300">
+</div>Hardware ID</div>
+<div class="flex items-center gap-1.5 text-[12px] font-bold text-slate-400">
+<div class="w-1.5 h-1.5 rounded-full bg-violet-300">
+</div>Seam Mapping</div>
+<div class="flex items-center gap-1.5 text-[12px] font-bold text-slate-400">
+<div class="w-1.5 h-1.5 rounded-full bg-violet-300">
+</div>Wireframe Gen</div>
+</div>
+</div>
+</div>

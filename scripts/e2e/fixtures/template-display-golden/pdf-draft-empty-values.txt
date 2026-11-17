@@ -1,0 +1,450 @@
+DRAFT
+RIVIX
+Factory tech file
+ZZ product
+RQ-ZZ  ·  DRAFT: not approved
+Factory tech file  ·  Section 1
+ZZ product
+ZZ Client  ·  RQ-ZZ
+Draft: not approved
+Jacket
+Sizes XS – XL
+Customer
+ZZ Client
+Request no.
+RQ-ZZ
+Garment class
+Insulated work jacket
+Season
+FW26
+Date created
+Nov 17, 2026
+Sales rep
+Admin (handled directly)
+Revision
+Draft
+Approved by
+Not specified
+No reference photo.
+DRAFT. This specification has not been approved. Values were drafted by AI from photos and must be checked against the physical garment before this file goes to a factory.
+CONFIDENTIAL: RIVIX INTERNAL. Not for customers or third parties without RIVIX approval.
+RIVIX Apparel Manufacturing  ·  rivix.ca  ·  info@rivix.ca
+DRAFT
+RIVIX
+Factory tech file
+ZZ product
+RQ-ZZ  ·  DRAFT: not approved
+Section 2
+Colour & fabric information
+Colourway
+Body colour
+Navy
+Contrast colours
+Black
+Thread colour
+Navy  [Needs confirmation]
+Hardware finish
+Black matte
+Reflective tape
+N/A
+Fabric
+Material
+Polyester
+Weight
+200 gsm
+Weave
+Twill
+Flame-resistance rating
+None
+Finish
+DWR
+Shrinkage
+Not specified
+Lining
+Quilted
+Safety rating
+Not specified
+CONFIDENTIAL: RIVIX INTERNAL. Not for customers or third parties without RIVIX approval.
+RIVIX Apparel Manufacturing  ·  rivix.ca  ·  info@rivix.ca
+DRAFT
+RIVIX
+Factory tech file
+ZZ product
+RQ-ZZ  ·  DRAFT: not approved
+Section 3
+Product details & call-outs
+Specification
+Zippers
+#5 coil
+Buttons / snaps
+Snaps at storm flap
+Reflective striping
+Not specified
+Pockets
+4
+Seam construction
+Safety stitch
+Hood
+Yes
+Special instructions
+ZZ note
+4. Call-outs (features detected on the garment)
+No.
+Feature
+Type
+Location
+1
+Centre front zipper
+zipper
+front
+2
+Chest pocket
+pocket
+wearer's left chest
+Checklist for this garment type
+Item
+Status
+Value
+Main fabric: composition, weight and construction *
+Needs confirmation
+–
+Colour and colour placement *
+Needs confirmation
+–
+Thread, zippers, buttons, snaps and other trims *
+Needs confirmation
+–
+Labels: main, care, size, and where each is placed *
+Needs confirmation
+–
+Logo and branding placement, size and method (embroidery, print)
+Read from photo, not confirmed
+ZZ branding
+Seam types, stitching and reinforcement *
+Needs confirmation
+–
+Finished garment measurements for every size *
+Needs confirmation
+–
+Folding, packing and carton instructions
+Needs confirmation
+–
+Front closure: zipper, snaps or buttons, and any storm flap *
+Read from photo, not confirmed
+ZZ front-closure
+Pockets: chest, hand, inner. Position and construction *
+Needs confirmation
+–
+Collar and hood: adjusters, detachable or fixed *
+Read from photo, not confirmed
+ZZ collar-hood
+Sleeve construction and cuff finish (rib, elastic, tab) *
+Needs confirmation
+–
+Hem finish and drawcord *
+Read from photo, not confirmed
+ZZ hem
+Lining and body panels (yokes, back vents) *
+Needs confirmation
+–
+Reflective tape or trims: placement and width, if any
+Read from photo, not confirmed
+ZZ reflective
+Missing information
+• Main fabric: composition, weight and construction: not known yet
+• Colour and colour placement: not known yet
+• Thread, zippers, buttons, snaps and other trims: not known yet
+• Labels: main, care, size, and where each is placed: not known yet
+• Seam types, stitching and reinforcement: not known yet
+• Finished garment measurements for every size: not known yet
+• Front closure: zipper, snaps or buttons, and any storm flap: read from photo, not confirmed
+• Pockets: chest, hand, inner. Position and construction: not known yet
+• Collar and hood: adjusters, detachable or fixed: read from photo, not confirmed
+• Sleeve construction and cuff finish (rib, elastic, tab): not known yet
+• Hem finish and drawcord: read from photo, not confirmed
+• Lining and body panels (yokes, back vents): not known yet
+• Measurement A (Chest): needs measuring
+• Measurement B (Waist): needs measuring
+• Measurement C (Hem sweep): needs measuring
+• Measurement D (Shoulder): needs measuring
+• Measurement E (Body length): needs measuring
+• Measurement F (Sleeve length): needs measuring
+• Measurement G (Armhole): needs measuring
+• Measurement H (Bicep): needs measuring
+• Measurement I (Cuff opening): needs measuring
+• Measurement J (Neck opening): needs measuring
+• Measurement K (Hood height): needs measuring
+• Measurement L (Hood width): needs measuring
+• Measurement M (Pocket opening): needs measuring
+CONFIDENTIAL: RIVIX INTERNAL. Not for customers or third parties without RIVIX approval.
+RIVIX Apparel Manufacturing  ·  rivix.ca  ·  info@rivix.ca
+DRAFT
+RIVIX
+Factory tech file
+ZZ product
+RQ-ZZ  ·  DRAFT: not approved
+Section 5
+Construction details
+Location
+Seam
+Stitch
+SPI
+Allowance
+Notes
+Side seam [Needs confirmation]
+Safety stitch
+516
+10
+3/8"
+–
+Stitch reference
+Code
+Name
+Machine
+SPI
+Usage
+301
+Lockstitch
+Single needle
+10
+Topstitch
+CONFIDENTIAL: RIVIX INTERNAL. Not for customers or third parties without RIVIX approval.
+RIVIX Apparel Manufacturing  ·  rivix.ca  ·  info@rivix.ca
+DRAFT
+RIVIX
+Factory tech file
+ZZ product
+RQ-ZZ  ·  DRAFT: not approved
+Section 6
+Bill of materials
+No.
+Category
+Item
+1
+Hardware
+#5 coil zipper
+2
+Thread
+Tex 40 poly
+3
+Labels
+Woven main label
+CONFIDENTIAL: RIVIX INTERNAL. Not for customers or third parties without RIVIX approval.
+RIVIX Apparel Manufacturing  ·  rivix.ca  ·  info@rivix.ca
+DRAFT
+RIVIX
+Factory tech file
+ZZ product
+RQ-ZZ  ·  DRAFT: not approved
+Section 7
+Artwork detail
+No logos or artwork specified.
+Send the customer's artwork files (vector where possible) with this tech file.
+CONFIDENTIAL: RIVIX INTERNAL. Not for customers or third parties without RIVIX approval.
+RIVIX Apparel Manufacturing  ·  rivix.ca  ·  info@rivix.ca
+DRAFT
+RIVIX
+Factory tech file
+ZZ product
+RQ-ZZ  ·  DRAFT: not approved
+Section 8
+Measurement specification (inches, flat on the half)
+Template drawing: not traced from the photos. Number N on the drawing is row N (No.) in the table.
+FRONT
+BACK
+Length varies by style (parkas and coats are longer); use the measurements, not the drawing, for length.
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+a
+b
+Details the AI found: a Centre front zipper;  b Chest pocket
+No.
+POM
+Description
+XS
+S
+M
+L
+XL
+Tol. ±
+1
+A
+Chest [Needs confirmation]
+–
+–
+–
+–
+–
+–
+2
+B
+Waist [Needs confirmation]
+–
+–
+–
+–
+–
+–
+3
+C
+Hem sweep [Needs confirmation]
+–
+–
+–
+–
+–
+–
+4
+D
+Shoulder [Needs confirmation]
+–
+–
+–
+–
+–
+–
+5
+E
+Body length [Needs confirmation]
+–
+–
+–
+–
+–
+–
+6
+F
+Sleeve length [Needs confirmation]
+–
+–
+–
+–
+–
+–
+7
+G
+Armhole [Needs confirmation]
+–
+–
+–
+–
+–
+–
+8
+H
+Bicep [Needs confirmation]
+–
+–
+–
+–
+–
+–
+9
+I
+Cuff opening [Needs confirmation]
+–
+–
+–
+–
+–
+–
+10
+J
+Neck opening [Needs confirmation]
+–
+–
+–
+–
+–
+–
+11
+K
+Hood height [Needs confirmation]
+–
+–
+–
+–
+–
+–
+12
+L
+Hood width [Needs confirmation]
+–
+–
+–
+–
+–
+–
+13
+M
+Pocket opening [Needs confirmation]
+–
+–
+–
+–
+–
+–
+Measurements are estimates until approved. Measure the physical garment.
+CONFIDENTIAL: RIVIX INTERNAL. Not for customers or third parties without RIVIX approval.
+RIVIX Apparel Manufacturing  ·  rivix.ca  ·  info@rivix.ca
+DRAFT
+RIVIX
+Factory tech file
+ZZ product
+RQ-ZZ  ·  DRAFT: not approved
+Section 9
+Testing details
+1.  Colourfastness to laundering: AATCC 61
+Test list to be confirmed with the testing laboratory before production.
+CONFIDENTIAL: RIVIX INTERNAL. Not for customers or third parties without RIVIX approval.
+RIVIX Apparel Manufacturing  ·  rivix.ca  ·  info@rivix.ca
+DRAFT
+RIVIX
+Factory tech file
+ZZ product
+RQ-ZZ  ·  DRAFT: not approved
+Section 10
+Label specification & packaging
+Label placement
+Type
+Location
+Attachment
+Size
+Material
+Main label [Needs confirmation]
+Inside back neck
+Sewn
+2 x 1 in
+Woven
+Care text (English / Français)
+English
+Français
+Machine wash cold
+–
+Do not bleach
+–
+Origin
+MADE IN CANADA / FABRIQUÉ AU CANADA
+Section 11
+Packaging
+Fold
+Not specified
+Polybag size
+Not specified
+Carton size
+Not specified
+Hangtag
+Not specified
+CONFIDENTIAL: RIVIX INTERNAL. Not for customers or third parties without RIVIX approval.
+RIVIX Apparel Manufacturing  ·  rivix.ca  ·  info@rivix.ca

@@ -4,6 +4,10 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import ReviewTab from './ReviewTab';
+import SpecReviewPanel from './SpecReviewPanel';
+import { useRequestTemplate } from './useRequestTemplate';
+import { isProduct, scanStepLabels } from '@/lib/template-display';
+import { viewsText } from '@/lib/template-catalog';
 import AnalysisTabView, { AI_SCAN_STEPS, analysisResultFromSaved, type AIAnalysisResult } from './AnalysisTabView';
 import SectionErrorBoundary, { RenderSection } from '@/components/SectionErrorBoundary';
 import { normalizeAnalysis } from '@/lib/analysis-shape';
@@ -38,7 +42,6 @@ import {
   CheckCircle,
   ExternalLink,
   FileText,
-  Cpu,
   Sparkles,
   Check
 } from 'lucide-react';
@@ -99,6 +102,10 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
 
   // Hotspot State
   const [activeHotspot, setActiveHotspot] = useState<{ id: string; title: string; description: string } | null>(null);
+  // The request's template: the shared lookup (also used by the Review tab, the PDF and the download). Gloves, footwear and PPE
+  // show their own fields and words on the specs panel and the AI analysis tab (template-display.ts).
+  const requestTpl = useRequestTemplate(selectedRep?.garmentType ?? '', selectedRep?.aiAnalysis?.template?.versions);
+  const productTpl = !requestTpl.templateProblem && isProduct(requestTpl.template) ? requestTpl.template : null;
 
   // Production Factory Dispatch State
   const [dispatchedTix, setDispatchedTix] = useState<{ [key: string]: boolean }>({});
@@ -190,7 +197,7 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
             [repId]: {
               ...current,
               currentStep: nextStep,
-              stepLabel: AI_SCAN_STEPS[nextStep]?.label || 'Analyzing...',
+              stepLabel: scanStepLabels(productTpl, AI_SCAN_STEPS.map(x => x.label))[nextStep] || 'Analyzing...', // gloves, footwear, PPE: no zipper or hi-vis steps
               progress: Math.min(current.progress + 15, 85),
             }
           };
@@ -937,6 +944,14 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
                         ))}
                       </div>
                     </>
+                  ) : productTpl ? (
+                    // Gloves, footwear and PPE: no jacket or overall outline; their drawing is on the Review tab.
+                    <div className="flex flex-col items-center gap-3 py-16 text-center">
+                      <p className="text-sm font-semibold text-white/80">No photo uploaded yet.</p>
+                      {isAdmin
+                        ? <button type="button" onClick={() => setActiveTab('review')} className="text-xs font-bold text-white underline hover:text-rivix">The {productTpl.family.label.toLowerCase()} drawing is on the Review &amp; Approve tab →</button>
+                        : <p className="text-xs text-white/60">Add photos of the {productTpl.family.views.length ? viewsText(productTpl.family.views) : 'product'}.</p>}
+                    </div>
                   ) : (
                     <RenderBlueprint garmentType={selectedRep.garmentType} annotations={selectedRep.specs?.annotations ?? []} />
                   )}
@@ -952,85 +967,12 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
                     <input ref={photoInput} type="file" accept="image/jpeg,image/png,image/webp" multiple hidden onChange={e => addPhotos(e.target.files)} />
                   </div>
                   <div className="absolute top-4 left-4 bg-white/5 border border-white/10 rounded-full px-3 py-1 text-[8px] font-black uppercase text-white/50 tracking-widest">
-                    {selectedRep.images?.length ? 'Client Reference Photo' : 'Generic Schematic — No Photo Uploaded'}
+                    {selectedRep.images?.length ? 'Client Reference Photo' : productTpl ? 'No Photo Uploaded' : 'Generic Schematic — No Photo Uploaded'}
                   </div>
                 </div>
 
                 {/* Annotation inspector (5 cols) */}
-                <div className="lg:col-span-5 space-y-6">
-                  
-                  {activeHotspot ? (
-                    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3 relative text-white">
-                      <button 
-                        onClick={() => setActiveHotspot(null)}
-                        className="absolute top-3 right-3 text-slate-400 hover:text-white font-bold text-xs"
-                      >
-                        ✕
-                      </button>
-                      <span className="text-[8px] font-black uppercase tracking-widest text-rivix bg-rivix/20 px-2.5 py-1 rounded-full inline-block">Hotspot Coordinates</span>
-                      <h4 className="text-sm font-bold mt-1 text-white">{activeHotspot.title}</h4>
-                      <p className="text-xs text-slate-400 leading-relaxed">{activeHotspot.description}</p>
-                    </div>
-                  ) : (
-                    <div className="bg-slate-50 border border-slate-100 rounded-2xl p-5 flex items-start gap-3">
-                      <Cpu size={18} className="text-rivix shrink-0 mt-0.5" />
-                      <div className="space-y-1">
-                        <h4 className="text-xs font-bold text-slate-800 uppercase tracking-widest">Physical Spec Review</h4>
-                        <p className="text-[11px] text-slate-400 leading-relaxed">
-                          Verify details such as safety ratings and structural seams against the physical garment that the client has sent.
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Material checklist Table (admin only: tech files are prepared by RIVIX admin) */}
-                  {isAdmin ? (
-                  <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-sm">
-                    <div className="bg-slate-50 px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-                      <h3 className="text-xs font-bold text-slate-800 uppercase tracking-widest text-slate-500">Apparel Specs</h3>
-                    </div>
-                    
-                    <div className="divide-y divide-slate-100 text-xs p-5 space-y-4">
-                      {[
-                        { label: 'Safety Compliance', value: selectedRep.specs.safetyRating },
-                        { label: 'Base Material', value: selectedRep.specs.coreMaterial },
-                        { label: 'Lining', value: selectedRep.specs.liningMaterial },
-                        { label: 'Fabric Weight', value: selectedRep.specs.fabricWeight },
-                        { label: 'Zippers', value: selectedRep.specs.zippers },
-                        { label: 'Buttons / Snaps', value: selectedRep.specs.buttonsSnaps },
-                        { label: 'Reflective Striping', value: selectedRep.specs.reflectiveStriping },
-                        { label: 'Pockets', value: selectedRep.specs.pocketsCount },
-                        { label: 'Seam Construction', value: selectedRep.specs.seamConstruction },
-                        { label: 'Special Instructions', value: selectedRep.specs.specialInstructions }
-                      ].map(row => (
-                        <div key={row.label} className="grid grid-cols-2 gap-1 pt-3 first:pt-0">
-                          <span className="font-bold text-slate-400 uppercase text-[9px] tracking-wider">{row.label}</span>
-                          {row.value?.trim()
-                            ? <span className="font-semibold text-slate-700">{row.value}</span>
-                            : <span className="italic text-slate-300">Not filled in yet</span>}
-                        </div>
-                      ))}
-                      <div className="pt-3">
-                        <button onClick={() => setActiveTab('review')} className="text-[11px] font-bold text-rivix hover:underline">
-                          Fill in or correct these on the Review &amp; Approve tab →
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  ) : (
-                    <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm space-y-2" role="note">
-                      <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500">Tech file</h3>
-                      <p className="text-sm font-semibold text-slate-800">The tech file is prepared by RIVIX admin.</p>
-                      <p className="text-[13px] leading-relaxed text-slate-500">
-                        {selectedRep.techFile?.status === 'approved'
-                          ? `It has been approved${selectedRep.techFile.revision ? ` (revision ${selectedRep.techFile.revision})` : ''}.`
-                          : selectedRep.techFile?.status === 'draft' ? 'A draft is being checked by the admin.' : 'Add clear photos of the front, back, inside label and close-ups. The admin takes it from there.'}
-                        {' '}Questions or extra details for the admin go in the Team chat.
-                      </p>
-                    </div>
-                  )}
-
-                </div>
+                <SpecReviewPanel selectedRep={selectedRep} isAdmin={isAdmin} template={requestTpl.templateProblem ? null : requestTpl.template} activeHotspot={activeHotspot} setActiveHotspot={setActiveHotspot} setActiveTab={setActiveTab} />
 
               </div>
                 )} />
@@ -1040,7 +982,7 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
             {/* TAB: AI GARMENT ANALYSIS */}
             {isAdmin && activeTab === 'ai_analysis' && selectedRep && (
               <SectionErrorBoundary section="AI analysis" requestCode={selectedRep.requestCode} resetKey={selectedRep.id}>
-                <AnalysisTabView selectedRep={selectedRep} getAIAnalysis={getAIAnalysis} isAdmin={isAdmin} building={building} handleDownload={handleDownload} handleStartAIAnalysis={handleStartAIAnalysis} setActiveTab={setActiveTab} setError={setError} setReplications={setReplications} setSelectedRep={setSelectedRep} />
+                <AnalysisTabView template={requestTpl.templateProblem ? null : requestTpl.template} selectedRep={selectedRep} getAIAnalysis={getAIAnalysis} isAdmin={isAdmin} building={building} handleDownload={handleDownload} handleStartAIAnalysis={handleStartAIAnalysis} setActiveTab={setActiveTab} setError={setError} setReplications={setReplications} setSelectedRep={setSelectedRep} />
               </SectionErrorBoundary>
             )}
 

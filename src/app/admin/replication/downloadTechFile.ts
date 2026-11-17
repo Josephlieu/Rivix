@@ -39,11 +39,9 @@ async function logoData(): Promise<string | undefined> {
 // Task 29: the request's template (for the drawings and the "No." column), at the versions the tech file was made with
 // (task 31). If the templates cannot be read and this type needs an admin-made template, the download stops with a clear
 // message: it never uses a different template.
-async function templateOf(rep: ReplicationRequest) {
-  const [{ getGarmentTypes }, { resolveTemplateChecked, BUILT_IN_CATALOG }] = await Promise.all([import('@/lib/replicationStorage'), import('@/lib/template-catalog')]);
-  const lib = await getGarmentTypes();
-  const t = resolveTemplateChecked(rep.garmentType, lib.types.find(x => x.key === rep.garmentType)?.templateFamily ?? null, lib.templates ?? BUILT_IN_CATALOG, rep.aiAnalysis?.template?.versions);
-  return { family: { key: t.family.key }, parts: t.parts.map(p => ({ key: p.key, label: p.label, points: p.points.map(x => ({ code: x.code, name: x.name })) })) };
+export async function templateOf(rep: ReplicationRequest) {
+  const [{ getGarmentTypes }, { templateFromList }] = await Promise.all([import('@/lib/replicationStorage'), import('@/lib/template-catalog')]);
+  return templateFromList(rep.garmentType, await getGarmentTypes(), rep.aiAnalysis?.template?.versions); // the shared lookup
 }
 
 const slug = (v: string) => v.replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'garment';

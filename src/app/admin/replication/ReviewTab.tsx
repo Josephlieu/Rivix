@@ -4,14 +4,15 @@ import { useEffect, useRef, useState } from 'react';
 import type { PersistedGarmentAIAnalysis } from '@/lib/garmentAiAnalysis';
 import type { ReplicationRequest, ReplicationSpec } from '@/lib/replicationStorage';
 import { suggestedTests, suggestFrenchCare, prefillSpecs, HIVIS_STANDARDS, TAPE_OPTIONS } from '@/lib/techFileStandards';
-import { resolveTemplate, resolveTemplateChecked, protectiveText, BUILT_IN_CATALOG, type TemplateCatalog, type ResolvedTemplate } from '@/lib/template-catalog';
+import { protectiveText } from '@/lib/template-catalog';
+import { useRequestTemplate } from './useRequestTemplate';
+import { isProduct, itemWord, measuredFlat, shortLabel, showSpecField, standardsLine, viewsOf } from '@/lib/template-display';
 import { checklistFor, templateMeasurements, outstandingConfirmations, missingInformation } from '@/lib/garmentAiAnalysis';
 import { garmentTypeLabel } from '@/lib/garment-types-data';
 import { drawingFor, rowNumbers } from '@/lib/drawings';
 import FlatDrawing, { DrawingPlaceholder } from '@/components/FlatDrawing';
 import RevisionHistory from './RevisionHistory';
 import { defaultSizeRun, sizeLabels, SHOE_WIDTHS } from '@/lib/size-run';
-import { getGarmentTypes } from '@/lib/replicationStorage';
 import { readWebSource, linkMissing, FROM_WEBSITE } from '@/lib/link-source';
 import WebFoundView from './WebFoundView';
 import StandardNote from '@/components/StandardNote';
@@ -129,18 +130,8 @@ function ListBox({ name, hint, value, onChange, flagged, onConfirm, suggestion, 
 }
 
 export default function ReviewTab({ rep, onSave }: Props) {
-  // The garment type's template (the family an admin set on the type, else the built-in one) pre-fills the checklist and the measurement points.
-  // Templates come from the database (task 26); the built-in ones are used until they have loaded, or if they cannot be.
-  const [family, setFamily] = useState<string | null>(null);
-  const [catalog, setCatalog] = useState<TemplateCatalog>(BUILT_IN_CATALOG);
-  const [loaded, setLoaded] = useState(false);
-  useEffect(() => { getGarmentTypes().then(l => { setFamily(l.types.find(t => t.key === rep.garmentType)?.templateFamily ?? null); if (l.templates) setCatalog(l.templates); setLoaded(true); }).catch(() => setLoaded(true)); }, [rep.garmentType]);
-  // Task 31: the template versions this tech file was made with (it keeps them when a template changes later), and never
-  // quietly a different template: if the templates cannot be read and this type needs an admin-made one, say so instead.
-  let template: ResolvedTemplate;
-  let templateProblem = '';
-  try { template = resolveTemplateChecked(rep.garmentType, family, catalog, rep.aiAnalysis?.template?.versions); }
-  catch (e) { templateProblem = e instanceof Error ? e.message : 'The template could not be read.'; template = resolveTemplate('', null, BUILT_IN_CATALOG); }
+  // The request's template: one shared lookup (useRequestTemplate.ts), the same as the request page, the PDF and the download.
+  const { template, templateProblem, loaded } = useRequestTemplate(rep.garmentType, rep.aiAnalysis?.template?.versions);
   // Task 21: the product page this request started from (set by the server; data only, shown as plain text).
   const webSource = readWebSource(rep.specs.webSource);
   const fromRep = () => {
@@ -235,12 +226,18 @@ export default function ReviewTab({ rep, onSave }: Props) {
   const [specNote, setSpecNote] = useState('');
   const review = rep.aiAnalysis?.review;
   // What to ask the customer for, worked out from the fields that are still open.
+  // Gloves, footwear and PPE (template-display.ts): asked in the template's own words; clothing as before.
+  const product = isProduct(template);
   const askList: string[] = [];
-  if (['fabricAnalysis.material', 'fabricAnalysis.weight', 'fabricAnalysis.weaveType', 'washCare.instructions', 'bom.labels'].some(isFlagged)) askList.push('A clear photo of the inside label (fabric and care text), or the fabric spec sheet');
+  if (['fabricAnalysis.material', 'fabricAnalysis.weight', 'fabricAnalysis.weaveType', 'washCare.instructions', 'bom.labels'].some(isFlagged)) askList.push(product ? 'A clear photo of the labels and markings, or the product spec sheet' : 'A clear photo of the inside label (fabric and care text), or the fabric spec sheet');
   if (isFlagged('fabricAnalysis.frRating')) askList.push('The safety standard or certification, if any (a brand certification does not transfer to a copy)');
-  if (a.measurements.some(m => !isStamped(m))) askList.push('A sample garment or the size chart with measurements');
-  if (['colorway.threadColor', 'colorway.hardwareFinish', 'bom.hardware', 'bom.thread'].some(isFlagged)) askList.push('Close-up photos of the zipper, snaps and stitching');
-  if ((a.checklist || []).some(c => c.required && itemState(c) === 'needs')) askList.push('Photos from the back and the sides, if only the front was sent');
+  if (a.measurements.some(m => !isStamped(m))) askList.push(product ? 'A sample or the size chart with measurements' : 'A sample garment or the size chart with measurements');
+  if (product) {
+    // Close-ups of the template's photo items that still need a person's check (never the zipper or snaps of a jacket).
+    const closeUps = (a.checklist || []).filter(c => c.source === 'photo' && itemState(c) === 'needs').map(c => shortLabel(c.label));
+    if (closeUps.length) askList.push(`Close-up photos of: ${closeUps.join(', ')}`);
+  } else if (['colorway.threadColor', 'colorway.hardwareFinish', 'bom.hardware', 'bom.thread'].some(isFlagged)) askList.push('Close-up photos of the zipper, snaps and stitching');
+  if ((a.checklist || []).some(c => c.required && itemState(c) === 'needs')) askList.push(product ? `Photos of the ${viewsOf(template) ?? 'product from every side'}, if they were not all sent` : 'Photos from the back and the sides, if only the front was sent');
   const approved = review?.status === 'approved';
   // Task 30: an approved tech file is locked until an admin starts a new draft (the server enforces it too).
   const [unlocked, setUnlocked] = useState(false);
@@ -423,9 +420,9 @@ export default function ReviewTab({ rep, onSave }: Props) {
         {template.notes.map(n => <p key={n} className="text-[11px] text-slate-500">Note: {n}</p>)}
       </Section>
 
-      <Section title="Basic specification" hint="What the customer’s garment is made of. Shown on the Client Spec Review tab.">
+      <Section title="Basic specification" hint={`What the customer’s ${itemWord(template)} is made of. Shown on the Client Spec Review tab.`}>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {specFields.map(([k, name]) => <Field key={k} name={name} value={String(draft.specs[k] ?? '')} onChange={v => setSpec(k, v)} options={k === 'safetyRating' ? HIVIS_STANDARDS : k === 'reflectiveStriping' ? TAPE_OPTIONS : undefined} edition={k === 'safetyRating'} />)}
+          {specFields.filter(([k]) => showSpecField(template, k, draft.specs[k])).map(([k, name]) => <Field key={k} name={name} value={String(draft.specs[k] ?? '')} onChange={v => setSpec(k, v)} options={k === 'safetyRating' ? HIVIS_STANDARDS : k === 'reflectiveStriping' ? TAPE_OPTIONS : undefined} edition={k === 'safetyRating'} />)}
           <Field wide name="Special instructions" value={draft.specs.specialInstructions || ''} onChange={v => setSpec('specialInstructions', v)} />
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -471,7 +468,7 @@ export default function ReviewTab({ rep, onSave }: Props) {
         </Section>
       )}
 
-      <Section title={a.sizeRun ? 'Measurements (inches)' : 'Measurements (inches, flat on the half)'} hint={`The AI cannot take real measurements from a photo: measure the physical ${a.sizeRun ? 'product' : 'garment'} and correct these.${a.sizeRun ? ' The size columns can be renamed to match the size run.' : ''}`}>
+      <Section title={measuredFlat(template) && !a.sizeRun ? 'Measurements (inches, flat on the half)' : 'Measurements (inches)'} hint={`The AI cannot take real measurements from a photo: measure the physical ${a.sizeRun || product ? 'product' : 'garment'} and correct these.${a.sizeRun ? ' The size columns can be renamed to match the size run.' : ''}`}>
         {a.sizeRun?.system === 'shoe' && (
           <div className="flex flex-wrap gap-3 text-xs">
             <label className="space-y-1"><span className={label}>Size system</span><input className={input} value={a.sizeRun.sizeSystem ?? ''} maxLength={40} onChange={e => setA({ sizeRun: { ...a.sizeRun!, sizeSystem: e.target.value } })} /></label>
@@ -589,13 +586,18 @@ export default function ReviewTab({ rep, onSave }: Props) {
         <button type="button" onClick={() => setA({ artwork: [...artwork, { name: '', placement: '', size: '', method: '' }] })} className="text-xs font-bold text-rivix hover:underline">+ Add artwork</button>
       </Section>
 
-      <Section title="Testing" hint="Tests the factory's fabric and garments must pass. One per line.">
+      <Section title="Testing" hint={product ? 'Tests the product must pass. One per line.' : "Tests the factory's fabric and garments must pass. One per line."}>
         <ListBox name="Tests" value={testing} onChange={v => setA({ testing: v })} />
+        {product ? (
+          // The standard list is clothing fabric tests: never offered for gloves, footwear or PPE.
+          <p className="text-[10px] text-slate-400">Tests depend on the product type, so there is no standard list for it here.{standardsLine(template) ? ` ${standardsLine(template)}` : ''} Confirm the tests with the testing lab: the tech file says so.</p>
+        ) : (<>
         <button type="button" onClick={() => {
           const merged = [...testing, ...suggestedTests(a, draft.specs.safetyRating).filter(t => !testing.includes(t))];
           setA({ testing: merged });
         }} className="text-xs font-bold text-rivix hover:underline">Add the standard tests for this garment</button>
         <p className="text-[10px] text-slate-400">The standard list is a starting point (it adds hi-vis and flame-resistance tests when the garment looks like it needs them). Confirm it with the testing lab: the tech file says so.</p>
+        </>)}
       </Section>
 
       </fieldset>

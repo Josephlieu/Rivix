@@ -1,0 +1,1618 @@
+{
+ "ai": {
+  "analyzedAt": "2026-11-18T10:00:00.000Z",
+  "garmentClass": "Insulated work jacket",
+  "overallConfidence": 88,
+  "season": "FW26",
+  "hasHood": true,
+  "components": [
+   {
+    "id": "c1",
+    "type": "zipper",
+    "label": "Centre front zipper",
+    "location": "front",
+    "confidence": 90
+   },
+   {
+    "id": "c2",
+    "type": "pocket",
+    "label": "Chest pocket",
+    "location": "wearer's left chest",
+    "confidence": 80
+   }
+  ],
+  "measurements": [
+   {
+    "pom": "A",
+    "description": "Chest",
+    "xs": "22",
+    "s": "23",
+    "m": "24",
+    "l": "25",
+    "xl": "26",
+    "tolerance": "0.5",
+    "needsConfirmation": true
+   },
+   {
+    "pom": "B",
+    "description": "Waist",
+    "xs": "22",
+    "s": "23",
+    "m": "24",
+    "l": "25",
+    "xl": "26",
+    "tolerance": "0.5",
+    "needsConfirmation": true
+   },
+   {
+    "pom": "C",
+    "description": "Hem sweep",
+    "xs": "22",
+    "s": "23",
+    "m": "24",
+    "l": "25",
+    "xl": "26",
+    "tolerance": "0.5",
+    "needsConfirmation": true
+   },
+   {
+    "pom": "D",
+    "description": "Shoulder",
+    "xs": "22",
+    "s": "23",
+    "m": "24",
+    "l": "25",
+    "xl": "26",
+    "tolerance": "0.5",
+    "needsConfirmation": true
+   },
+   {
+    "pom": "E",
+    "description": "Body length",
+    "xs": "22",
+    "s": "23",
+    "m": "24",
+    "l": "25",
+    "xl": "26",
+    "tolerance": "0.5",
+    "needsConfirmation": true
+   },
+   {
+    "pom": "F",
+    "description": "Sleeve length",
+    "xs": "22",
+    "s": "23",
+    "m": "24",
+    "l": "25",
+    "xl": "26",
+    "tolerance": "0.5",
+    "needsConfirmation": true
+   },
+   {
+    "pom": "G",
+    "description": "Armhole",
+    "xs": "22",
+    "s": "23",
+    "m": "24",
+    "l": "25",
+    "xl": "26",
+    "tolerance": "0.5",
+    "needsConfirmation": true
+   },
+   {
+    "pom": "H",
+    "description": "Bicep",
+    "xs": "22",
+    "s": "23",
+    "m": "24",
+    "l": "25",
+    "xl": "26",
+    "tolerance": "0.5",
+    "needsConfirmation": true
+   },
+   {
+    "pom": "I",
+    "description": "Cuff opening",
+    "xs": "22",
+    "s": "23",
+    "m": "24",
+    "l": "25",
+    "xl": "26",
+    "tolerance": "0.5",
+    "needsConfirmation": true
+   },
+   {
+    "pom": "J",
+    "description": "Neck opening",
+    "xs": "22",
+    "s": "23",
+    "m": "24",
+    "l": "25",
+    "xl": "26",
+    "tolerance": "0.5",
+    "needsConfirmation": true
+   },
+   {
+    "pom": "K",
+    "description": "Hood height",
+    "xs": "22",
+    "s": "23",
+    "m": "24",
+    "l": "25",
+    "xl": "26",
+    "tolerance": "0.5",
+    "needsConfirmation": true
+   },
+   {
+    "pom": "L",
+    "description": "Hood width",
+    "xs": "22",
+    "s": "23",
+    "m": "24",
+    "l": "25",
+    "xl": "26",
+    "tolerance": "0.5",
+    "needsConfirmation": true
+   },
+   {
+    "pom": "M",
+    "description": "Pocket opening",
+    "xs": "22",
+    "s": "23",
+    "m": "24",
+    "l": "25",
+    "xl": "26",
+    "tolerance": "0.5",
+    "needsConfirmation": true
+   }
+  ],
+  "construction": [
+   {
+    "location": "Side seam",
+    "seamType": "Safety stitch",
+    "stitchType": "516",
+    "spiTop": 10,
+    "spiBottom": 10,
+    "seamAllowance": "3/8\"",
+    "notes": ""
+   }
+  ],
+  "stitchReference": [
+   {
+    "code": "301",
+    "name": "Lockstitch",
+    "machineType": "Single needle",
+    "defaultSpi": 10,
+    "usage": "Topstitch"
+   }
+  ],
+  "labelPlacements": [
+   {
+    "type": "Main label",
+    "location": "Inside back neck",
+    "attachment": "Sewn",
+    "dimensions": "2 x 1 in",
+    "material": "Woven"
+   }
+  ],
+  "bom": {
+   "hardware": [
+    "#5 coil zipper"
+   ],
+   "thread": [
+    "Tex 40 poly"
+   ],
+   "labels": [
+    "Woven main label"
+   ],
+   "packaging": {
+    "foldDescription": "",
+    "polybagSize": "",
+    "cartonSize": "",
+    "hangtagSpec": ""
+   }
+  },
+  "colorway": {
+   "bodyColor": "Navy",
+   "contrastColors": [
+    "Black"
+   ],
+   "threadColor": "Navy",
+   "hardwareFinish": "Black matte",
+   "reflectiveTape": "N/A"
+  },
+  "fabricAnalysis": {
+   "material": "Polyester",
+   "weight": "200 gsm",
+   "weaveType": "Twill",
+   "frRating": "None",
+   "finish": "DWR",
+   "shrinkage": ""
+  },
+  "washCare": {
+   "instructions": [
+    "Machine wash cold",
+    "Do not bleach"
+   ],
+   "instructionsFr": [],
+   "specialNotes": ""
+  },
+  "checklist": [
+   {
+    "key": "fabric",
+    "label": "Main fabric: composition, weight and construction",
+    "required": true,
+    "source": "document",
+    "value": "",
+    "needsConfirmation": true
+   },
+   {
+    "key": "colour",
+    "label": "Colour and colour placement",
+    "required": true,
+    "source": "photo",
+    "value": "",
+    "needsConfirmation": true
+   },
+   {
+    "key": "thread-trims",
+    "label": "Thread, zippers, buttons, snaps and other trims",
+    "required": true,
+    "source": "document",
+    "value": "",
+    "needsConfirmation": true
+   },
+   {
+    "key": "labels",
+    "label": "Labels: main, care, size, and where each is placed",
+    "required": true,
+    "source": "photo",
+    "value": "",
+    "needsConfirmation": true
+   },
+   {
+    "key": "branding",
+    "label": "Logo and branding placement, size and method (embroidery, print)",
+    "required": false,
+    "source": "photo",
+    "value": "ZZ branding",
+    "needsConfirmation": true,
+    "readFromPhoto": true
+   },
+   {
+    "key": "seams",
+    "label": "Seam types, stitching and reinforcement",
+    "required": true,
+    "source": "photo",
+    "value": "",
+    "needsConfirmation": true
+   },
+   {
+    "key": "measurements",
+    "label": "Finished garment measurements for every size",
+    "required": true,
+    "source": "document",
+    "value": "",
+    "needsConfirmation": true
+   },
+   {
+    "key": "packaging",
+    "label": "Folding, packing and carton instructions",
+    "required": false,
+    "source": "document",
+    "value": "",
+    "needsConfirmation": true
+   },
+   {
+    "key": "front-closure",
+    "label": "Front closure: zipper, snaps or buttons, and any storm flap",
+    "required": true,
+    "source": "photo",
+    "value": "ZZ front-closure",
+    "needsConfirmation": true,
+    "readFromPhoto": true
+   },
+   {
+    "key": "pockets",
+    "label": "Pockets: chest, hand, inner. Position and construction",
+    "required": true,
+    "source": "photo",
+    "value": "",
+    "needsConfirmation": true
+   },
+   {
+    "key": "collar-hood",
+    "label": "Collar and hood: adjusters, detachable or fixed",
+    "required": true,
+    "source": "photo",
+    "value": "ZZ collar-hood",
+    "needsConfirmation": true,
+    "readFromPhoto": true
+   },
+   {
+    "key": "sleeves-cuffs",
+    "label": "Sleeve construction and cuff finish (rib, elastic, tab)",
+    "required": true,
+    "source": "photo",
+    "value": "",
+    "needsConfirmation": true
+   },
+   {
+    "key": "hem",
+    "label": "Hem finish and drawcord",
+    "required": true,
+    "source": "photo",
+    "value": "ZZ hem",
+    "needsConfirmation": true,
+    "readFromPhoto": true
+   },
+   {
+    "key": "lining",
+    "label": "Lining and body panels (yokes, back vents)",
+    "required": true,
+    "source": "document",
+    "value": "",
+    "needsConfirmation": true
+   },
+   {
+    "key": "reflective",
+    "label": "Reflective tape or trims: placement and width, if any",
+    "required": false,
+    "source": "photo",
+    "value": "ZZ reflective",
+    "needsConfirmation": true,
+    "readFromPhoto": true
+   }
+  ],
+  "markings": [],
+  "testing": [
+   "Colourfastness to laundering: AATCC 61"
+  ],
+  "flags": [
+   "colorway.threadColor"
+  ],
+  "origin": "Canada"
+ },
+ "empty": {
+  "analyzedAt": "2026-11-18T10:00:00.000Z",
+  "garmentClass": "Insulated work jacket",
+  "overallConfidence": 88,
+  "season": "FW26",
+  "hasHood": true,
+  "components": [
+   {
+    "id": "c1",
+    "type": "zipper",
+    "label": "Centre front zipper",
+    "location": "front",
+    "confidence": 90
+   },
+   {
+    "id": "c2",
+    "type": "pocket",
+    "label": "Chest pocket",
+    "location": "wearer's left chest",
+    "confidence": 80
+   }
+  ],
+  "measurements": [
+   {
+    "pom": "A",
+    "description": "Chest",
+    "xs": "",
+    "s": "",
+    "m": "",
+    "l": "",
+    "xl": "",
+    "tolerance": "",
+    "needsConfirmation": true
+   },
+   {
+    "pom": "B",
+    "description": "Waist",
+    "xs": "",
+    "s": "",
+    "m": "",
+    "l": "",
+    "xl": "",
+    "tolerance": "",
+    "needsConfirmation": true
+   },
+   {
+    "pom": "C",
+    "description": "Hem sweep",
+    "xs": "",
+    "s": "",
+    "m": "",
+    "l": "",
+    "xl": "",
+    "tolerance": "",
+    "needsConfirmation": true
+   },
+   {
+    "pom": "D",
+    "description": "Shoulder",
+    "xs": "",
+    "s": "",
+    "m": "",
+    "l": "",
+    "xl": "",
+    "tolerance": "",
+    "needsConfirmation": true
+   },
+   {
+    "pom": "E",
+    "description": "Body length",
+    "xs": "",
+    "s": "",
+    "m": "",
+    "l": "",
+    "xl": "",
+    "tolerance": "",
+    "needsConfirmation": true
+   },
+   {
+    "pom": "F",
+    "description": "Sleeve length",
+    "xs": "",
+    "s": "",
+    "m": "",
+    "l": "",
+    "xl": "",
+    "tolerance": "",
+    "needsConfirmation": true
+   },
+   {
+    "pom": "G",
+    "description": "Armhole",
+    "xs": "",
+    "s": "",
+    "m": "",
+    "l": "",
+    "xl": "",
+    "tolerance": "",
+    "needsConfirmation": true
+   },
+   {
+    "pom": "H",
+    "description": "Bicep",
+    "xs": "",
+    "s": "",
+    "m": "",
+    "l": "",
+    "xl": "",
+    "tolerance": "",
+    "needsConfirmation": true
+   },
+   {
+    "pom": "I",
+    "description": "Cuff opening",
+    "xs": "",
+    "s": "",
+    "m": "",
+    "l": "",
+    "xl": "",
+    "tolerance": "",
+    "needsConfirmation": true
+   },
+   {
+    "pom": "J",
+    "description": "Neck opening",
+    "xs": "",
+    "s": "",
+    "m": "",
+    "l": "",
+    "xl": "",
+    "tolerance": "",
+    "needsConfirmation": true
+   },
+   {
+    "pom": "K",
+    "description": "Hood height",
+    "xs": "",
+    "s": "",
+    "m": "",
+    "l": "",
+    "xl": "",
+    "tolerance": "",
+    "needsConfirmation": true
+   },
+   {
+    "pom": "L",
+    "description": "Hood width",
+    "xs": "",
+    "s": "",
+    "m": "",
+    "l": "",
+    "xl": "",
+    "tolerance": "",
+    "needsConfirmation": true
+   },
+   {
+    "pom": "M",
+    "description": "Pocket opening",
+    "xs": "",
+    "s": "",
+    "m": "",
+    "l": "",
+    "xl": "",
+    "tolerance": "",
+    "needsConfirmation": true
+   }
+  ],
+  "construction": [
+   {
+    "location": "Side seam",
+    "seamType": "Safety stitch",
+    "stitchType": "516",
+    "spiTop": 10,
+    "spiBottom": 10,
+    "seamAllowance": "3/8\"",
+    "notes": ""
+   }
+  ],
+  "stitchReference": [
+   {
+    "code": "301",
+    "name": "Lockstitch",
+    "machineType": "Single needle",
+    "defaultSpi": 10,
+    "usage": "Topstitch"
+   }
+  ],
+  "labelPlacements": [
+   {
+    "type": "Main label",
+    "location": "Inside back neck",
+    "attachment": "Sewn",
+    "dimensions": "2 x 1 in",
+    "material": "Woven"
+   }
+  ],
+  "bom": {
+   "hardware": [
+    "#5 coil zipper"
+   ],
+   "thread": [
+    "Tex 40 poly"
+   ],
+   "labels": [
+    "Woven main label"
+   ],
+   "packaging": {
+    "foldDescription": "",
+    "polybagSize": "",
+    "cartonSize": "",
+    "hangtagSpec": ""
+   }
+  },
+  "colorway": {
+   "bodyColor": "Navy",
+   "contrastColors": [
+    "Black"
+   ],
+   "threadColor": "Navy",
+   "hardwareFinish": "Black matte",
+   "reflectiveTape": "N/A"
+  },
+  "fabricAnalysis": {
+   "material": "Polyester",
+   "weight": "200 gsm",
+   "weaveType": "Twill",
+   "frRating": "None",
+   "finish": "DWR",
+   "shrinkage": ""
+  },
+  "washCare": {
+   "instructions": [
+    "Machine wash cold",
+    "Do not bleach"
+   ],
+   "instructionsFr": [],
+   "specialNotes": ""
+  },
+  "checklist": [
+   {
+    "key": "fabric",
+    "label": "Main fabric: composition, weight and construction",
+    "required": true,
+    "source": "document",
+    "value": "",
+    "needsConfirmation": true
+   },
+   {
+    "key": "colour",
+    "label": "Colour and colour placement",
+    "required": true,
+    "source": "photo",
+    "value": "",
+    "needsConfirmation": true
+   },
+   {
+    "key": "thread-trims",
+    "label": "Thread, zippers, buttons, snaps and other trims",
+    "required": true,
+    "source": "document",
+    "value": "",
+    "needsConfirmation": true
+   },
+   {
+    "key": "labels",
+    "label": "Labels: main, care, size, and where each is placed",
+    "required": true,
+    "source": "photo",
+    "value": "",
+    "needsConfirmation": true
+   },
+   {
+    "key": "branding",
+    "label": "Logo and branding placement, size and method (embroidery, print)",
+    "required": false,
+    "source": "photo",
+    "value": "ZZ branding",
+    "needsConfirmation": true,
+    "readFromPhoto": true
+   },
+   {
+    "key": "seams",
+    "label": "Seam types, stitching and reinforcement",
+    "required": true,
+    "source": "photo",
+    "value": "",
+    "needsConfirmation": true
+   },
+   {
+    "key": "measurements",
+    "label": "Finished garment measurements for every size",
+    "required": true,
+    "source": "document",
+    "value": "",
+    "needsConfirmation": true
+   },
+   {
+    "key": "packaging",
+    "label": "Folding, packing and carton instructions",
+    "required": false,
+    "source": "document",
+    "value": "",
+    "needsConfirmation": true
+   },
+   {
+    "key": "front-closure",
+    "label": "Front closure: zipper, snaps or buttons, and any storm flap",
+    "required": true,
+    "source": "photo",
+    "value": "ZZ front-closure",
+    "needsConfirmation": true,
+    "readFromPhoto": true
+   },
+   {
+    "key": "pockets",
+    "label": "Pockets: chest, hand, inner. Position and construction",
+    "required": true,
+    "source": "photo",
+    "value": "",
+    "needsConfirmation": true
+   },
+   {
+    "key": "collar-hood",
+    "label": "Collar and hood: adjusters, detachable or fixed",
+    "required": true,
+    "source": "photo",
+    "value": "ZZ collar-hood",
+    "needsConfirmation": true,
+    "readFromPhoto": true
+   },
+   {
+    "key": "sleeves-cuffs",
+    "label": "Sleeve construction and cuff finish (rib, elastic, tab)",
+    "required": true,
+    "source": "photo",
+    "value": "",
+    "needsConfirmation": true
+   },
+   {
+    "key": "hem",
+    "label": "Hem finish and drawcord",
+    "required": true,
+    "source": "photo",
+    "value": "ZZ hem",
+    "needsConfirmation": true,
+    "readFromPhoto": true
+   },
+   {
+    "key": "lining",
+    "label": "Lining and body panels (yokes, back vents)",
+    "required": true,
+    "source": "document",
+    "value": "",
+    "needsConfirmation": true
+   },
+   {
+    "key": "reflective",
+    "label": "Reflective tape or trims: placement and width, if any",
+    "required": false,
+    "source": "photo",
+    "value": "ZZ reflective",
+    "needsConfirmation": true,
+    "readFromPhoto": true
+   }
+  ],
+  "markings": [],
+  "testing": [
+   "Colourfastness to laundering: AATCC 61"
+  ],
+  "flags": [
+   "colorway.threadColor"
+  ],
+  "origin": "Canada"
+ },
+ "confirmed": {
+  "analyzedAt": "2026-11-18T10:00:00.000Z",
+  "garmentClass": "Insulated work jacket",
+  "overallConfidence": 88,
+  "season": "FW26",
+  "hasHood": true,
+  "components": [
+   {
+    "id": "c1",
+    "type": "zipper",
+    "label": "Centre front zipper",
+    "location": "front",
+    "confidence": 90
+   },
+   {
+    "id": "c2",
+    "type": "pocket",
+    "label": "Chest pocket",
+    "location": "wearer's left chest",
+    "confidence": 80
+   }
+  ],
+  "measurements": [
+   {
+    "pom": "A",
+    "description": "Chest",
+    "xs": "22",
+    "s": "23",
+    "m": "24",
+    "l": "25",
+    "xl": "26",
+    "tolerance": "0.5",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "pom": "B",
+    "description": "Waist",
+    "xs": "22",
+    "s": "23",
+    "m": "24",
+    "l": "25",
+    "xl": "26",
+    "tolerance": "0.5",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "pom": "C",
+    "description": "Hem sweep",
+    "xs": "22",
+    "s": "23",
+    "m": "24",
+    "l": "25",
+    "xl": "26",
+    "tolerance": "0.5",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "pom": "D",
+    "description": "Shoulder",
+    "xs": "22",
+    "s": "23",
+    "m": "24",
+    "l": "25",
+    "xl": "26",
+    "tolerance": "0.5",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "pom": "E",
+    "description": "Body length",
+    "xs": "22",
+    "s": "23",
+    "m": "24",
+    "l": "25",
+    "xl": "26",
+    "tolerance": "0.5",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "pom": "F",
+    "description": "Sleeve length",
+    "xs": "22",
+    "s": "23",
+    "m": "24",
+    "l": "25",
+    "xl": "26",
+    "tolerance": "0.5",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "pom": "G",
+    "description": "Armhole",
+    "xs": "22",
+    "s": "23",
+    "m": "24",
+    "l": "25",
+    "xl": "26",
+    "tolerance": "0.5",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "pom": "H",
+    "description": "Bicep",
+    "xs": "22",
+    "s": "23",
+    "m": "24",
+    "l": "25",
+    "xl": "26",
+    "tolerance": "0.5",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "pom": "I",
+    "description": "Cuff opening",
+    "xs": "22",
+    "s": "23",
+    "m": "24",
+    "l": "25",
+    "xl": "26",
+    "tolerance": "0.5",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "pom": "J",
+    "description": "Neck opening",
+    "xs": "22",
+    "s": "23",
+    "m": "24",
+    "l": "25",
+    "xl": "26",
+    "tolerance": "0.5",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "pom": "K",
+    "description": "Hood height",
+    "xs": "22",
+    "s": "23",
+    "m": "24",
+    "l": "25",
+    "xl": "26",
+    "tolerance": "0.5",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "pom": "L",
+    "description": "Hood width",
+    "xs": "22",
+    "s": "23",
+    "m": "24",
+    "l": "25",
+    "xl": "26",
+    "tolerance": "0.5",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "pom": "M",
+    "description": "Pocket opening",
+    "xs": "22",
+    "s": "23",
+    "m": "24",
+    "l": "25",
+    "xl": "26",
+    "tolerance": "0.5",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   }
+  ],
+  "construction": [
+   {
+    "location": "Side seam",
+    "seamType": "Safety stitch",
+    "stitchType": "516",
+    "spiTop": 10,
+    "spiBottom": 10,
+    "seamAllowance": "3/8\"",
+    "notes": "",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   }
+  ],
+  "stitchReference": [
+   {
+    "code": "301",
+    "name": "Lockstitch",
+    "machineType": "Single needle",
+    "defaultSpi": 10,
+    "usage": "Topstitch"
+   }
+  ],
+  "labelPlacements": [
+   {
+    "type": "Main label",
+    "location": "Inside back neck",
+    "attachment": "Sewn",
+    "dimensions": "2 x 1 in",
+    "material": "Woven",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   }
+  ],
+  "bom": {
+   "hardware": [
+    "#5 coil zipper"
+   ],
+   "thread": [
+    "Tex 40 poly"
+   ],
+   "labels": [
+    "Woven main label"
+   ],
+   "packaging": {
+    "foldDescription": "",
+    "polybagSize": "",
+    "cartonSize": "",
+    "hangtagSpec": ""
+   }
+  },
+  "colorway": {
+   "bodyColor": "Navy",
+   "contrastColors": [
+    "Black"
+   ],
+   "threadColor": "Navy",
+   "hardwareFinish": "Black matte",
+   "reflectiveTape": "N/A"
+  },
+  "fabricAnalysis": {
+   "material": "Polyester",
+   "weight": "200 gsm",
+   "weaveType": "Twill",
+   "frRating": "None",
+   "finish": "DWR",
+   "shrinkage": ""
+  },
+  "washCare": {
+   "instructions": [
+    "Machine wash cold",
+    "Do not bleach"
+   ],
+   "instructionsFr": [],
+   "specialNotes": ""
+  },
+  "checklist": [
+   {
+    "key": "fabric",
+    "label": "Main fabric: composition, weight and construction",
+    "required": true,
+    "source": "document",
+    "value": "",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "key": "colour",
+    "label": "Colour and colour placement",
+    "required": true,
+    "source": "photo",
+    "value": "",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "key": "thread-trims",
+    "label": "Thread, zippers, buttons, snaps and other trims",
+    "required": true,
+    "source": "document",
+    "value": "",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "key": "labels",
+    "label": "Labels: main, care, size, and where each is placed",
+    "required": true,
+    "source": "photo",
+    "value": "",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "key": "branding",
+    "label": "Logo and branding placement, size and method (embroidery, print)",
+    "required": false,
+    "source": "photo",
+    "value": "ZZ branding",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "key": "seams",
+    "label": "Seam types, stitching and reinforcement",
+    "required": true,
+    "source": "photo",
+    "value": "",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "key": "measurements",
+    "label": "Finished garment measurements for every size",
+    "required": true,
+    "source": "document",
+    "value": "",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "key": "packaging",
+    "label": "Folding, packing and carton instructions",
+    "required": false,
+    "source": "document",
+    "value": "",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "key": "front-closure",
+    "label": "Front closure: zipper, snaps or buttons, and any storm flap",
+    "required": true,
+    "source": "photo",
+    "value": "ZZ front-closure",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "key": "pockets",
+    "label": "Pockets: chest, hand, inner. Position and construction",
+    "required": true,
+    "source": "photo",
+    "value": "",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "key": "collar-hood",
+    "label": "Collar and hood: adjusters, detachable or fixed",
+    "required": true,
+    "source": "photo",
+    "value": "ZZ collar-hood",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "key": "sleeves-cuffs",
+    "label": "Sleeve construction and cuff finish (rib, elastic, tab)",
+    "required": true,
+    "source": "photo",
+    "value": "",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "key": "hem",
+    "label": "Hem finish and drawcord",
+    "required": true,
+    "source": "photo",
+    "value": "ZZ hem",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "key": "lining",
+    "label": "Lining and body panels (yokes, back vents)",
+    "required": true,
+    "source": "document",
+    "value": "",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "key": "reflective",
+    "label": "Reflective tape or trims: placement and width, if any",
+    "required": false,
+    "source": "photo",
+    "value": "ZZ reflective",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   }
+  ],
+  "markings": [],
+  "testing": [
+   "Colourfastness to laundering: AATCC 61"
+  ],
+  "flags": [
+   "colorway.threadColor"
+  ],
+  "origin": "Canada"
+ },
+ "approved": {
+  "analyzedAt": "2026-11-18T10:00:00.000Z",
+  "garmentClass": "Insulated work jacket",
+  "overallConfidence": 88,
+  "season": "FW26",
+  "hasHood": true,
+  "components": [
+   {
+    "id": "c1",
+    "type": "zipper",
+    "label": "Centre front zipper",
+    "location": "front",
+    "confidence": 90
+   },
+   {
+    "id": "c2",
+    "type": "pocket",
+    "label": "Chest pocket",
+    "location": "wearer's left chest",
+    "confidence": 80
+   }
+  ],
+  "measurements": [
+   {
+    "pom": "A",
+    "description": "Chest",
+    "xs": "22",
+    "s": "23",
+    "m": "24",
+    "l": "25",
+    "xl": "26",
+    "tolerance": "0.5",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "pom": "B",
+    "description": "Waist",
+    "xs": "22",
+    "s": "23",
+    "m": "24",
+    "l": "25",
+    "xl": "26",
+    "tolerance": "0.5",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "pom": "C",
+    "description": "Hem sweep",
+    "xs": "22",
+    "s": "23",
+    "m": "24",
+    "l": "25",
+    "xl": "26",
+    "tolerance": "0.5",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "pom": "D",
+    "description": "Shoulder",
+    "xs": "22",
+    "s": "23",
+    "m": "24",
+    "l": "25",
+    "xl": "26",
+    "tolerance": "0.5",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "pom": "E",
+    "description": "Body length",
+    "xs": "22",
+    "s": "23",
+    "m": "24",
+    "l": "25",
+    "xl": "26",
+    "tolerance": "0.5",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "pom": "F",
+    "description": "Sleeve length",
+    "xs": "22",
+    "s": "23",
+    "m": "24",
+    "l": "25",
+    "xl": "26",
+    "tolerance": "0.5",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "pom": "G",
+    "description": "Armhole",
+    "xs": "22",
+    "s": "23",
+    "m": "24",
+    "l": "25",
+    "xl": "26",
+    "tolerance": "0.5",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "pom": "H",
+    "description": "Bicep",
+    "xs": "22",
+    "s": "23",
+    "m": "24",
+    "l": "25",
+    "xl": "26",
+    "tolerance": "0.5",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "pom": "I",
+    "description": "Cuff opening",
+    "xs": "22",
+    "s": "23",
+    "m": "24",
+    "l": "25",
+    "xl": "26",
+    "tolerance": "0.5",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "pom": "J",
+    "description": "Neck opening",
+    "xs": "22",
+    "s": "23",
+    "m": "24",
+    "l": "25",
+    "xl": "26",
+    "tolerance": "0.5",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "pom": "K",
+    "description": "Hood height",
+    "xs": "22",
+    "s": "23",
+    "m": "24",
+    "l": "25",
+    "xl": "26",
+    "tolerance": "0.5",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "pom": "L",
+    "description": "Hood width",
+    "xs": "22",
+    "s": "23",
+    "m": "24",
+    "l": "25",
+    "xl": "26",
+    "tolerance": "0.5",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "pom": "M",
+    "description": "Pocket opening",
+    "xs": "22",
+    "s": "23",
+    "m": "24",
+    "l": "25",
+    "xl": "26",
+    "tolerance": "0.5",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   }
+  ],
+  "construction": [
+   {
+    "location": "Side seam",
+    "seamType": "Safety stitch",
+    "stitchType": "516",
+    "spiTop": 10,
+    "spiBottom": 10,
+    "seamAllowance": "3/8\"",
+    "notes": "",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   }
+  ],
+  "stitchReference": [
+   {
+    "code": "301",
+    "name": "Lockstitch",
+    "machineType": "Single needle",
+    "defaultSpi": 10,
+    "usage": "Topstitch"
+   }
+  ],
+  "labelPlacements": [
+   {
+    "type": "Main label",
+    "location": "Inside back neck",
+    "attachment": "Sewn",
+    "dimensions": "2 x 1 in",
+    "material": "Woven",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   }
+  ],
+  "bom": {
+   "hardware": [
+    "#5 coil zipper"
+   ],
+   "thread": [
+    "Tex 40 poly"
+   ],
+   "labels": [
+    "Woven main label"
+   ],
+   "packaging": {
+    "foldDescription": "",
+    "polybagSize": "",
+    "cartonSize": "",
+    "hangtagSpec": ""
+   }
+  },
+  "colorway": {
+   "bodyColor": "Navy",
+   "contrastColors": [
+    "Black"
+   ],
+   "threadColor": "Navy",
+   "hardwareFinish": "Black matte",
+   "reflectiveTape": "N/A"
+  },
+  "fabricAnalysis": {
+   "material": "Polyester",
+   "weight": "200 gsm",
+   "weaveType": "Twill",
+   "frRating": "None",
+   "finish": "DWR",
+   "shrinkage": ""
+  },
+  "washCare": {
+   "instructions": [
+    "Machine wash cold",
+    "Do not bleach"
+   ],
+   "instructionsFr": [],
+   "specialNotes": ""
+  },
+  "checklist": [
+   {
+    "key": "fabric",
+    "label": "Main fabric: composition, weight and construction",
+    "required": true,
+    "source": "document",
+    "value": "",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "key": "colour",
+    "label": "Colour and colour placement",
+    "required": true,
+    "source": "photo",
+    "value": "",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "key": "thread-trims",
+    "label": "Thread, zippers, buttons, snaps and other trims",
+    "required": true,
+    "source": "document",
+    "value": "",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "key": "labels",
+    "label": "Labels: main, care, size, and where each is placed",
+    "required": true,
+    "source": "photo",
+    "value": "",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "key": "branding",
+    "label": "Logo and branding placement, size and method (embroidery, print)",
+    "required": false,
+    "source": "photo",
+    "value": "ZZ branding",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "key": "seams",
+    "label": "Seam types, stitching and reinforcement",
+    "required": true,
+    "source": "photo",
+    "value": "",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "key": "measurements",
+    "label": "Finished garment measurements for every size",
+    "required": true,
+    "source": "document",
+    "value": "",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "key": "packaging",
+    "label": "Folding, packing and carton instructions",
+    "required": false,
+    "source": "document",
+    "value": "",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "key": "front-closure",
+    "label": "Front closure: zipper, snaps or buttons, and any storm flap",
+    "required": true,
+    "source": "photo",
+    "value": "ZZ front-closure",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "key": "pockets",
+    "label": "Pockets: chest, hand, inner. Position and construction",
+    "required": true,
+    "source": "photo",
+    "value": "",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "key": "collar-hood",
+    "label": "Collar and hood: adjusters, detachable or fixed",
+    "required": true,
+    "source": "photo",
+    "value": "ZZ collar-hood",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "key": "sleeves-cuffs",
+    "label": "Sleeve construction and cuff finish (rib, elastic, tab)",
+    "required": true,
+    "source": "photo",
+    "value": "",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "key": "hem",
+    "label": "Hem finish and drawcord",
+    "required": true,
+    "source": "photo",
+    "value": "ZZ hem",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "key": "lining",
+    "label": "Lining and body panels (yokes, back vents)",
+    "required": true,
+    "source": "document",
+    "value": "",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   },
+   {
+    "key": "reflective",
+    "label": "Reflective tape or trims: placement and width, if any",
+    "required": false,
+    "source": "photo",
+    "value": "ZZ reflective",
+    "needsConfirmation": false,
+    "confirmedBy": "zz-admin@example.com",
+    "confirmedAt": "2026-11-18T10:00:00.000Z"
+   }
+  ],
+  "markings": [],
+  "testing": [
+   "Colourfastness to laundering: AATCC 61"
+  ],
+  "flags": [
+   "colorway.threadColor"
+  ],
+  "origin": "Canada",
+  "review": {
+   "status": "approved",
+   "revision": 1,
+   "approvedBy": "zz-admin@example.com",
+   "approvedAt": "2026-11-18T10:00:00.000Z"
+  }
+ }
+}

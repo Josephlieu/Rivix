@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import Modal from '@/components/Modal';
 import { createReplication, uploadReplicationPhoto, getReplicationLookups, getGarmentTypes, readProductLink, type ReplicationRequest, type LinkReadResult } from '@/lib/replicationStorage';
-import { resolveTemplate, BUILT_IN_CATALOG, type TemplateCatalog } from '@/lib/template-catalog';
+import { templateFromList, BUILT_IN_CATALOG, type TemplateCatalog, type ResolvedTemplate } from '@/lib/template-catalog';
+import { newRequestIntro, photoChecklist } from '@/lib/template-display';
 import { linkMissing } from '@/lib/link-source';
 import WebFoundView from './WebFoundView';
 import { DEFAULT_GARMENT_CATEGORIES, DEFAULT_GARMENT_TYPES, type GarmentCategory, type GarmentType } from '@/lib/garment-types-data';
@@ -72,7 +73,8 @@ export default function NewRequestDialog({ role, onClose, onCreated }: Props) {
     } catch (err) { setLinkError(err instanceof Error ? err.message : 'The page could not be read.'); }
     setReading(false);
   };
-  const linkTemplate = (() => { try { return resolveTemplate(garmentType, types.find(t => t.key === garmentType)?.templateFamily ?? null, catalog); } catch { return null; } })();
+  // The chosen type's template: the shared lookup (the same as the Review tab, the PDF and the download).
+  const linkTemplate = (() => { try { return templateFromList(garmentType, { types, templates: catalog }); } catch { return null; } })();
   const room = MAX_PHOTOS - keep.length;
   const [previews, setPreviews] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
@@ -153,7 +155,7 @@ export default function NewRequestDialog({ role, onClose, onCreated }: Props) {
       <form onSubmit={submit} className="space-y-4">
         <div>
           <h2 className="text-lg font-black text-slate-900">New replication request</h2>
-          <p className="text-xs text-slate-400">Enter a garment for a customer. Add photos from several angles (front, back, pockets, labels, zippers): the AI reads all of them.</p>
+          <p className="text-xs text-slate-400">{newRequestIntro(linkTemplate)}</p>
         </div>
 
         {role === 'admin' && (
@@ -322,17 +324,7 @@ export default function NewRequestDialog({ role, onClose, onCreated }: Props) {
             </div>
           )}
           <p className="text-[11px] text-slate-400">Large photos are shrunk automatically. The first photo is the main one; you can change the order later.</p>
-          <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-3">
-            <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Photo checklist: tick what you have</p>
-            <div className="mt-2 grid grid-cols-1 gap-x-4 gap-y-1.5 sm:grid-cols-2">
-              {['Whole garment, front', 'Whole garment, back', 'Zipper or front closure, up close', 'A pocket, up close', 'A cuff, up close', 'The inside label (care and fabric text readable)', 'A seam or hem, up close'].map(item => (
-                <label key={item} className="flex items-start gap-2 text-[13px] text-slate-600">
-                  <input type="checkbox" className="mt-0.5 h-3.5 w-3.5 accent-[#c61213]" /> {item}
-                </label>
-              ))}
-            </div>
-            <p className="mt-2 text-[11px] text-slate-400">A guide only: it does not block the upload. The AI works better with close-ups of the label, the zipper and the cuff.</p>
-          </div>
+          <PhotoChecklistBox template={linkTemplate} />
         </div>
 
         {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p>}
@@ -346,5 +338,24 @@ export default function NewRequestDialog({ role, onClose, onCreated }: Props) {
         </div>
       </form>
     </Modal>
+  );
+}
+
+/** The photo checklist (a guide only): follows the chosen type's template (gloves, footwear and PPE list their views and photo
+ *  items, template-display.ts); clothing keeps the garment list. Exported so a test can draw it for each type. */
+export function PhotoChecklistBox({ template }: { template: ResolvedTemplate | null }) {
+  const photos = photoChecklist(template);
+  return (
+    <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-3">
+      <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Photo checklist: tick what you have</p>
+      <div className="mt-2 grid grid-cols-1 gap-x-4 gap-y-1.5 sm:grid-cols-2">
+        {(photos ?? ['Whole garment, front', 'Whole garment, back', 'Zipper or front closure, up close', 'A pocket, up close', 'A cuff, up close', 'The inside label (care and fabric text readable)', 'A seam or hem, up close']).map(item => (
+          <label key={item} className="flex items-start gap-2 text-[13px] text-slate-600">
+            <input type="checkbox" className="mt-0.5 h-3.5 w-3.5 accent-[#c61213]" /> {item}
+          </label>
+        ))}
+      </div>
+      <p className="mt-2 text-[11px] text-slate-400">{photos ? 'A guide only: it does not block the upload. The AI works better with close-ups of the labels and markings.' : 'A guide only: it does not block the upload. The AI works better with close-ups of the label, the zipper and the cuff.'}</p>
+    </div>
   );
 }

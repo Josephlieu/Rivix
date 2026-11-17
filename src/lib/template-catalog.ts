@@ -175,6 +175,22 @@ export function resolveTemplateChecked(typeKey: string, savedFamily: string | nu
   return resolveTemplate(typeKey, savedFamily, catalog, pinned);
 }
 
+/**
+ * THE way to work out a request's template (2026-11-18). The Review tab (with the request page), the tech file download, the
+ * stored PDF of a revision and the New request form all call this, so they always agree. Never quietly a different template
+ * (resolveTemplateChecked). `savedFamily` = the family an admin set on the type; `versions` = the versions the tech file was
+ * made with; `dbType` = the type's own settings, when the caller read them.
+ */
+export function requestTemplate(typeKey: string, catalog: TemplateCatalog | null | undefined, opts: {
+  savedFamily?: string | null; versions?: PinnedVersions; dbType?: { family: string | null; modules: string[] | null } | null;
+} = {}): ResolvedTemplate {
+  return resolveTemplateChecked(typeKey, opts.savedFamily ?? null, catalog ?? BUILT_IN_CATALOG, opts.versions, opts.dbType ?? null);
+}
+/** requestTemplate from the garment types list the browser loads (its types with their saved family, and the catalog). */
+export function templateFromList(typeKey: string, list: { types?: Array<{ key: string; templateFamily?: string | null }> | null; templates?: TemplateCatalog | null } | null | undefined, versions?: PinnedVersions): ResolvedTemplate {
+  return requestTemplate(typeKey, list?.templates, { savedFamily: list?.types?.find((t) => t.key === typeKey)?.templateFamily ?? null, versions });
+}
+
 function assemble(baseT: TemplateRecord, familyT: TemplateRecord, partTs: TemplateRecord[], moduleTs: TemplateRecord[]): ResolvedTemplate {
 
   const family = asFamily(familyT);

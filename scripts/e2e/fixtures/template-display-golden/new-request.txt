@@ -1,0 +1,137 @@
+<div class="fixed inset-0 !m-0 z-[70] overflow-y-auto bg-slate-950/60 backdrop-blur-sm">
+<div class="flex min-h-full items-center justify-center p-4">
+<div role="dialog" aria-modal="true" class="bg-white rounded-3xl shadow-2xl w-full max-w-xl p-5 sm:p-8">
+<form class="space-y-4">
+<div>
+<h2 class="text-lg font-black text-slate-900">New replication request</h2>
+<p class="text-xs text-slate-400">Enter a garment for a customer. Add photos from several angles (front, back, pockets, labels, zippers): the AI reads all of them.</p>
+</div>
+<div class="space-y-2 rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-3">
+<label for="rq-link" class="text-[11px] font-bold uppercase tracking-widest text-slate-500">Start from a website link (optional)</label>
+<div class="flex gap-2">
+<input id="rq-link" type="url" inputMode="url" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rivix/30" maxLength="2000" placeholder="https://… a product page" value=""/>
+<button type="button" disabled="" class="shrink-0 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 hover:border-rivix hover:text-rivix disabled:opacity-40">Read the page</button>
+</div>
+<p class="text-[11px] text-slate-400">The portal reads the page&#x27;s text and images only (nothing on the page is run). What it finds is from the website and not confirmed; the images are kept as reference images from that site.</p>
+</div>
+<div class="relative space-y-1">
+<label for="rep-customer" class="text-[11px] font-bold uppercase tracking-widest text-slate-500">Customer</label>
+<div class="relative">
+<input id="rep-customer" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rivix/30 pr-9" autoComplete="off" role="combobox" aria-expanded="false" aria-controls="rep-customer-list" placeholder="Choose a customer or type a new name" maxLength="200" required="" value=""/>
+<button type="button" tabindex="-1" aria-label="Show customers" class="absolute inset-y-0 right-0 flex w-9 items-center justify-center text-slate-400 hover:text-slate-700">▾</button>
+</div>
+</div>
+<div class="space-y-4">
+<label class="block space-y-1">
+<span class="text-[11px] font-bold uppercase tracking-widest text-slate-500">Product name</span>
+<input class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rivix/30" placeholder="e.g. Winter work parka" maxLength="200" required="" value=""/>
+</label>
+<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+<label class="block space-y-1">
+<span class="text-[11px] font-bold uppercase tracking-widest text-slate-500">Category</span>
+<select class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rivix/30">
+<option value="workwear" selected="">General Workwear</option>
+<option value="hivis">High Visibility Workwear</option>
+<option value="fr-arc">Flame Resistant and Arc Rated Clothing</option>
+<option value="outerwear">Winter and Outdoor Workwear</option>
+<option value="protective">Specialized Protective Clothing</option>
+<option value="corporate">Corporate Apparel and Uniforms</option>
+<option value="gloves">Gloves and Hand Protection</option>
+<option value="footwear">Footwear</option>
+<option value="ppe">Other PPE and Accessories</option>
+</select>
+</label>
+<label class="block space-y-1">
+<span class="text-[11px] font-bold uppercase tracking-widest text-slate-500">Garment type</span>
+<select class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rivix/30">
+<option value="jacket" selected="">Jacket</option>
+<option value="coat">Coat</option>
+<option value="pants">Work Pants</option>
+<option value="cargo-pants">Cargo Pants</option>
+<option value="coveralls">Coveralls</option>
+<option value="overalls">Bib Overalls</option>
+<option value="work-shirt">Work Shirt</option>
+<option value="work-shorts">Work Shorts</option>
+<option value="vest">Vest</option>
+<option value="jacket-trouser-set">Jacket and Trouser Set</option>
+</select>
+</label>
+</div>
+</div>
+<label class="block space-y-1">
+<span class="text-[11px] font-bold uppercase tracking-widest text-slate-500">Special instructions (optional)</span>
+<textarea class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rivix/30" rows="2" placeholder="Anything the customer asked for: colour, logo, safety rating…" maxLength="2000">
+</textarea>
+</label>
+<details class="rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2">
+<summary class="cursor-pointer text-[11px] font-bold uppercase tracking-widest text-slate-500">What do you already know about the fabric? (optional)</summary>
+<p class="mt-2 text-[11px] text-slate-400">Only fill in what is on the garment label or a spec sheet. A photo cannot show fabric or care text, and the AI will not guess it. Leave blank if unknown.</p>
+<div class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
+<label class="block space-y-1">
+<span class="text-[11px] font-bold uppercase tracking-widest text-slate-500">Fabric or material</span>
+<input class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rivix/30" maxLength="200" placeholder="e.g. 65/35 poly-cotton" value=""/>
+</label>
+<label class="block space-y-1">
+<span class="text-[11px] font-bold uppercase tracking-widest text-slate-500">Fabric weight</span>
+<input class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rivix/30" maxLength="100" placeholder="e.g. 7 oz or 240 gsm" value=""/>
+</label>
+<label class="block space-y-1">
+<span class="text-[11px] font-bold uppercase tracking-widest text-slate-500">Safety standard or rating</span>
+<input class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rivix/30" maxLength="200" placeholder="e.g. CSA Z96 Class 2" value=""/>
+</label>
+<label class="block space-y-1">
+<span class="text-[11px] font-bold uppercase tracking-widest text-slate-500">Care text from the label</span>
+<input class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rivix/30" maxLength="300" placeholder="e.g. Machine wash cold, do not bleach" value=""/>
+</label>
+</div>
+</details>
+<label class="block space-y-1">
+<span class="text-[11px] font-bold uppercase tracking-widest text-slate-500">Sales rep</span>
+<select class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rivix/30">
+<option value="" selected="">Admin (handled directly)</option>
+</select>
+<span class="text-[11px] text-slate-400">The rep who owns this request sees it and chats with you about it. The customer never sees it.</span>
+</label>
+<label class="flex items-start gap-2 text-sm text-slate-700">
+<input type="checkbox" class="mt-1 h-4 w-4 accent-[#c61213]"/>
+<span>
+<span class="font-bold">The customer is posting the garment to RIVIX.</span> <span class="text-slate-400">Leave it off if you only have photos.</span>
+</span>
+</label>
+<div class="space-y-2">
+<div class="flex items-center justify-between">
+<span class="text-[11px] font-bold uppercase tracking-widest text-slate-500">Photos (0/12)</span>
+<button type="button" class="text-xs font-bold text-rivix hover:underline disabled:opacity-40">+ Add photos</button>
+</div>
+<input type="file" accept="image/jpeg,image/png,image/webp" multiple="" hidden=""/>
+<button type="button" class="w-full rounded-2xl border-2 border-dashed border-slate-200 py-8 text-sm text-slate-400 hover:border-rivix hover:text-rivix transition-colors">Click to choose photos (JPEG, PNG or WebP)</button>
+<p class="text-[11px] text-slate-400">Large photos are shrunk automatically. The first photo is the main one; you can change the order later.</p>
+<div class="rounded-xl border border-slate-100 bg-slate-50 px-3 py-3">
+<p class="text-[11px] font-bold uppercase tracking-widest text-slate-500">Photo checklist: tick what you have</p>
+<div class="mt-2 grid grid-cols-1 gap-x-4 gap-y-1.5 sm:grid-cols-2">
+<label class="flex items-start gap-2 text-[13px] text-slate-600">
+<input type="checkbox" class="mt-0.5 h-3.5 w-3.5 accent-[#c61213]"/> Whole garment, front</label>
+<label class="flex items-start gap-2 text-[13px] text-slate-600">
+<input type="checkbox" class="mt-0.5 h-3.5 w-3.5 accent-[#c61213]"/> Whole garment, back</label>
+<label class="flex items-start gap-2 text-[13px] text-slate-600">
+<input type="checkbox" class="mt-0.5 h-3.5 w-3.5 accent-[#c61213]"/> Zipper or front closure, up close</label>
+<label class="flex items-start gap-2 text-[13px] text-slate-600">
+<input type="checkbox" class="mt-0.5 h-3.5 w-3.5 accent-[#c61213]"/> A pocket, up close</label>
+<label class="flex items-start gap-2 text-[13px] text-slate-600">
+<input type="checkbox" class="mt-0.5 h-3.5 w-3.5 accent-[#c61213]"/> A cuff, up close</label>
+<label class="flex items-start gap-2 text-[13px] text-slate-600">
+<input type="checkbox" class="mt-0.5 h-3.5 w-3.5 accent-[#c61213]"/> The inside label (care and fabric text readable)</label>
+<label class="flex items-start gap-2 text-[13px] text-slate-600">
+<input type="checkbox" class="mt-0.5 h-3.5 w-3.5 accent-[#c61213]"/> A seam or hem, up close</label>
+</div>
+<p class="mt-2 text-[11px] text-slate-400">A guide only: it does not block the upload. The AI works better with close-ups of the label, the zipper and the cuff.</p>
+</div>
+</div>
+<div class="flex items-center justify-end gap-3 pt-2">
+<button type="button" class="rounded-xl px-4 py-2 text-sm font-bold text-slate-500 hover:text-slate-800 disabled:opacity-40">Cancel</button>
+<button type="submit" class="rounded-xl bg-rivix px-5 py-2 text-sm font-bold text-white shadow-lg shadow-rivix/30 hover:bg-rivix-dark disabled:opacity-60">Create request</button>
+</div>
+</form>
+</div>
+</div>
+</div>
