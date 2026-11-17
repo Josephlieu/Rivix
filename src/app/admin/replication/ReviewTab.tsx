@@ -182,6 +182,16 @@ export default function ReviewTab({ rep, onSave }: Props) {
     if (r.kind === 'load' && !afterSave) setProblem('');
   }, [incomingFull, saveTick]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Leaving the page (reload, close, another address) while "Unsaved changes" shows: the browser asks "Leave page?".
+  // The listener exists only while there is something unsaved: it is removed once the saved copy is on screen (dirty turns
+  // false) and when the tab closes, so it never asks after a successful save.
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty]);
+
   const a = draft.analysis;
   // Confirmations: a person's click adds the row to `pending`; the server stamps it on save. Editing a row takes its
   // confirmation away (it needs a click again).

@@ -71,6 +71,15 @@ r = Y.nextReviewState({ draft: onScreen0, baseline: baseline0, pending: [{ list:
 ok('unsaved clicks also keep the screen (never dropped)', r.kind === 'keep' && r.pending.length === 1);
 r = Y.nextReviewState({ draft: onScreen0, baseline: baseline0, pending: [], sent: null, server: { ...onScreen0, analysis: approvedAnalysis } });
 ok('a copy that differs only in stamps and approval is shown', r.kind === 'load' && stamped(r.draft.analysis) === rows(scanned));
+// The "Leave page?" prompt is on exactly while "Unsaved changes" shows (isDirty).
+ok('"Leave page?" is on for a single unsaved confirmation click, with nothing typed', Y.isDirty(onScreen0, baseline0, [{ list: 'checklist', ref: scanned.checklist[0].key }]));
+ok('"Leave page?" is on for typing alone', Y.isDirty(typed, baseline0, []));
+ok('"Leave page?" is off with nothing typed and no clicks', !Y.isDirty(onScreen0, baseline0, []));
+r = Y.nextReviewState({ draft: typed, baseline: baseline0, pending: clicks, sent, server });
+ok('"Leave page?" is off once a save succeeds and its copy is on screen', !Y.isDirty(r.draft, r.baseline, r.pending));
+const tabSrc = fs.readFileSync('src/app/admin/replication/ReviewTab.tsx', 'utf8');
+const leave = tabSrc.match(/useEffect\(\(\) => \{\s*if \(!dirty\) return;[\s\S]*?\}, \[dirty\]\);/)?.[0] ?? '';
+ok('the Review tab adds the listener only while dirty and removes it when dirty ends or the tab closes', /addEventListener\('beforeunload'/.test(leave) && /return \(\) => window\.removeEventListener\('beforeunload'/.test(leave) && (tabSrc.match(/beforeunload/g) || []).length === 2);
 
 // --- 2) The real Review tab drawn with the approved copy
 const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'review-sync-')), 'cases.json');
