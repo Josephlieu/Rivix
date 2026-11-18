@@ -5,7 +5,7 @@ import type { PersistedGarmentAIAnalysis } from '@/lib/garmentAiAnalysis';
 import type { ReplicationRequest, ReplicationSpec } from '@/lib/replicationStorage';
 import { suggestedTests, suggestFrenchCare, prefillSpecs, HIVIS_STANDARDS, TAPE_OPTIONS } from '@/lib/techFileStandards';
 import { protectiveText } from '@/lib/template-catalog';
-import { useRequestTemplate } from './useRequestTemplate';
+import { useRequestTemplate, type RequestTemplate } from './useRequestTemplate';
 import { isProduct, itemWord, measuredFlat, shortLabel, showSpecField, standardsLine, viewsOf } from '@/lib/template-display';
 import { checklistFor, templateMeasurements, outstandingConfirmations, missingInformation } from '@/lib/garmentAiAnalysis';
 import { garmentTypeLabel } from '@/lib/garment-types-data';
@@ -26,8 +26,9 @@ type Measurement = Analysis['measurements'][number];
 type Seam = Analysis['construction'][number];
 type Label = Analysis['labelPlacements'][number];
 
-const emptyAnalysis = (): Analysis => ({
-  analyzedAt: new Date().toISOString(), garmentClass: null, hasHood: null, productIdentification: null, overallConfidence: null,
+// `at`: fixed once per request (2026-11-18: a new time on every render made the tab reload itself and the history forever).
+const emptyAnalysis = (at: string): Analysis => ({
+  analyzedAt: at, garmentClass: null, hasHood: null, productIdentification: null, overallConfidence: null,
   season: null, components: [], fabricAnalysis: null, measurements: [], bom: null, construction: [], stitchReference: [],
   labelPlacements: [], colorway: null, washCare: null,
 });
@@ -43,6 +44,8 @@ interface Props {
   rep: ReplicationRequest;
   // Saves the request; true when it worked (the page shows the reason when it did not).
   onSave: (updated: ReplicationRequest, approve: boolean, opts?: { newDraft?: boolean; confirmations?: ConfirmationRef[] }) => Promise<boolean>;
+  // The request's template from the page (useRequestTemplate), so the tab does not fetch it a second time.
+  requestTemplate?: RequestTemplate;
 }
 
 // Shown inside an empty box only (a placeholder): never saved as a value.
@@ -129,16 +132,22 @@ function ListBox({ name, hint, value, onChange, flagged, onConfirm, suggestion, 
   );
 }
 
-export default function ReviewTab({ rep, onSave }: Props) {
+export default function ReviewTab({ rep, onSave, requestTemplate }: Props) {
   // The request's template: one shared lookup (useRequestTemplate.ts), the same as the request page, the PDF and the download.
-  const { template, templateProblem, loaded } = useRequestTemplate(rep.garmentType, rep.aiAnalysis?.template?.versions);
+  // The request page passes the one it already has (no second fetch); on its own the tab looks it up itself.
+  const ownTemplate = useRequestTemplate(requestTemplate ? '' : rep.garmentType, rep.aiAnalysis?.template?.versions);
+  const { template, templateProblem, loaded } = requestTemplate ?? ownTemplate;
+  // A request that was never scanned starts from an empty draft: its time is fixed once for this request, so the draft is
+  // the same on every render (a new time on every render looped the tab and the history requests, 2026-11-18).
+  const emptyAt = useRef('');
+  if (!emptyAt.current) emptyAt.current = new Date().toISOString();
   // Task 21: the product page this request started from (set by the server; data only, shown as plain text).
   const webSource = readWebSource(rep.specs.webSource);
   const fromRep = () => {
     // Read the saved scan through the shape clean-up (shape only, never a made-up value): a gloves, footwear or PPE scan has
     // no BOM lists, and RQ-0635 crashed this tab on that (2026-11-17).
     const saved = normalizeAnalysis<Analysis>(rep.aiAnalysis);
-    const analysis = saved ? structuredClone(saved) : emptyAnalysis();
+    const analysis = saved ? structuredClone(saved) : emptyAnalysis(emptyAt.current);
     if (!analysis.checklist) analysis.checklist = checklistFor(template);
     if (analysis.measurements.length === 0) analysis.measurements = templateMeasurements(template);
     // Gloves and footwear measure in their own sizes (task 30); clothing keeps XS to XL.
@@ -155,7 +164,8 @@ export default function ReviewTab({ rep, onSave }: Props) {
   // or saved (the baseline). What only the server sets (review, scan time, drawing stamp, confirmation state) is left out.
   // When a new copy arrives, review-sync.ts decides what to show; a person's work is never dropped silently.
   const draftKey = (d: { specs: ReplicationSpec; analysis: Analysis }) => contentKeyOf(d as unknown as ReviewDraft);
-  const fullKey = (d: { specs: ReplicationSpec; analysis: Analysis }) => stable({ s: d.specs, a: d.analysis });
+  // Everything the server sends (stamps, approval, drawing stamp) except the scan time: a new copy is new content, never a new clock.
+  const fullKey = (d: { specs: ReplicationSpec; analysis: Analysis }) => stable({ s: d.specs, a: { ...d.analysis, analyzedAt: undefined } });
   const [baseline, setBaseline] = useState(() => draftKey(draft));
   const dirty = isDirty(draft as unknown as ReviewDraft, baseline, pending);
   const incomingFull = fullKey(fromRep());

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { approvalFileLink, attachCustomerApproval, compareRevisions, getRevisions, makeRevisionPdf, revisionPdfLink, type RevisionEntry } from '@/lib/replicationStorage';
 import { revisionLabel } from '@/lib/revisions';
 
@@ -21,9 +21,20 @@ export default function RevisionHistory({ repId, refreshKey }: { repId: string; 
   const [attachFor, setAttachFor] = useState<number | null>(null);
   const [busy, setBusy] = useState('');
 
+  // One load at a time (2026-11-18: a key that changed on every render sent this request in an endless loop). A refresh asked
+  // for while one is running is done once, after it, so a new revision is never missed.
+  const running = useRef(false);
+  const again = useRef(false);
   const load = useCallback(async () => {
-    try { const r = await getRevisions(repId); setList(r.revisions); setMissing(!!r.missing); setError(''); }
-    catch (e) { setError(e instanceof Error ? e.message : 'Could not load the history.'); }
+    if (running.current) { again.current = true; return; }
+    running.current = true;
+    try {
+      do {
+        again.current = false;
+        try { const r = await getRevisions(repId); setList(r.revisions); setMissing(!!r.missing); setError(''); }
+        catch (e) { setError(e instanceof Error ? e.message : 'Could not load the history.'); }
+      } while (again.current);
+    } finally { running.current = false; }
   }, [repId]);
   useEffect(() => { load(); }, [load, refreshKey]);
 

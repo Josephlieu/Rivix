@@ -1,7 +1,8 @@
 // Gloves, footwear and PPE show their own template on every screen and in the PDF (2026-11-18), and clothing does not change.
 // - Jacket: every screen and the PDF compared with golden files made ONCE from the code before this change
 //   (fixtures/template-display-golden, never regenerated). The only allowed differences are listed in EXPECTED below:
-//   (c) the photos-only / expected note, the two (e) measurement cases and item 5 (the drawing pointer). Anything else fails.
+//   (c) the photos-only / expected note, the two (e) measurement cases and item 5 (the drawing pointer); and, since the
+//   page-loop fix, the no-photo note and disabled scan buttons (the golden jacket has no photos). Anything else fails.
 // - Glove, boot and harness (PPE without glove or shoe sizes): the screens and the PDF, drawn for real.
 // - One template lookup: the Review tab (and request page), the tech file download, the PDF server and the New request form
 //   all call the shared function, and it gives the same template for one type of each of the 9 categories (built-in and DEV).
@@ -34,11 +35,24 @@ const NOTE = '<p class="text-[11px] text-slate-400 leading-relaxed">';
 const NOTE_OLD = `${NOTE}Verify details such as safety ratings and structural seams against the physical garment that the client has sent.</p>`;
 const PDF_OLD = 'Measurements are estimates until approved. Measure the physical garment.';
 const item5 = ['item 5: the drawing is on the Review tab', P_OLD, P_NEW];
+// Added with the page-loop fix (2026-11-18, approved by the user): the golden jacket has no photos, so the scan buttons are
+// disabled and a note says to add photos first. A 4th value = the golden line number (for a line that is not unique).
+const RUN_AGAIN = '<button class="disabled:cursor-not-allowed disabled:opacity-50 flex items-center gap-1.5 rounded-lg border border-violet-200 bg-white px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-50 active:scale-95" title="Scan the photos again. This replaces the current draft and any corrections.">';
+const NO_PHOTO_NOTE = '<p role="note" class="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-900">Add photos first: the scan reads the photos, and this request has none. <button type="button" class="font-bold underline hover:text-amber-700">Open Client Spec Review</button>\n</p>';
+const RUN_BTN = (title) => `<button disabled="" title="${title}" class="disabled:cursor-not-allowed disabled:opacity-50 bg-violet-600 text-white px-5 py-3 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-violet-700 transition-all flex items-center gap-2 shrink-0 active:scale-95 shadow-lg shadow-violet-200">`;
+const noPhotosScanned = [
+  ['no photos: "Run again" disabled', RUN_AGAIN, RUN_AGAIN.replace('<button class=', '<button disabled="" class='), 32],
+  ['no photos: the note under the scan header', '</div>', `</div>\n${NO_PHOTO_NOTE}`, 38],
+];
+const noPhotosIdle = [
+  ['no photos: "Run AI Scan" says why it is disabled', RUN_BTN('Confirm the product type first (below).'), RUN_BTN('Add photos first: the scan reads the photos, and this request has none.'), 24],
+  ['no photos: the note under the scan header', '</div>', `</div>\n${NO_PHOTO_NOTE}`, 29],
+];
 const EXPECTED = {
-  'ai-tab-ai-values': [item5],
-  'ai-tab-empty-values': [item5, ['(e) no values: nothing about estimates', FOOT_OLD, `${FOOT}* NO MEASUREMENTS FILLED IN YET. MEASURE A SAMPLE OR USE THE APPROVED SIZE CHART.</div>`]],
-  'ai-tab-all-confirmed': [item5, ['(e) all confirmed by a person: not "AI-estimated"', FOOT_OLD, `${FOOT}* ALL ABOVE MEASUREMENTS ARE IN INCHES AND TAKEN FLAT, CONFIRMED BY A PERSON. IT IS RECOMMENDED THAT ALL SIZES ARE SAMPLED BEFORE PRODUCTION.</div>`]],
-  'ai-tab-not-scanned': [], 'ai-tab-scanning': [], 'review-tab': [], 'review-tab-approved': [], 'panel-received': [], 'new-request': [],
+  'ai-tab-ai-values': [item5, ...noPhotosScanned],
+  'ai-tab-empty-values': [item5, ...noPhotosScanned, ['(e) no values: nothing about estimates', FOOT_OLD, `${FOOT}* NO MEASUREMENTS FILLED IN YET. MEASURE A SAMPLE OR USE THE APPROVED SIZE CHART.</div>`]],
+  'ai-tab-all-confirmed': [item5, ...noPhotosScanned, ['(e) all confirmed by a person: not "AI-estimated"', FOOT_OLD, `${FOOT}* ALL ABOVE MEASUREMENTS ARE IN INCHES AND TAKEN FLAT, CONFIRMED BY A PERSON. IT IS RECOMMENDED THAT ALL SIZES ARE SAMPLED BEFORE PRODUCTION.</div>`]],
+  'ai-tab-not-scanned': noPhotosIdle, 'ai-tab-scanning': [], 'review-tab': [], 'review-tab-approved': [], 'panel-received': [], 'new-request': [],
   'panel-expected': [['(c) garment expected', NOTE_OLD, `${NOTE}Verify details such as safety ratings and structural seams against the physical garment when it arrives. Until then, check them against the photos.</p>`]],
   'panel-photos-only': [['(c) photos only', NOTE_OLD, `${NOTE}Photos only: no garment is coming. Check details such as safety ratings and seams against the photos, and ask the customer for anything the photos do not show.</p>`]],
   'pdf-draft-ai-values': [], 'pdf-approved': [],
@@ -54,7 +68,12 @@ for (const name of goldNames) {
   let want = fs.readFileSync(`${GOLD}/${name}.txt`, 'utf8');
   const lines = want.split('\n');
   let listed = true;
-  for (const [why, from, to] of EXPECTED[name]) {
+  for (const [why, from, to, at] of EXPECTED[name]) {
+    if (at) { // a line that is not unique: named by its line number in the golden file, and it must match exactly
+      if (lines[at - 1] !== from) { listed = false; console.log('  expected line not at its golden line number:', name, why, at); continue; }
+      lines[at - 1] = to;
+      continue;
+    }
     const n = lines.filter((l) => l === from).length;
     if (n !== 1) { listed = false; console.log('  expected line not found exactly once in the golden file:', name, why, n); continue; }
     lines[lines.indexOf(from)] = to;

@@ -9,13 +9,25 @@ import { useEffect, useState } from 'react';
 import { getGarmentTypes, type GarmentLibraryData } from '@/lib/replicationStorage';
 import { resolveTemplate, templateFromList, BUILT_IN_CATALOG, type PinnedVersions, type ResolvedTemplate } from '@/lib/template-catalog';
 
-export function useRequestTemplate(garmentType: string, versions?: PinnedVersions): { template: ResolvedTemplate; templateProblem: string; loaded: boolean } {
-  const [list, setList] = useState<Pick<GarmentLibraryData, 'types' | 'templates'> | null>(null);
+export interface RequestTemplate {
+  template: ResolvedTemplate; templateProblem: string; loaded: boolean;
+  /** The garment categories and types as loaded (null until then), so the page's panels need not fetch them again. */
+  library: Pick<GarmentLibraryData, 'categories' | 'types'> | null;
+}
+
+/** `garmentType` '' = nothing to look up yet (the request is still loading, or the caller already has the template): no fetch. */
+export function useRequestTemplate(garmentType: string, versions?: PinnedVersions): RequestTemplate {
+  const [list, setList] = useState<Pick<GarmentLibraryData, 'categories' | 'types' | 'templates'> | null>(null);
   const [loaded, setLoaded] = useState(false);
-  useEffect(() => { getGarmentTypes().then(l => { setList({ types: l.types, templates: l.templates }); setLoaded(true); }).catch(() => setLoaded(true)); }, [garmentType]);
+  useEffect(() => {
+    if (!garmentType) return;
+    let live = true;
+    getGarmentTypes().then(l => { if (live) { setList({ categories: l.categories, types: l.types, templates: l.templates }); setLoaded(true); } }).catch(() => { if (live) setLoaded(true); });
+    return () => { live = false; };
+  }, [garmentType]);
   let template: ResolvedTemplate;
   let templateProblem = '';
   try { template = templateFromList(garmentType, list, versions); }
   catch (e) { templateProblem = e instanceof Error ? e.message : 'The template could not be read.'; template = resolveTemplate('', null, BUILT_IN_CATALOG); }
-  return { template, templateProblem, loaded };
+  return { template, templateProblem, loaded, library: list ? { categories: list.categories, types: list.types } : null };
 }

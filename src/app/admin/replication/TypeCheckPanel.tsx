@@ -9,10 +9,13 @@ import { isTypeConfirmed, typeCheckOf } from '@/lib/type-check';
 // Task 28, step 1: before the AI scan, an admin confirms the product type. The type on the request form is only a starting guess.
 // The AI can suggest one from the photos (only when asked); the admin uses it or picks another. Everything the AI wrote here
 // (its reason) is shown as plain text.
-export default function TypeCheckPanel({ rep, onUpdated, onNote }: { rep: ReplicationRequest; onUpdated: (r: ReplicationRequest) => void; onNote?: (note: string) => void }) {
-  const [categories, setCategories] = useState<GarmentCategory[]>(DEFAULT_GARMENT_CATEGORIES);
-  const [types, setTypes] = useState<GarmentType[]>(DEFAULT_GARMENT_TYPES);
-  useEffect(() => { getGarmentTypes().then(l => { setCategories(l.categories); setTypes(l.types); }).catch(() => {}); }, []);
+// `library`: the categories and types the request page already loaded (2026-11-18: the panel fetched them again every time the
+// AI tab opened). Without it (undefined) the panel loads them itself.
+export default function TypeCheckPanel({ rep, onUpdated, onNote, library }: { rep: ReplicationRequest; onUpdated: (r: ReplicationRequest) => void; onNote?: (note: string) => void; library?: { categories: GarmentCategory[]; types: GarmentType[] } | null }) {
+  const [own, setOwn] = useState<{ categories: GarmentCategory[]; types: GarmentType[] } | null>(null);
+  useEffect(() => { if (library !== undefined) return; getGarmentTypes().then(l => setOwn({ categories: l.categories, types: l.types })).catch(() => {}); }, [library === undefined]); // eslint-disable-line react-hooks/exhaustive-deps
+  const categories = (library ?? own)?.categories ?? DEFAULT_GARMENT_CATEGORIES;
+  const types = (library ?? own)?.types ?? DEFAULT_GARMENT_TYPES;
   const active = types.filter(t => t.active);
   const label = (key: string | null | undefined) => garmentTypeLabel(key, types);
   const catLabel = (key: string | null | undefined) => categories.find(c => c.key === key)?.label ?? '';

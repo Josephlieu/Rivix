@@ -263,14 +263,16 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
 
     } catch (err: any) {
       console.warn("AI Analysis Error:", err);
-      setError(err.message || "Failed to analyze garment");
-      // Revert state
+      const message = err?.message || 'Failed to analyze garment';
+      setError(message);
+      // Revert state; the reason stays on the AI tab next to the scan button (2026-11-18), not only in the console.
       setAiAnalysis(prev => ({
         ...prev,
         [repId]: {
           ...prev[repId],
           status: 'idle',
           stepLabel: 'Failed',
+          error: message,
         }
       }));
     }
@@ -899,7 +901,7 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
 
             {/* REVIEW & APPROVE (kept mounted so unsaved edits survive switching tabs) */}
             {isAdmin && <div className={activeTab === 'review' ? '' : 'hidden'}>
-              <SectionErrorBoundary section="Review & approve" requestCode={selectedRep.requestCode} resetKey={selectedRep.id}><ReviewTab key={selectedRep.id} rep={selectedRep} onSave={async (updated, approve, opts) => { const ok = await persist(updated, approve, opts); if (ok) setToast({ type: 'success', text: approve ? 'Specification approved. The sales rep has been notified.' : 'Changes saved.' }); return ok; }} /></SectionErrorBoundary>
+              <SectionErrorBoundary section="Review & approve" requestCode={selectedRep.requestCode} resetKey={selectedRep.id}><ReviewTab key={selectedRep.id} rep={selectedRep} requestTemplate={requestTpl} onSave={async (updated, approve, opts) => { const ok = await persist(updated, approve, opts); if (ok) setToast({ type: 'success', text: approve ? 'Specification approved. The sales rep has been notified.' : 'Changes saved.' }); return ok; }} /></SectionErrorBoundary>
             </div>}
 
             {/* TAB 1: SPEC REVIEW */}
@@ -982,7 +984,7 @@ export default function ReplicationDetail({ role, idOrCode }: { role: 'admin' | 
             {/* TAB: AI GARMENT ANALYSIS */}
             {isAdmin && activeTab === 'ai_analysis' && selectedRep && (
               <SectionErrorBoundary section="AI analysis" requestCode={selectedRep.requestCode} resetKey={selectedRep.id}>
-                <AnalysisTabView template={requestTpl.templateProblem ? null : requestTpl.template} selectedRep={selectedRep} getAIAnalysis={getAIAnalysis} isAdmin={isAdmin} building={building} handleDownload={handleDownload} handleStartAIAnalysis={handleStartAIAnalysis} setActiveTab={setActiveTab} setError={setError} setReplications={setReplications} setSelectedRep={setSelectedRep} />
+                <AnalysisTabView template={requestTpl.templateProblem ? null : requestTpl.template} garmentLibrary={requestTpl.library} selectedRep={selectedRep} getAIAnalysis={getAIAnalysis} isAdmin={isAdmin} building={building} handleDownload={handleDownload} handleStartAIAnalysis={handleStartAIAnalysis} setActiveTab={setActiveTab} setError={setError} setReplications={setReplications} setSelectedRep={setSelectedRep} />
               </SectionErrorBoundary>
             )}
 

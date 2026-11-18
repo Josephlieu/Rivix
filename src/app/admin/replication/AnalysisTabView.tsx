@@ -9,6 +9,7 @@ import { isTypeConfirmed } from '@/lib/type-check';
 import { outstandingConfirmations } from '@/lib/garmentAiAnalysis';
 import type { ReplicationRequest } from '@/lib/replicationStorage';
 import type { ResolvedTemplate } from '@/lib/template-catalog';
+import type { GarmentCategory, GarmentType } from '@/lib/garment-types-data';
 import { isProduct, itemWord, measurementFootnote, sizeColumns, sizeRange } from '@/lib/template-display';
 import { ShieldCheck, CheckCircle, FileText, AlertCircle, ScanLine, Zap, Eye, Layers, Target, Activity, Sparkles, Camera, Sliders, BookOpen } from 'lucide-react';
 
@@ -114,10 +115,13 @@ export interface AIAnalysisResult {
   labelPlacements: AILabelPlacement[];
   colorway: AIColorway | null;
   washCare: AIWashCare | null;
+  /** Why the last scan failed (shown next to the scan button, 2026-11-18); absent when it did not fail. */
+  error?: string | null;
 }
 
 // The generic on-screen sketch is not drawn from the photo (it showed bib overalls for a coverall). Hidden until real drawings per garment type exist (milestone M4).
 export const SHOW_GENERIC_SKETCH = false;
+export const NO_PHOTOS = 'Add photos first: the scan reads the photos, and this request has none.';
 
 export const AI_SCAN_STEPS = [
   { label: 'Initializing Computer Vision Model...', duration: 800 },
@@ -169,11 +173,15 @@ export interface AnalysisTabViewProps {
   setSelectedRep: Dispatch<SetStateAction<ReplicationRequest | null>>;
   /** The request's template (the shared lookup), or null when it could not be read: then the tab reads as for clothing. */
   template?: ResolvedTemplate | null;
+  /** The garment categories and types the page already loaded (passed to the type check, so it does not fetch them again). */
+  garmentLibrary?: { categories: GarmentCategory[]; types: GarmentType[] } | null;
 }
 
-export default function AnalysisTabView({ selectedRep, getAIAnalysis, isAdmin, building, handleDownload, handleStartAIAnalysis, setActiveTab, setError, setReplications, setSelectedRep, template = null }: AnalysisTabViewProps) {
+export default function AnalysisTabView({ selectedRep, getAIAnalysis, isAdmin, building, handleDownload, handleStartAIAnalysis, setActiveTab, setError, setReplications, setSelectedRep, template = null, garmentLibrary }: AnalysisTabViewProps) {
   // 2026-11-18: gloves, footwear and PPE (template-display.ts): their sizes, words and notes. Clothing reads as before.
   const product = isProduct(template);
+  // No photos: the scan has nothing to read, so it cannot start (it used to fail with a message only in the console).
+  const noPhotos = !(selectedRep.images?.length);
               const analysis = getAIAnalysis(selectedRep.id);
               // The size columns and the measurement note: the template's sizes (saved size run, else the template's own).
               const sizing = { sizeRun: selectedRep.aiAnalysis?.sizeRun, measurements: analysis.measurements };
@@ -226,8 +234,8 @@ export default function AnalysisTabView({ selectedRep, getAIAnalysis, isAdmin, b
                       {analysis.status === 'idle' && (
                         <button
                           onClick={() => handleStartAIAnalysis(selectedRep.id, selectedRep.garmentType)}
-                          disabled={!isTypeConfirmed(selectedRep)}
-                          title={isTypeConfirmed(selectedRep) ? undefined : 'Confirm the product type first (below).'}
+                          disabled={!isTypeConfirmed(selectedRep) || noPhotos}
+                          title={noPhotos ? NO_PHOTOS : isTypeConfirmed(selectedRep) ? undefined : 'Confirm the product type first (below).'}
                           className="disabled:cursor-not-allowed disabled:opacity-50 bg-violet-600 text-white px-5 py-3 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-violet-700 transition-all flex items-center gap-2 shrink-0 active:scale-95 shadow-lg shadow-violet-200"
                         >
                           <Zap size={14} /> Run AI Scan
@@ -240,7 +248,7 @@ export default function AnalysisTabView({ selectedRep, getAIAnalysis, isAdmin, b
                           </div>
                           <button
                             onClick={() => handleStartAIAnalysis(selectedRep.id, selectedRep.garmentType)}
-                            disabled={!isTypeConfirmed(selectedRep)}
+                            disabled={!isTypeConfirmed(selectedRep) || noPhotos}
                             className="disabled:cursor-not-allowed disabled:opacity-50 flex items-center gap-1.5 rounded-lg border border-violet-200 bg-white px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-50 active:scale-95"
                             title="Scan the photos again. This replaces the current draft and any corrections."
                           >
@@ -250,10 +258,21 @@ export default function AnalysisTabView({ selectedRep, getAIAnalysis, isAdmin, b
                       )}
                     </div>
 
+                    {/* 2026-11-18: why a scan cannot run or did not work, on screen next to the button (not only in the console). */}
+                    {analysis.status !== 'scanning' && noPhotos && (
+                      <p role="note" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-900">
+                        {NO_PHOTOS} <button type="button" onClick={() => setActiveTab('specs')} className="font-bold underline hover:text-amber-700">Open Client Spec Review</button>
+                      </p>
+                    )}
+                    {analysis.status !== 'scanning' && analysis.error && (
+                      <p role="alert" className="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-800"><b>The scan did not work.</b> {analysis.error}</p>
+                    )}
+
                     {/* Task 28, step 1: the product type is confirmed before the scan (the form's type is only a starting guess). */}
                     {analysis.status !== 'scanning' && (
                       <TypeCheckPanel
                         rep={selectedRep}
+                        library={garmentLibrary}
                         onNote={setError}
                         onUpdated={(saved) => { setReplications(prev => prev.map(r => (r.id === saved.id ? saved : r))); setSelectedRep(cur => (cur && cur.id === saved.id ? saved : cur)); }}
                       />
