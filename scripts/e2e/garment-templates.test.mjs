@@ -1,5 +1,6 @@
 // Checks the garment template data (families, modules, all 83 types since task 27) and, when the SQL has been run, the template column on dev.
 // Run: node scripts/e2e/garment-templates.test.mjs   (re-runs itself with the TypeScript loader; needs .env.local only for the last block)
+import { env as E2E_ENV } from './env.mjs'; // the test project only (guarded), never Development
 import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
@@ -69,7 +70,7 @@ if (fs.existsSync(catPath)) {
 }
 
 // The column on dev (after dev-patch-garment-families.sql)
-const env = Object.fromEntries(fs.readFileSync('.env.local', 'utf8').split('\n').filter(l => l.includes('=') && !l.startsWith('#')).map(l => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1).trim().replace(/^["']|["']$/g, '')]));
+const env = E2E_ENV;
 const { createClient } = await import('@supabase/supabase-js');
 const a = createClient(env.NEXT_PUBLIC_SUPABASE_URL, (env.SUPABASE_SECRET_KEY||env.SUPABASE_SERVICE_ROLE_KEY), { auth: { persistSession: false } });
 const r = await a.from('garment_types').select('key, template_family');

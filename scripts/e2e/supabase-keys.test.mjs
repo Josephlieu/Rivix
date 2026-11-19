@@ -3,6 +3,7 @@
 // then, on DEV, which key kind is in use (by prefix only, never a value), RLS through the public key, the server through the
 // secret key, and the browser bundle of the production build. Run from the project root: node scripts/e2e/supabase-keys.test.mjs
 // E2E_REQUIRE_NEW_KEYS=1 makes it fail while either slot is still on a legacy key.
+import { env as E2E_ENV } from './env.mjs'; // the test project only (guarded), never Development
 import { createClient } from '@supabase/supabase-js';
 import fs from 'fs';
 import os from 'os';
@@ -59,7 +60,7 @@ ok('no browser ("use client") file imports the server-only admin client', client
 }
 
 // ---- 4) DEV: which keys are in use, and do they work. (Never prints a key.)
-const env = Object.fromEntries(fs.readFileSync('.env.local', 'utf8').split('\n').filter((l) => l.includes('=') && !l.startsWith('#')).map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1).trim().replace(/^["']|["']$/g, '')]));
+const env = E2E_ENV;
 const U = env.NEXT_PUBLIC_SUPABASE_URL;
 const PK = K.pickPublicKey(env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 const SK = K.pickSecretKey(env.SUPABASE_SECRET_KEY, env.SUPABASE_SERVICE_ROLE_KEY);

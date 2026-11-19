@@ -11,6 +11,7 @@
 // - glove and footwear size columns (editable labels; footwear with a size system and a width) on screen and in the PDF.
 // Run on DEV only, after task-30-revisions.sql and task-30b-archive-and-delete-guard.sql, with `EMAIL_DRY_RUN=1 npm run dev`:
 //   node --experimental-strip-types --no-warnings --import ./scripts/e2e/ts-resolve.mjs scripts/e2e/revisions.test.mjs
+import { env as E2E_ENV } from './env.mjs'; // the test project only (guarded), never Development
 import { createClient } from '@supabase/supabase-js';
 import { createRequire } from 'module';
 import { createHash } from 'crypto';
@@ -74,7 +75,7 @@ ok('Review tab: glove and footwear size columns are editable (7 to 11), footwear
 ok('Review tab: an approved tech file is locked, with "Start a new draft (Rev N+1)"; a draft is not', SC.approvedV1Jacket?.locked && SC.approvedV1Jacket.startDraft === '4' && !SC.draftJacket?.locked && SC.draftJacket.startDraft === null);
 
 // --- DEV
-const env = Object.fromEntries(fs.readFileSync('.env.local', 'utf8').split('\n').filter((l) => l.includes('=') && !l.startsWith('#')).map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1).trim().replace(/^["']|["']$/g, '')]));
+const env = E2E_ENV;
 const U = env.NEXT_PUBLIC_SUPABASE_URL, AK = (env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 const a = createClient(U, (env.SUPABASE_SECRET_KEY||env.SUPABASE_SERVICE_ROLE_KEY), { auth: { persistSession: false } });
 const pw = 'Tmp-pass-9876!', t = Date.now();

@@ -8,6 +8,7 @@
 //   all call the shared function, and it gives the same template for one type of each of the 9 categories (built-in and DEV).
 // No write anywhere (the DEV part only reads the template tables). Run with the .tsx loader:
 //   node --no-warnings --import ./scripts/e2e/tsx-resolve.mjs scripts/e2e/template-display.check.mjs (template-display.test.mjs runs it)
+import { env as E2E_ENV } from './env.mjs'; // the test project only (guarded), never Development
 import fs from 'fs';
 import React from 'react';
 import { createClient } from '@supabase/supabase-js';
@@ -194,7 +195,7 @@ const compare = (label, catalog, types, rows) => {
 compare('built-in', R.C.BUILT_IN_CATALOG, D.DEFAULT_GARMENT_TYPES, null);
 
 // DEV (read only): the catalog and the types list exactly as the API builds them, and the PDF server's own row read.
-const env = Object.fromEntries(fs.readFileSync('.env.local', 'utf8').split('\n').filter((l) => l.includes('=') && !l.startsWith('#')).map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1).trim().replace(/^["']|["']$/g, '')]));
+const env = E2E_ENV;
 const admin = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SECRET_KEY || env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 const { getTemplateCatalog } = await import('../../src/lib/template-store.ts');
 const { loadGarmentLibrary } = await import('../../src/lib/garment-types.ts');

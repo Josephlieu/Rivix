@@ -3,6 +3,7 @@
 // Run against DEV only, with the dev server started as `EMAIL_DRY_RUN=1 npm run dev`:
 //   node --experimental-strip-types --no-warnings --import ./scripts/e2e/ts-resolve.mjs scripts/e2e/order-emails.test.mjs
 // With dry run on, the server log shows one "[email dry run]" line per stage change. Creates throwaway 'zz-' accounts and removes them.
+import { env as E2E_ENV } from './env.mjs'; // the test project only (guarded), never Development
 import { createClient } from '@supabase/supabase-js';
 import { createRequire } from 'module';
 import fs from 'fs';
@@ -33,7 +34,7 @@ m=withSite({company:'<script>alert(1)</script>',to:'s@example.com',batch:'ORD-1'
 ok('anything typed by a person is escaped',!/<script>|<b>hi|<i>X/.test(m.html)&&/&lt;script&gt;/.test(m.html));
 
 // --- the route (dev server + dev database)
-const env = Object.fromEntries(fs.readFileSync('.env.local','utf8').split('\n').filter(l=>l.includes('=')&&!l.startsWith('#')).map(l=>[l.slice(0,l.indexOf('=')),l.slice(l.indexOf('=')+1).trim().replace(/^["']|["']$/g,'')]));
+const env = E2E_ENV;
 const U=env.NEXT_PUBLIC_SUPABASE_URL,A=(env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 const a=createClient(U,(env.SUPABASE_SECRET_KEY||env.SUPABASE_SERVICE_ROLE_KEY),{auth:{persistSession:false}});
 const pw='Tmp-pass-9876!',t=Date.now();

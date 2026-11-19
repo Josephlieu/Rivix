@@ -4,6 +4,7 @@
 // Run on DEV only, after the task 5 and task 7 SQL files (audit-docs/deliverables/), with `npm run dev` running:
 //   node --experimental-strip-types --no-warnings --import ./scripts/e2e/ts-resolve.mjs scripts/e2e/product-specs.test.mjs
 // Creates throwaway 'zz-' accounts and removes them at the end.
+import { env as E2E_ENV } from './env.mjs'; // the test project only (guarded), never Development
 import { createClient } from '@supabase/supabase-js';
 import { createRequire } from 'module';
 import fs from 'fs';
@@ -27,7 +28,7 @@ ok('the replaced-edition list is one constant with old and current names',Array.
 ok('empty = no standard',normalizeStandard('')===null&&normalizeStandard(null)===null);
 
 // --- the routes (dev server + dev database)
-const env = Object.fromEntries(fs.readFileSync('.env.local','utf8').split('\n').filter(l=>l.includes('=')&&!l.startsWith('#')).map(l=>[l.slice(0,l.indexOf('=')),l.slice(l.indexOf('=')+1).trim().replace(/^["']|["']$/g,'')]));
+const env = E2E_ENV;
 const U=env.NEXT_PUBLIC_SUPABASE_URL,A=(env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 const a=createClient(U,(env.SUPABASE_SECRET_KEY||env.SUPABASE_SERVICE_ROLE_KEY),{auth:{persistSession:false}});
 const pw='Tmp-pass-9876!',t=Date.now();

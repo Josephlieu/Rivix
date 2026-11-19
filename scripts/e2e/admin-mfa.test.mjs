@@ -4,6 +4,7 @@
 // alerted. Run on DEV only, with `EMAIL_DRY_RUN=1 npm run dev` running:
 //   node --experimental-strip-types --no-warnings --import ./scripts/e2e/ts-resolve.mjs scripts/e2e/admin-mfa.test.mjs
 // Creates throwaway 'zz-' accounts and removes them at the end.
+import { env as E2E_ENV } from './env.mjs'; // the test project only (guarded), never Development
 import { createClient } from '@supabase/supabase-js';
 import { createRequire } from 'module';
 import fs from 'fs';
@@ -17,7 +18,7 @@ let m=mfaResetEmail({to:'lost@example.com',by:'boss@example.com',at:new Date('20
 ok('the reset email goes to the affected admin and names who did it and when',m.to==='lost@example.com'&&/reset by boss@example\.com at Nov 10, 2026/.test(m.text),m.text.split('\n')[0]);
 ok("it says to contact RIVIX if they didn't ask for it",/If you didn't ask for this, contact RIVIX now\./.test(m.text)&&/<html/.test(m.html));
 
-const env = Object.fromEntries(fs.readFileSync('.env.local','utf8').split('\n').filter(l=>l.includes('=')&&!l.startsWith('#')).map(l=>[l.slice(0,l.indexOf('=')),l.slice(l.indexOf('=')+1).trim().replace(/^["']|["']$/g,'')]));
+const env = E2E_ENV;
 const U=env.NEXT_PUBLIC_SUPABASE_URL,A=(env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 const a=createClient(U,(env.SUPABASE_SECRET_KEY||env.SUPABASE_SERVICE_ROLE_KEY),{auth:{persistSession:false}});
 const pw='Tmp-pass-9876!',t=Date.now();

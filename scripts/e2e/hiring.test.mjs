@@ -1,12 +1,13 @@
 // End-to-end test (dev database + running dev server). Run from the project root: node scripts/e2e/hiring.test.mjs
 // Needs dev-schema-hiring.sql applied to the DEV project, `npm run dev` running, and .env.local.
 // Creates throwaway 'zz-' accounts and a 'ZZ' candidate and removes them at the end.
+import { env as E2E_ENV } from './env.mjs'; // the test project only (guarded), never Development
 import { createClient } from '@supabase/supabase-js';
 import { createRequire } from 'module'; const { createServerClient } = createRequire(import.meta.url)('@supabase/ssr');
 import fs from 'fs';
 import crypto from 'crypto';
 import { stepUp } from './mfa.mjs'; // task 8: admin sessions need the two-step sign-in
-const env = Object.fromEntries(fs.readFileSync('.env.local','utf8').split('\n').filter(l=>l.includes('=')&&!l.startsWith('#')).map(l=>[l.slice(0,l.indexOf('=')),l.slice(l.indexOf('=')+1).trim().replace(/^["']|["']$/g,'')]));
+const env = E2E_ENV;
 const U=env.NEXT_PUBLIC_SUPABASE_URL,A=(env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 const a=createClient(U,(env.SUPABASE_SECRET_KEY||env.SUPABASE_SERVICE_ROLE_KEY),{auth:{persistSession:false}});
 const anon=createClient(U,A,{auth:{persistSession:false}});

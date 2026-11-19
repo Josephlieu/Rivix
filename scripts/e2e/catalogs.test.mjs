@@ -3,6 +3,7 @@
 // Run on DEV only, after audit-docs/deliverables/task-04-catalogs.sql, with `npm run dev` running:
 //   node --experimental-strip-types --no-warnings --import ./scripts/e2e/ts-resolve.mjs scripts/e2e/catalogs.test.mjs
 // Creates throwaway 'zz-' accounts and a test catalog, and removes them at the end.
+import { env as E2E_ENV } from './env.mjs'; // the test project only (guarded), never Development
 import { createClient } from '@supabase/supabase-js';
 import { createRequire } from 'module';
 import fs from 'fs';
@@ -10,7 +11,7 @@ import { stepUp } from './mfa.mjs'; // task 8: admin sessions need the two-step 
 const { createServerClient } = createRequire(import.meta.url)('@supabase/ssr');
 const ok=(n,c,x='')=>console.log(c?'PASS':'FAIL',n,x);
 
-const env = Object.fromEntries(fs.readFileSync('.env.local','utf8').split('\n').filter(l=>l.includes('=')&&!l.startsWith('#')).map(l=>[l.slice(0,l.indexOf('=')),l.slice(l.indexOf('=')+1).trim().replace(/^["']|["']$/g,'')]));
+const env = E2E_ENV;
 const U=env.NEXT_PUBLIC_SUPABASE_URL,A=(env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 const a=createClient(U,(env.SUPABASE_SECRET_KEY||env.SUPABASE_SERVICE_ROLE_KEY),{auth:{persistSession:false}});
 const pw='Tmp-pass-9876!',t=Date.now();

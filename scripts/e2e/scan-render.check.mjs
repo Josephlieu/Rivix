@@ -2,11 +2,12 @@
 // tab (AnalysisTabView) for each case in a JSON file, the way the page does, and prints one result per case as JSON. Also checks
 // the section error boundary's fallback. No network call is made (server rendering runs no effects).
 // Run: node --no-warnings --import ./scripts/e2e/tsx-resolve.mjs scripts/e2e/scan-render.check.mjs <cases.json>
+import { env as E2E_ENV } from './env.mjs'; // the test project only (guarded), never Development
 import fs from 'fs';
 import React from 'react';
 
 // The browser Supabase client is created when its module loads: give it the public values (never a secret).
-const env = Object.fromEntries(fs.readFileSync('.env.local', 'utf8').split('\n').filter((l) => l.includes('=') && !l.startsWith('#')).map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1).trim().replace(/^["']|["']$/g, '')]));
+const env = E2E_ENV;
 process.env.NEXT_PUBLIC_SUPABASE_URL = env.NEXT_PUBLIC_SUPABASE_URL;
 process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 

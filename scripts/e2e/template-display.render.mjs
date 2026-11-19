@@ -1,11 +1,12 @@
 // Shared by template-display.make-golden.mjs (once, before the change) and template-display.test.mjs: the jacket cases and
 // how each screen and the PDF are drawn, so the golden files and the test draw exactly the same thing.
 // Run under the .tsx loader: node --no-warnings --import ./scripts/e2e/tsx-resolve.mjs <script>
+import { env as E2E_ENV } from './env.mjs'; // the test project only (guarded), never Development
 import fs from 'fs';
 import React from 'react';
 
 // The browser Supabase client is created when its module loads: give it the public values (never a secret).
-const env = Object.fromEntries(fs.readFileSync('.env.local', 'utf8').split('\n').filter((l) => l.includes('=') && !l.startsWith('#')).map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1).trim().replace(/^["']|["']$/g, '')]));
+const env = E2E_ENV;
 process.env.NEXT_PUBLIC_SUPABASE_URL = env.NEXT_PUBLIC_SUPABASE_URL;
 process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -71,10 +72,17 @@ export function jacketCases() {
 
 const idle = () => ({ status: 'idle', currentStep: 0, totalSteps: View.AI_SCAN_STEPS.length, stepLabel: '', progress: 0, components: [], detectedSoFar: [], fabricAnalysis: null, wireframeGenerated: false, garmentClass: null, overallConfidence: null, season: null, measurements: [], bom: null, construction: [], stitchReference: [], labelPlacements: [], colorway: null, washCare: null });
 
-/** Today's date as the screens print it, masked (the AI tab prints the current date). */
+/** The day the golden files were made (template-display.make-golden.mjs ran on 18 November 2026, local time). */
+const GOLDEN_MADE_ON = new Date(2026, 10, 18);
+const dateForms = (d) => [d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }), d.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }), d.toLocaleDateString()];
+
+/** Today's date as the screens print it, masked (the AI tab prints the current date).
+ *  Why 18 November is masked too: the golden files were made on 18 November 2026, the same day as the fixed test date NOW.
+ *  So when they were made, this mask also replaced NOW's date (as printed by the PDF and the Review tab) with [TODAY].
+ *  Masking 18 November in exactly the same three forms makes every later day compare exactly as strictly as the day the
+ *  golden files were made. No golden file is regenerated and no expected line changes. (Later: freeze the clock instead.) */
 export function mask(text) {
-  const d = new Date();
-  const forms = [d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }), d.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }), d.toLocaleDateString()];
+  const forms = [...dateForms(new Date()), ...dateForms(GOLDEN_MADE_ON)];
   return forms.reduce((s, f) => s.split(f).join('[TODAY]'), text);
 }
 /** One tag per line, so a difference is one line. */

@@ -11,6 +11,7 @@
 // keychain); only localhost and the DEV Supabase host can be reached (every other host goes to a dead proxy and fails the
 // test). The scan's AI call is answered by the test inside the browser with an error, so no AI request is ever made.
 // Requires the server on port 10001 (production build) and .env.local pointing at DEV.
+import { env as E2E_ENV } from './env.mjs'; // the test project only (guarded), never Development
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
@@ -27,7 +28,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const BASE = process.env.E2E_BASE || 'http://localhost:10001'; // E2E_BASE: only to prove the test against another local build
 const CHROME = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 
-const env = Object.fromEntries(fs.readFileSync('.env.local', 'utf8').split('\n').filter((l) => l.includes('=') && !l.startsWith('#')).map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1).trim().replace(/^["']|["']$/g, '')]));
+const env = E2E_ENV;
 const U = env.NEXT_PUBLIC_SUPABASE_URL, AK = env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const DEV_HOST = new URL(U).host;
 const ALLOWED = new Set([new URL(BASE).host, DEV_HOST]);

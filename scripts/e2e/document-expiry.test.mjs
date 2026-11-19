@@ -3,6 +3,7 @@
 //   node --experimental-strip-types --no-warnings --import ./scripts/e2e/ts-resolve.mjs scripts/e2e/document-expiry.test.mjs
 // Creates throwaway 'zz-' accounts and removes them at the end. (The badge itself is drawn in the browser; this checks
 // the logic behind it and the saved data.)
+import { env as E2E_ENV } from './env.mjs'; // the test project only (guarded), never Development
 import { createClient } from '@supabase/supabase-js';
 import { createRequire } from 'module';
 import fs from 'fs';
@@ -29,7 +30,7 @@ ok('empty or null clears the date',parseExpiryDate('').ok&&parseExpiryDate('').v
 ok('impossible or wrongly written dates are rejected',['2026-02-30','2026-13-01','03/10/2026','abc','2026-1-5',20261108].every(v=>parseExpiryDate(v).ok===false));
 
 // --- the routes (dev server + dev database)
-const env = Object.fromEntries(fs.readFileSync('.env.local','utf8').split('\n').filter(l=>l.includes('=')&&!l.startsWith('#')).map(l=>[l.slice(0,l.indexOf('=')),l.slice(l.indexOf('=')+1).trim().replace(/^["']|["']$/g,'')]));
+const env = E2E_ENV;
 const U=env.NEXT_PUBLIC_SUPABASE_URL,A=(env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 const a=createClient(U,(env.SUPABASE_SECRET_KEY||env.SUPABASE_SERVICE_ROLE_KEY),{auth:{persistSession:false}});
 const pw='Tmp-pass-9876!',t=Date.now();
