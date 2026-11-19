@@ -29,3 +29,6 @@ npm-debug.log*
 /rivixportaldevelopmentpricingfilesquotationsandten/
 /Supplier Price Lists and Product Catalogues/
 /rerivixportaldevelopmentpricingfilesquotationsand/
+
+# local test-project secrets
+.env.testproject
