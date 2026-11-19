@@ -100,8 +100,13 @@ try {
 
   // who may read (row security)
   const counts = async (s) => (await s.from('templates').select('key')).data?.length ?? 0;
-  ok('an admin can read the templates directly', (await counts(await signIn(adm.email))) >= 36);
-  ok('an active rep can read them', (await counts(await signIn(ru.email))) >= 36);
+  // Since H2/H3 (2026-11-20) the browser has no right on templates: a direct read is a permission error for everyone, and
+  // admins and active reps get the templates through the API (GET /api/replications/garment-types, checked below).
+  const denied = (x) => !!x.error && x.error.code === '42501' && /permission denied/i.test(x.error.message);
+  let dr = await (await signIn(adm.email)).from('templates').select('key');
+  ok('an admin cannot read the templates straight from the database (permission error; the API serves them)', denied(dr), dr.error?.code || 'no error');
+  dr = await (await signIn(ru.email)).from('templates').select('key');
+  ok('an active rep cannot either (permission error; the API serves them)', denied(dr), dr.error?.code || 'no error');
   ok('an inactive rep cannot', (await counts(await signIn(roff.email))) === 0);
   ok('a customer cannot', (await counts(await signIn(cu.email))) === 0);
   ok('the public key cannot', (await counts(createClient(U, A, { auth: { persistSession: false } }))) === 0);
@@ -125,6 +130,7 @@ try {
   r = await call('GET', '/api/replications/garment-types', rc); j = await r.json();
   ok('a rep gets the catalog too', r.status === 200 && j.templates?.templates?.length >= 36);
   for (const [n, ck] of [['customer', cc], ['signed-out', null]]) { r = await call('GET', '/api/replications/garment-types', ck); ok(`a ${n} gets no catalog`, r.status === 401 || r.status === 403); }
+  r = await call('GET', '/api/replications/garment-types', await cookie(roff.email)); ok('an inactive rep gets no catalog either', r.status === 401 || r.status === 403, String(r.status));
 
   // an admin change to a type clears the server's cache
   r = await call('POST', '/api/admin/garment-types', ac, { label: `ZZ TPL Type ${t}`, category: 'outerwear', templateFamily: 'vest' }); j = await r.json();

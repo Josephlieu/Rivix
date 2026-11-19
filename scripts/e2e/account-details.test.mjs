@@ -95,7 +95,17 @@ try{
   r=await call('POST','/api/portal/account/change-requests',cc3,{changes:{shipping_address:'9 Dock Rd'}}); ok('a customer with no rep can ask too (admins handle it)',r.status===201&&(await notifs(adm.id,'account_change_request')).some(n=>n.link===`/admin/clients/${c3.id}`));
   const s2=createClient(U,A,{auth:{persistSession:false}}); await s2.auth.signInWithPassword({email:cu2.email,password:pw});
   ok("another customer cannot read these requests",((await s2.from('account_change_requests').select('id').eq('customer_id',c1.id)).data||[]).length===0);
-  ok('the customer can read their own requests',((await s1.from('account_change_requests').select('id').eq('customer_id',c1.id)).data||[]).length===3);
+  // Since H2/H3 (2026-11-20) the browser has no right on account_change_requests at all: a direct read is a permission
+  // error, and each customer sees their own requests only through GET /api/portal/account (checked just below).
+  const direct=await s1.from('account_change_requests').select('id').eq('customer_id',c1.id);
+  ok('a customer cannot read their own requests straight from the database (permission error; the API serves them)',!!direct.error&&direct.error.code==='42501'&&/permission denied/i.test(direct.error.message),direct.error?.code||'no error');
+  // The same isolation, now enforced by the API route.
+  const mine=(await reqs(c1.id)).map(x=>x.id);
+  r=await call('GET','/api/portal/account',cc1); j=await r.json();
+  ok('API: the customer sees exactly their own requests',r.status===200&&j.requests.length===mine.length&&mine.length===3&&j.requests.every(x=>mine.includes(x.id)));
+  r=await call('GET','/api/portal/account',cc2); j=await r.json();
+  ok("API: another customer sees none of them",r.status===200&&Array.isArray(j.requests)&&!j.requests.some(x=>mine.includes(x.id)));
+  r=await call('GET','/api/portal/account',rc1); ok("API: the customer's own rep cannot read them through the customer route either",r.status===403);
   ok('a customer cannot create a request straight through the database',!!(await s1.from('account_change_requests').insert({customer_id:c1.id,field:'company_name',new_value:'x'})).error);
 
   // decisions

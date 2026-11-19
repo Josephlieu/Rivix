@@ -43,6 +43,10 @@ const signIn=async e=>{const s=createClient(U,A,{auth:{persistSession:false}});a
 const notifs=async(uid,kind)=>(await a.from('notifications').select('*').eq('recipient_user_id',uid).eq('kind',kind)).data||[];
 const reqRow=async id=>(await a.from('order_requests').select('*').eq('id',id).single()).data;
 const ordersOf=async cid=>(await a.from('orders').select('id').eq('customer_id',cid)).data||[];
+// Since H2/H3 (2026-11-20) the browser has no right on order_requests: a direct read is a permission error, and who sees
+// which request is enforced by the API (GET /api/portal/order-requests, the /rep/requests page, PATCH /api/order-requests/:id).
+const denied=(x)=>!!x.error&&x.error.code==='42501'&&/permission denied/i.test(x.error.message);
+const repBoard=async(ck)=>{const p=await fetch('http://localhost:10001/rep/requests',{headers:{Cookie:ck},redirect:'manual'});return {status:p.status,html:await p.text()};};
 const items=[{product_name:'Hi-vis jacket',sizes:[{size:'M',qty:12},{size:'L',qty:5}],branding:'Logo on back'}];
 const orderBody=(cid,rid)=>({customer_id:cid,request_id:rid,items:[{product_name:'Hi-vis jacket',sizes:[{size:'M',qty:12},{size:'L',qty:5}],branding:'Logo on back'}]});
 try{
@@ -72,10 +76,17 @@ try{
 
   // who can see what (row security)
   const s1=await signIn(cu1.email), s2=await signIn(cu2.email), sr1=await signIn(r1.email), sr2=await signIn(r2.email);
-  let seen=(await s1.from('order_requests').select('id')).data||[]; ok('a customer sees only their own requests',seen.length===1&&seen[0].id===req1);
+  let d=await s1.from('order_requests').select('id'); ok('a customer cannot read requests straight from the database (permission error)',denied(d),d.error?.code||'no error');
+  let seen;
+  r=await call('GET','/api/portal/order-requests',cc1); j=await r.json(); ok('API: a customer sees only their own requests',r.status===200&&j.requests.length===1&&j.requests[0].id===req1,JSON.stringify(j.requests?.map(x=>x.id)));
+  r=await call('GET','/api/portal/order-requests',cc2); j=await r.json(); ok("API: another customer sees only theirs, not the first customer's",r.status===200&&j.requests.some(x=>x.id===req2)&&!j.requests.some(x=>x.id===req1||x.id===req3));
   seen=(await s2.from('order_requests').select('id').eq('id',req1)).data||[]; ok("another customer cannot see them",seen.length===0);
-  seen=((await sr1.from('order_requests').select('id')).data||[]).map(x=>x.id); ok("a rep sees only their own customers' requests (database)",seen.includes(req1)&&!seen.includes(req2)&&!seen.includes(req3));
-  seen=((await sr2.from('order_requests').select('id')).data||[]).map(x=>x.id); ok('  and the other rep only theirs',seen.includes(req2)&&!seen.includes(req1));
+  d=await sr1.from('order_requests').select('id'); ok("a rep cannot read requests straight from the database (permission error)",denied(d),d.error?.code||'no error');
+  d=await sr2.from('order_requests').select('id'); ok('  nor can the other rep',denied(d),d.error?.code||'no error');
+  // The rep's list is the /rep/requests page, filled on the server for that rep only (the request ids are in the page).
+  let b=await repBoard(rc1); ok("API: a rep's requests page lists only their own customers' requests",b.status===200&&b.html.includes(req1)&&!b.html.includes(req2)&&!b.html.includes(req3));
+  b=await repBoard(rc2); ok('API:   and the other rep\'s page only theirs',b.status===200&&b.html.includes(req2)&&!b.html.includes(req1)&&!b.html.includes(req3));
+  r=await call('PATCH',`/api/order-requests/${req1}`,rc2,{action:'decline',reason:'ZZ not mine'}); ok("API: the other rep cannot act on it (not found), and it stays open",r.status===404&&(await reqRow(req1)).status==='open',String(r.status));
   ok('a customer cannot write requests from the browser',!!(await s1.from('order_requests').insert({customer_id:c1.id,kind:'quote',items})).error);
   await s1.from('order_requests').update({status:'converted'}).eq('id',req1); ok('  or change one',(await reqRow(req1)).status==='open');
   r=await call('GET','/api/portal/order-requests',cc1); j=await r.json(); ok('the customer lists their requests',j.requests?.length===1&&j.requests[0].source?.batch_number===o1.batch_number);
@@ -131,7 +142,9 @@ try{
   // the request follows the customer when the rep changes
   const {data:anyOpen}=await a.from('order_requests').select('id').eq('customer_id',c1.id).eq('status','open').limit(1).single();
   r=await call('PATCH',`/api/admin/customers/${c1.id}`,ac,{rep_id:rep2.id}); ok('admin moves the customer to the other rep',r.status===200);
-  seen=((await sr2.from('order_requests').select('id').eq('id',anyOpen.id)).data||[]); ok('  the new rep now sees the open request',seen.length===1);
+  d=await sr2.from('order_requests').select('id').eq('id',anyOpen.id); ok('  the new rep still cannot read it straight from the database (permission error)',denied(d),d.error?.code||'no error');
+  b=await repBoard(rc2); ok('API:   the new rep now sees the open request on their requests page',b.status===200&&b.html.includes(anyOpen.id));
+  b=await repBoard(rc1); ok('API:   the old rep no longer sees it on theirs',b.status===200&&!b.html.includes(anyOpen.id));
   seen=((await sr1.from('order_requests').select('id').eq('id',anyOpen.id)).data||[]); ok('  the old rep no longer does',seen.length===0);
   r=await call('POST','/api/rep/orders',rc1,orderBody(c1.id,anyOpen.id)); ok('  the old rep can no longer convert it',r.status===403);
 }catch(e){console.log('ERROR',e)}finally{
