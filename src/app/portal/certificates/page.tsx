@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Search, ShieldCheck } from 'lucide-react';
 import DocumentList from '@/components/DocumentList';
 import { supabaseBrowser } from '@/lib/supabase-browser';
-import type { DocumentRow } from '@/lib/documents';
+import { DOCUMENT_COLUMNS, type DocumentRow } from '@/lib/documents';
 import { formatMonthYear } from '@/lib/format';
 
 // Every document RIVIX has uploaded for this customer, newest month first.
@@ -18,7 +18,7 @@ export default function CertificatesPage() {
   useEffect(() => {
     (async () => {
       const [{ data: d }, { data: o }] = await Promise.all([
-        supabaseBrowser.from('documents').select('*').order('created_at', { ascending: false }),
+        supabaseBrowser.from('documents').select(DOCUMENT_COLUMNS).order('created_at', { ascending: false }),
         supabaseBrowser.from('orders').select('id, batch_number'),
       ]);
       setDocs((d as DocumentRow[]) || []);

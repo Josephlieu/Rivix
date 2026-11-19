@@ -25,6 +25,9 @@ export const ALLOWED_DOC_MIME = [
 
 export const DOC_ACCEPT = '.pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx';
 
+// The columns a signed-in user's browser reads (never select('*'); uploaded_by, the staff member, is left out).
+export const DOCUMENT_COLUMNS = 'id, customer_id, order_id, title, doc_type, file_name, file_size, mime_type, expires_on, created_at';
+
 export interface DocumentRow {
   id: string;
   customer_id: string;

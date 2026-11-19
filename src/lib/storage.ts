@@ -1,5 +1,12 @@
-import { supabase } from './supabase';
 import { supabaseBrowser } from './supabase-browser';
+
+// Browser reads name their columns (never select('*')): a customer is only ever sent the columns the page shows.
+// Staff-only columns are left out: orders.pricing, orders.special_requirements, orders.inspector_name, and every
+// "who on the staff did it" column. scripts/e2e/no-select-star.test.mjs checks this.
+export const CUSTOMER_COLUMNS = 'id, user_id, customer_code, company_name, contact_email';
+// One string (not joined with +), so the Supabase types can read the columns.
+export const ORDER_COLUMNS = 'id, batch_number, product_name, quantity, material, origin, order_date, ship_date, status, certs_generated, safety_standard, po_number, delivery_location, carrier, tracking_number, created_at';
+export const PRODUCT_SPEC_COLUMNS = 'id, customer_id, product_name, safety_standard, fabric, description, file_url, file_label, created_at';
 
 export interface CustomerData {
   id: string;
@@ -17,7 +24,7 @@ export const getCurrentCustomer = async (): Promise<CustomerData | null> => {
 
   const { data, error } = await supabaseBrowser
     .from('customers')
-    .select('*')
+    .select(CUSTOMER_COLUMNS)
     .eq('user_id', user.id)
     .maybeSingle();
 
@@ -35,7 +42,7 @@ export const getCurrentCustomer = async (): Promise<CustomerData | null> => {
 export const getMyOrders = async (): Promise<OrderData[]> => {
   const { data, error } = await supabaseBrowser
     .from('orders')
-    .select('*')
+    .select(ORDER_COLUMNS)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -90,7 +97,7 @@ export interface ProductSpecData {
 export const getMyProductSpecs = async (): Promise<ProductSpecData[]> => {
   const { data, error } = await supabaseBrowser
     .from('product_specs')
-    .select('*')
+    .select(PRODUCT_SPEC_COLUMNS)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -114,24 +121,9 @@ export interface OrderData {
   status: string;
   certs_generated?: boolean;
   safety_standard?: string;
-  inspector_name?: string;
   po_number?: string | null;
   delivery_location?: string | null;
   carrier?: string | null;
   tracking_number?: string | null;
   created_at?: string;
 }
-
-export const getOrders = async (): Promise<OrderData[]> => {
-  const { data, error } = await supabase
-    .from('orders')
-    .select('*')
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    console.error('Error fetching orders:', error);
-    return [];
-  }
-
-  return data || [];
-};

@@ -23,7 +23,7 @@ import ItemSpec from '@/components/ItemSpec';
 import DocumentList from '@/components/DocumentList';
 import RequestDocument from './RequestDocument';
 import OrderRequestForm from '@/components/OrderRequestForm';
-import type { DocumentRow } from '@/lib/documents';
+import { DOCUMENT_COLUMNS, type DocumentRow } from '@/lib/documents';
 import { formatDate, formatDateTime } from '@/lib/format';
 
 export default function OrderDetailPage({ params }: { params: Promise<{ batch: string }> }) {
@@ -46,10 +46,12 @@ export default function OrderDetailPage({ params }: { params: Promise<{ batch: s
       if (found) {
         // Both are protected by row security: a customer only ever gets their own
         // order's items and the timeline entries admin marked customer-visible.
+        // Named columns only (never select('*')): order_events.created_by and documents.uploaded_by are staff, left out.
+        // Unused: order_items.created_at, order_events.customer_visible (row security already filters on it).
         const [{ data: its }, { data: evs }, { data: dcs }] = await Promise.all([
-          supabaseBrowser.from('order_items').select('*').eq('order_id', found.id).order('position'),
-          supabaseBrowser.from('order_events').select('*').eq('order_id', found.id).order('created_at', { ascending: false }),
-          supabaseBrowser.from('documents').select('*').eq('order_id', found.id).order('created_at', { ascending: false }),
+          supabaseBrowser.from('order_items').select('id, order_id, product_name, quantity, sizing, branding, position, size_breakdown, fabric, safety_standard').eq('order_id', found.id).order('position'),
+          supabaseBrowser.from('order_events').select('id, order_id, status, note, created_at').eq('order_id', found.id).order('created_at', { ascending: false }),
+          supabaseBrowser.from('documents').select(DOCUMENT_COLUMNS).eq('order_id', found.id).order('created_at', { ascending: false }),
         ]);
         setDocs((dcs as DocumentRow[]) || []);
         setItems(its || []);
