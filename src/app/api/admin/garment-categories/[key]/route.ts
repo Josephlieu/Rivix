@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase-admin';
 import { clearGarmentCache, loadGarmentLibrary } from '@/lib/garment-types';
 import { clearTemplateCache, getTemplateCatalog } from '@/lib/template-store';
 import { recordCatalogChange, NOT_RECORDED } from '@/lib/catalog-log';
+import { audit, adminActor } from '@/lib/audit';
 import { cleanText } from '@/lib/template-admin';
 
 // Task 31: rename a category, change its base template, or switch it off or on (two-step admins only). Never deleted: a
@@ -41,5 +42,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ke
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   clearGarmentCache(); clearTemplateCache();
   const ok = await recordCatalogChange(admin, who, { kind: 'category', key, action: 'active' in update ? (update.active ? 'switched on' : 'switched off') : 'label' in update ? 'renamed' : 'changed base template', changes });
-  return NextResponse.json({ ok: true, ...(ok ? {} : { warning: NOT_RECORDED }) });
+  const was: Record<string, unknown> = { label: cat.label, base_template: cat.baseTemplate ?? 'garment-base', active: cat.active !== false };
+  const audited = await audit(admin, adminActor(who), { action: 'category.edit', table: 'garment_categories', id: key, route: 'PATCH /api/admin/garment-categories/[key]', before: Object.fromEntries(Object.keys(update).map((k) => [k, was[k] ?? null])), after: update });
+  return NextResponse.json({ ok: true, ...(ok ? {} : { warning: NOT_RECORDED }), ...audited });
 }

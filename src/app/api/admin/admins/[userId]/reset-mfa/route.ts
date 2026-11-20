@@ -5,6 +5,7 @@ import { isAdminUser } from '@/lib/admin-auth';
 import { adminUserIds, notifyUsers } from '@/lib/notify';
 import { sendEmail } from '@/lib/email';
 import { mfaResetEmail } from '@/lib/admin-mfa-emails';
+import { audit, adminActor } from '@/lib/audit';
 
 // Recovery for a locked-out admin (task 8): ANOTHER admin (signed in with two-step) removes their authenticator. The
 // admin is then signed out everywhere (revoke_user_sessions) and sets up a new authenticator at their next sign-in. There is no bypass link
@@ -40,6 +41,8 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ us
   else signedOut = true;
   if (!signedOut) console.error(`two-step reset: could not sign out ${user.email}`);
 
+  const audited = await audit(admin, adminActor(who), { action: 'admin_2fa.reset', table: 'auth.users', id: userId, route: 'POST /api/admin/admins/[userId]/reset-mfa', before: { authenticators: removed, admin_email: user.email ?? null }, after: { authenticators: 0, signed_out: signedOut } });
+
   // 3) Tell people. In-app: every admin, naming who did it. Email: the affected admin.
   const at = new Date();
   await notifyUsers(admin, await adminUserIds(admin), {
@@ -61,5 +64,6 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ us
     signedOut,
     email: mail.ok ? (mail.dryRun ? 'dry_run' : 'sent') : 'failed',
     emailWarning: warnings.length ? `The two-step sign-in was reset, but ${warnings.join('; and ')}.` : undefined,
+    ...audited,
   });
 }

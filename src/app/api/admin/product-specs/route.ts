@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/require-admin';
+import { getAdminIdentity, requireAdmin } from '@/lib/require-admin';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { SPEC_BUCKET, SPEC_COLUMNS, checkSpecFields, checkUploadedSpecFile } from '@/lib/product-specs';
+import { audit, adminActor } from '@/lib/audit';
 
 // Every product spec with its customer, for the admin screen.
 export async function GET() {
@@ -18,8 +19,8 @@ export async function GET() {
 
 // Create a spec for one customer, optionally with a file already uploaded through upload-url.
 export async function POST(req: NextRequest) {
-  const denied = await requireAdmin();
-  if (denied) return denied;
+  const who = await getAdminIdentity();
+  if ('denied' in who) return who.denied;
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: 'Bad request' }, { status: 400 });
   const checked = checkSpecFields(body, false);
@@ -39,5 +40,9 @@ export async function POST(req: NextRequest) {
     if (path) await admin.storage.from(SPEC_BUCKET).remove([path]);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-  return NextResponse.json({ id: data.id }, { status: 201 });
+  // A spec with a file is an upload (logged); a spec without a file is not a listed action.
+  const audited = path
+    ? await audit(admin, adminActor(who), { action: 'product_spec.upload', table: 'product_specs', id: data.id, route: 'POST /api/admin/product-specs', after: { customer_id: customer.id, product_name: checked.values.product_name ?? null, file_path: path } })
+    : {};
+  return NextResponse.json({ id: data.id, ...audited }, { status: 201 });
 }

@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto';
 import { adminTechFile, seqParam } from '@/lib/tech-file-access';
 import { TECH_FILES_BUCKET, sha256 } from '@/lib/tech-file-pdf-server';
 import { checkApprovalFile, safeFileName } from '@/lib/approval-files';
+import { audit } from '@/lib/audit';
 
 // Task 30: an admin attaches the customer's approval of an APPROVED revision: a signed PDF, a JPEG or PNG image, or a saved
 // email, with who approved it at the customer and when. Customers never see tech files in the portal. The file is checked
@@ -38,5 +39,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     file_size: bytes.length, file_sha256: sha256(bytes), approved_by_name: approvedBy, approved_on: approvedOn, note, uploaded_by: ctx.actor.userId, uploaded_by_email: ctx.actor.email,
   }).select('id, file_sha256').single();
   if (error) { await ctx.admin.storage.from(TECH_FILES_BUCKET).remove([path]); return NextResponse.json({ error: error.message }, { status: 400 }); }
-  return NextResponse.json({ ok: true, id: data.id, sha256: data.file_sha256 });
+  const audited = await audit(ctx.admin, { userId: ctx.actor.userId, role: 'admin', email: ctx.actor.email }, {
+    action: 'tech_file.customer_approval_added', table: 'replication_customer_approvals', id: data.id, route: 'POST /api/replications/[id]/revisions/[seq]/approvals',
+    after: { replication_id: ctx.row.id, revision: seq, file_name: safeFileName(file.name || `approval.${checked.ext}`), file_size: bytes.length, file_sha256: data.file_sha256, approved_by_name: approvedBy, approved_on: approvedOn },
+    note: note || null,
+  });
+  return NextResponse.json({ ok: true, id: data.id, sha256: data.file_sha256, ...audited });
 }

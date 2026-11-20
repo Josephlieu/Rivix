@@ -9,6 +9,7 @@ import { logForOrder } from '@/lib/rep-activity';
 import { localDateKey } from '@/lib/format';
 import { invalidateDashboard } from '@/lib/dashboard-data';
 import { CONVERT_RACE_MESSAGE, checkRequestForOrder, claimRequestForOrder } from '@/lib/order-requests';
+import { audit, adminActor } from '@/lib/audit';
 
 // Every order from every rep, for the admin Orders list.
 export async function GET() {
@@ -169,5 +170,9 @@ export async function POST(req: NextRequest) {
     order_id: order.id,
   });
 
-  return NextResponse.json({ order, emailWarning }, { status: 201 });
+  // Logged last: the rep change above can still undo this order.
+  const audited = requestId
+    ? await audit(admin, adminActor(who), { action: 'order_request.convert', table: 'order_requests', id: requestId, route: 'POST /api/admin/orders', before: { status: 'open' }, after: { status: 'converted', order_id: order.id, batch_number: order.batch_number ?? null } })
+    : {};
+  return NextResponse.json({ order, emailWarning, ...audited }, { status: 201 });
 }

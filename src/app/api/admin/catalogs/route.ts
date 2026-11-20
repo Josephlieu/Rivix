@@ -3,6 +3,7 @@ import { getAdminIdentity } from '@/lib/require-admin';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { CATALOG_BUCKET } from '@/lib/catalogs';
 import { checkUploadedCatalog } from '@/lib/catalog-storage';
+import { audit, adminActor } from '@/lib/audit';
 
 const clean = (v: unknown, max: number) => String(v ?? '').trim().slice(0, max);
 
@@ -31,5 +32,6 @@ export async function POST(req: NextRequest) {
     await admin.storage.from(CATALOG_BUCKET).remove([path]); // don't leave an orphan file behind
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-  return NextResponse.json({ id: data.id }, { status: 201 });
+  const audited = await audit(admin, adminActor(who), { action: 'catalog.upload', table: 'catalogs', id: data.id, route: 'POST /api/admin/catalogs', after: { title, file_name: fileName || path, file_size: file.size, mime_type: file.mime } });
+  return NextResponse.json({ id: data.id, ...audited }, { status: 201 });
 }

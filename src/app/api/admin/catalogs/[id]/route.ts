@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAdminIdentity, requireAdmin } from '@/lib/require-admin';
+import { getAdminIdentity } from '@/lib/require-admin';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { CATALOG_BUCKET } from '@/lib/catalogs';
 import { checkUploadedCatalog } from '@/lib/catalog-storage';
+import { audit, adminActor } from '@/lib/audit';
 
 const clean = (v: unknown, max: number) => String(v ?? '').trim().slice(0, max);
 
@@ -17,7 +18,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!body) return NextResponse.json({ error: 'Bad request' }, { status: 400 });
 
   const admin = createAdminClient();
-  const { data: current } = await admin.from('catalogs').select('id, file_path').eq('id', id).maybeSingle();
+  const { data: current } = await admin.from('catalogs').select('id, file_path, file_name, file_size, mime_type').eq('id', id).maybeSingle();
   if (!current) return NextResponse.json({ error: 'Catalog not found.' }, { status: 404 });
 
   const update: Record<string, unknown> = {};
@@ -44,21 +45,26 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
   if (newPath && current.file_path !== newPath) await admin.storage.from(CATALOG_BUCKET).remove([current.file_path]);
-  return NextResponse.json({ ok: true });
+  // A new file is an upload (logged); a title or description edit alone is not a listed action.
+  const audited = newPath
+    ? await audit(admin, adminActor(who), { action: 'catalog.replace_file', table: 'catalogs', id, route: 'PATCH /api/admin/catalogs/[id]', before: { file_name: current.file_name, file_size: current.file_size, mime_type: current.mime_type }, after: { file_name: update.file_name, file_size: update.file_size, mime_type: update.mime_type } })
+    : {};
+  return NextResponse.json({ ok: true, ...audited });
 }
 
 // Remove a catalog: the record and its file.
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const denied = await requireAdmin();
-  if (denied) return denied;
+  const who = await getAdminIdentity();
+  if ('denied' in who) return who.denied;
 
   const { id } = await params;
   const admin = createAdminClient();
-  const { data: cat } = await admin.from('catalogs').select('id, file_path').eq('id', id).maybeSingle();
+  const { data: cat } = await admin.from('catalogs').select('id, title, file_path, file_name, file_size').eq('id', id).maybeSingle();
   if (!cat) return NextResponse.json({ error: 'Catalog not found.' }, { status: 404 });
 
   const { error } = await admin.from('catalogs').delete().eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   await admin.storage.from(CATALOG_BUCKET).remove([cat.file_path]);
-  return NextResponse.json({ ok: true });
+  const audited = await audit(admin, adminActor(who), { action: 'catalog.delete', table: 'catalogs', id, route: 'DELETE /api/admin/catalogs/[id]', before: { title: cat.title, file_name: cat.file_name, file_size: cat.file_size }, after: null });
+  return NextResponse.json({ ok: true, ...audited });
 }

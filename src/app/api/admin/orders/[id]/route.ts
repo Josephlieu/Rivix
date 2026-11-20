@@ -7,6 +7,7 @@ import { sendEmail } from '@/lib/email';
 import { orderUpdateEmail } from '@/lib/order-emails';
 import { customerParties, notifyUsers } from '@/lib/notify';
 import { invalidateDashboard } from '@/lib/dashboard-data';
+import { audit, adminActor } from '@/lib/audit';
 
 const clean = (v: unknown, max: number) => String(v ?? '').trim().slice(0, max);
 
@@ -80,6 +81,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (newStatus) await logForOrder(admin, id, { kind: 'order_status', by: who.email, text: (o) => `${o.batch} moved to ${newStatus}` });
 
   const note = clean(body.note, 2000) || null;
+  const audited = newStatus
+    ? await audit(admin, adminActor(who), { action: 'order.stage_change', table: 'orders', id, route: 'PATCH /api/admin/orders/[id]', before: { status: current.status }, after: { status: newStatus }, note })
+    : {};
 
   if (newStatus) {
     // The trigger just logged this change; stamp who did it and add the note.
@@ -147,5 +151,5 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
   }
 
-  return NextResponse.json({ ok: true, changed: true, emailWarning });
+  return NextResponse.json({ ok: true, changed: true, emailWarning, ...audited });
 }

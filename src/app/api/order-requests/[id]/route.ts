@@ -5,6 +5,7 @@ import { readAdminSession, TWO_STEP_REQUIRED } from '@/lib/admin-session';
 import { getCurrentRep } from '@/lib/current-rep';
 import { clean } from '@/lib/order-input';
 import { notifyUsers } from '@/lib/notify';
+import { audit } from '@/lib/audit';
 
 // A rep (for one of their own customers) or an admin (any customer) declines an open order request, with a reason the
 // customer sees. Body: { action: 'decline', reason }. Turning a request into an order happens in the order routes.
@@ -40,11 +41,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     .select('id');
   if (!done?.length) return NextResponse.json({ error: 'This request has already been handled.' }, { status: 409 });
 
+  const audited = await audit(admin, { userId: user.id, role: isAdmin ? 'admin' : 'rep', email: user.email ?? null }, {
+    action: 'order_request.decline', table: 'order_requests', id, route: 'PATCH /api/order-requests/[id]',
+    before: { status: 'open' }, after: { status: 'declined' }, note: reason,
+  });
+
   await notifyUsers(admin, [cust?.user_id], {
     kind: 'order_request_declined',
     title: r.kind === 'reorder' ? 'Your reorder request was declined' : 'Your quote request was declined',
     body: reason,
     link: '/portal/requests',
   });
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, ...audited });
 }

@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase-admin';
 import { approveInvitedRep } from '@/lib/rep-invites';
 import { logRepActivity } from '@/lib/rep-activity';
 import { notifyUsers } from '@/lib/notify';
+import { audit, adminActor } from '@/lib/audit';
 
 // Approve a rep who signed up with a link: their rep card becomes active and they can use the sales portal.
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -15,6 +16,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   const r = await approveInvitedRep(admin, id, who.email);
   if (!r.ok) return NextResponse.json({ error: r.error }, { status: r.status });
   await logRepActivity(admin, { repId: r.repId, kind: 'status', by: who.email, summary: 'Approved after joining through an invite link' });
+  const audited = await audit(admin, adminActor(who), { action: 'rep_invite.approve', table: 'rep_invites', id, route: 'POST /api/admin/rep-invites/[id]/approve', before: { approved: false, rep_active: false }, after: { approved: true, rep_active: true, rep_id: r.repId } });
   await notifyUsers(admin, [r.userId], { kind: 'welcome', title: 'Your RIVIX sales account is approved', body: 'You can now use the sales portal.', link: '/rep' });
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, ...audited });
 }

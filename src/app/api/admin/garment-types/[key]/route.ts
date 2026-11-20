@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminIdentity } from '@/lib/require-admin';
 import { recordCatalogChange, NOT_RECORDED } from '@/lib/catalog-log';
+import { audit, adminActor } from '@/lib/audit';
 import { cleanText } from '@/lib/template-admin';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { clearGarmentCache, loadGarmentLibrary } from '@/lib/garment-types';
@@ -70,5 +71,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ke
   clearTemplateCache(); // a type's family or category feeds the template catalog
   if (body.move === 'up' || body.move === 'down') changes.push(`Moved ${body.move}`);
   const ok = !changes.length || await recordCatalogChange(admin, who, { kind: 'type', key, action: changes.length === 1 ? changes[0].split(':')[0].toLowerCase() : 'changed', changes });
-  return NextResponse.json({ ok: true, ...(ok ? {} : { warning: NOT_RECORDED }) });
+  const was: Record<string, unknown> = { label: type.label, category: type.category, active: type.active, template_family: type.templateFamily ?? null, template_modules: catalog.types[key]?.modules ?? [] };
+  const moved = body.move === 'up' || body.move === 'down' ? { moved: body.move } : {};
+  const audited = changes.length
+    ? await audit(admin, adminActor(who), { action: 'type.edit', table: 'garment_types', id: key, route: 'PATCH /api/admin/garment-types/[key]', before: Object.fromEntries(Object.keys(update).map((k) => [k, was[k] ?? null])), after: { ...update, ...moved } })
+    : {};
+  return NextResponse.json({ ok: true, ...(ok ? {} : { warning: NOT_RECORDED }), ...audited });
 }

@@ -10,7 +10,8 @@ import { getTemplateCatalog } from '@/lib/template-store';
 import { drawingStamp } from '@/lib/drawings';
 import { techFileSnapshot, contentKey } from '@/lib/revisions';
 import { recordRevision, snapshotOfRow, isApproved } from '@/lib/revision-server';
-import { settleConfirmations, settleSource } from '@/lib/checklist-confirm';
+import { settleConfirmations, settleSource, confirmedInSave } from '@/lib/checklist-confirm';
+import { audit, type AuditActor } from '@/lib/audit';
 
 // An approval also makes and stores the PDF of that revision (task 30).
 export const maxDuration = 60;
@@ -59,8 +60,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   // says needsConfirmation: false, or carries a stamp the server did not write, is not confirmed. Runs before the lock check,
   // the approval check and the review state, so they all see the server's version.
   const scanSave = isAdmin && body?.scan === true;
+  const confirmStamp = new Date().toISOString(); // this save's stamp time (the audit log finds the items it confirmed by it)
   if (isAdmin && parsed.row.ai_analysis) {
-    parsed.row.ai_analysis = settleConfirmations(parsed.row.ai_analysis, existing.ai_analysis, { scan: scanSave, confirmations: body?.confirmations, actorEmail: actor.email });
+    parsed.row.ai_analysis = settleConfirmations(parsed.row.ai_analysis, existing.ai_analysis, { scan: scanSave, confirmations: body?.confirmations, actorEmail: actor.email, now: confirmStamp });
     // Where the draft came from (2026-11-20): 'ai_scan' for a scan save, 'manual' when a person's save creates the first
     // analysis, else the saved marker. Decided here from the scan flag and the saved row; the browser's value is ignored.
     parsed.row.ai_analysis = settleSource(parsed.row.ai_analysis, existing.ai_analysis, { scan: scanSave });
@@ -138,6 +140,24 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     pdfWarning = (await recordRevision(admin, data, actor, { approved: approve, repName: repInfo?.name ?? null, source: { kind: scanSave ? 'scan' : 'edit', by: actor.email } })).pdfWarning;
   }
 
+  // Audit log (2026-11-21): a person's confirmations (one row per save that confirmed anything) and an approval (one row).
+  let audited: { auditWarning?: string } = {};
+  if (isAdmin) {
+    const who: AuditActor = { userId: actor.userId, role: 'admin', email: actor.email };
+    const route = 'PUT /api/replications/[id]';
+    const confirmed = confirmedInSave(data.ai_analysis, confirmStamp);
+    if (confirmed.length) {
+      const r = await audit(admin, who, { action: 'tech_file.confirm', table: 'replications', id, route, before: { confirmed: [] }, after: { confirmed } });
+      if (r.auditWarning) audited = r;
+    }
+    const was = (existing.ai_analysis as { review?: { status?: string; revision?: number } } | null)?.review;
+    const now = (data.ai_analysis as { review?: { status?: string; revision?: number } } | null)?.review;
+    if (approve && now?.status === 'approved' && !(was?.status === 'approved' && was?.revision === now?.revision)) {
+      const r = await audit(admin, who, { action: 'tech_file.approve', table: 'replications', id, route, before: { review_status: was?.status ?? null, revision: was?.revision ?? null }, after: { review_status: 'approved', revision: now?.revision ?? null } });
+      if (r.auditWarning) audited = r;
+    }
+  }
+
   // Tell the owning rep about the steps they care about (approved, in production, shipped, handed to them).
   if (isAdmin) {
     const code = (data.request_code as string) || data.id;
@@ -158,7 +178,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     else if (data.status !== existing.status && data.status === 'sample_shipped') await notifyUsers(admin, [repUser], { kind: 'replication_status', title: `${code}: sample shipped`, body: what, link });
   }
 
-  return NextResponse.json({ replication: await rowToReplication(admin, data, actor.kind), ...(pdfWarning ? { pdfWarning } : {}) });
+  return NextResponse.json({ replication: await rowToReplication(admin, data, actor.kind), ...(pdfWarning ? { pdfWarning } : {}), ...audited });
 }
 
 // Delete a request and its photos (admin only). A request with an approved tech file revision or a customer approval cannot be

@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase-admin';
 import { INVALID_LINK, MIN_PASSWORD, TOO_MANY, hashToken, looksLikeToken, overRateLimit } from '@/lib/rep-invites';
 import { adminUserIds, notifyUsers } from '@/lib/notify';
 import { logRepActivity } from '@/lib/rep-activity';
+import { audit } from '@/lib/audit';
 
 // The public side of a rep sign-up link (task 9). No sign-in: the token in the link is the only key. Rate limited.
 // Every way a link can be wrong (unknown, used, cancelled, expired) gets the same answer, so nothing can be probed.
@@ -86,5 +87,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     body: `${inv.email} signed up with an invite link. Approve them on the Team page before they can use the sales portal.`,
     link: '/admin/team#rep-invites', // the Approve button is there
   });
-  return NextResponse.json({ ok: true, status: 'awaiting_approval' }, { status: 201 });
+  // The route is logged as its pattern: the real address carries the invite token. No password, no token.
+  const audited = await audit(admin, { userId, role: 'rep', email: inv.email }, { action: 'rep_invite.accept', table: 'rep_invites', id: inv.id, route: 'POST /api/rep-invites/[token]', before: { used: false }, after: { used: true, role: 'rep', rep_id: rep.id, rep_active: false } });
+  return NextResponse.json({ ok: true, status: 'awaiting_approval', ...audited }, { status: 201 });
 }

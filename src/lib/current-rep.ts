@@ -7,6 +7,8 @@ export interface CurrentRep {
   name: string;
   title: string | null;
   active: boolean;
+  userId: string;         // the rep's login (for "who did this" records)
+  loginEmail: string | null;
 }
 
 // The signed-in sales rep, worked out from their session cookie — never from
@@ -23,5 +25,5 @@ export async function getCurrentRep(): Promise<CurrentRep | null> {
     .eq('user_id', user.id)
     .maybeSingle();
 
-  return data && data.active ? (data as CurrentRep) : null;
+  return data && data.active ? { ...(data as Omit<CurrentRep, 'userId' | 'loginEmail'>), userId: user.id, loginEmail: user.email ?? null } : null;
 }

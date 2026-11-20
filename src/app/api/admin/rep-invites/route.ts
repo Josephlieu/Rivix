@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminIdentity } from '@/lib/require-admin';
 import { createAdminClient } from '@/lib/supabase-admin';
+import { audit, adminActor } from '@/lib/audit';
 import { INVITE_DAYS, hashToken, inviteLink, inviteStatus, newToken, type InviteRow } from '@/lib/rep-invites';
 
 const EMAIL = /^[^\s@<>()",;]+@[^\s@<>()",;]+\.[^\s@<>()",;]{2,}$/;
@@ -51,5 +52,7 @@ export async function POST(req: NextRequest) {
     if (error.code === '23505') return NextResponse.json({ error: 'This email already has a pending invite. Cancel it first to make a new one.' }, { status: 409 });
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-  return NextResponse.json({ invite: { id: data.id, email: data.email, expiresAt: data.expires_at }, link: inviteLink(req, token) }, { status: 201 });
+  // The link and the token are never logged (only the email and the expiry).
+  const audited = await audit(admin, adminActor(who), { action: 'rep_invite.create', table: 'rep_invites', id: data.id, route: 'POST /api/admin/rep-invites', after: { email: data.email, expires_at: data.expires_at } });
+  return NextResponse.json({ invite: { id: data.id, email: data.email, expiresAt: data.expires_at }, link: inviteLink(req, token), ...audited }, { status: 201 });
 }

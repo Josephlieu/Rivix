@@ -8,6 +8,7 @@ export interface RepLoginResult {
   error?: string;
   credentials?: { email: string; password: string };
   reset?: boolean;
+  userId?: string; // the new login (only when one was created, not on a password reset)
 }
 
 // Give a rep a login, or — if they already have one — set a fresh temporary
@@ -60,5 +61,5 @@ export async function createOrResetRepLogin(
     link: '/rep/customers',
   });
 
-  return { ok: true, credentials: { email, password } };
+  return { ok: true, credentials: { email, password }, userId: created.user.id };
 }

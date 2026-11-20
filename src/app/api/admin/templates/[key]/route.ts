@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase-admin';
 import { clearTemplateCache } from '@/lib/template-store';
 import { readTemplates, usageOf, hasDrawing, validationContext } from '@/lib/template-admin-server';
 import { recordCatalogChange, NOT_RECORDED } from '@/lib/catalog-log';
+import { audit, adminActor } from '@/lib/audit';
 
 // Task 31 (two-step admins only): one template: its current version, every version (who, when, why), where it is used.
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ key: string }> }) {
@@ -37,5 +38,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ke
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   clearTemplateCache();
   const ok = await recordCatalogChange(admin, who, { kind: 'template', key, action: body.active ? 'switched on' : 'switched off', changes: [body.active ? 'Offered again for product types' : 'Not offered for new product types; types and tech files that use it keep working'] });
-  return NextResponse.json({ ok: true, ...(ok ? {} : { warning: NOT_RECORDED }) });
+  const audited = await audit(admin, adminActor(who), { action: 'template.edit', table: 'templates', id: key, route: 'PATCH /api/admin/templates/[key]', before: { active: t.active !== false }, after: { active: body.active } });
+  return NextResponse.json({ ok: true, ...(ok ? {} : { warning: NOT_RECORDED }), ...audited });
 }

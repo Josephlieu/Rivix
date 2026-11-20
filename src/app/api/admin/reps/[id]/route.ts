@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin, getAdminIdentity } from '@/lib/require-admin';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { logRepActivity } from '@/lib/rep-activity';
+import { audit, adminActor } from '@/lib/audit';
 
 type ActivityItem = { at: string; kind: 'order' | 'request' | 'replication' | 'team' | 'customer' | 'quote'; label: string; by: string | null; link: string | null };
 
@@ -137,20 +138,27 @@ export async function PATCH(
   }
 
   // A rep who joined through an invite link and is switched on here counts as approved (who and when are recorded).
+  let inviteApproved = false;
   if (update.active === true) {
-    await admin.from('rep_invites').update({ approved_at: new Date().toISOString(), approved_by: who.email })
-      .eq('rep_id', id).not('used_at', 'is', null).is('approved_at', null);
+    const { data: approvedInv } = await admin.from('rep_invites').update({ approved_at: new Date().toISOString(), approved_by: who.email })
+      .eq('rep_id', id).not('used_at', 'is', null).is('approved_at', null).select('id');
+    inviteApproved = Boolean(approvedInv?.length);
   }
 
-  return NextResponse.json({ rep: data });
+  // One row per real change of active/inactive (an invite approved by the same click is part of it).
+  const audited = before && typeof update.active === 'boolean' && update.active !== before.active
+    ? await audit(admin, adminActor(who), { action: 'rep.status_change', table: 'reps', id, route: 'PATCH /api/admin/reps/[id]', before: { active: before.active }, after: { active: update.active, ...(inviteApproved ? { invite_approved: true } : {}) } })
+    : {};
+
+  return NextResponse.json({ rep: data, ...audited });
 }
 
 export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const denied = await requireAdmin();
-  if (denied) return denied;
+  const who = await getAdminIdentity();
+  if ('denied' in who) return who.denied;
 
   const { id } = await params;
   const admin = createAdminClient();
@@ -180,5 +188,8 @@ export async function DELETE(
   // Remove the rep's login too, if they had one, so it isn't left orphaned.
   if (rep.user_id) await admin.auth.admin.deleteUser(rep.user_id);
 
-  return NextResponse.json({ success: true });
+  const audited = rep.user_id
+    ? await audit(admin, adminActor(who), { action: 'role.revoke', table: 'reps', id, route: 'DELETE /api/admin/reps/[id]', before: { role: 'rep', user_id: rep.user_id, name: rep.name }, after: { role: null, rep_deleted: true } })
+    : {};
+  return NextResponse.json({ success: true, ...audited });
 }

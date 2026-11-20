@@ -5,6 +5,7 @@ import { clearTemplateCache } from '@/lib/template-store';
 import { readTemplates, usageOf, hasDrawing } from '@/lib/template-admin-server';
 import { cleanText, newTemplateKey, validateTemplate, describeTemplateChanges, type Kind } from '@/lib/template-admin';
 import { recordCatalogChange, NOT_RECORDED } from '@/lib/catalog-log';
+import { audit, adminActor } from '@/lib/audit';
 import type { TemplateBody } from '@/lib/template-catalog';
 
 // Task 31 (two-step admins only): every template with its kind, current version, where it is used, and whether it has a drawing.
@@ -42,5 +43,6 @@ export async function POST(req: NextRequest) {
   if (ins.error) return NextResponse.json({ error: /create_template/.test(ins.error.message) ? 'Creating templates is not set up yet: run task-31c-create-template-function.sql in Supabase.' : ins.error.message }, { status: 500 });
   clearTemplateCache();
   const ok = await recordCatalogChange(admin, who, { kind: 'template', key, action: `created "${label}" (version 1), copied from ${src.key} v${src.current_version}`, changes: describeTemplateChanges(null, checked.draft) });
-  return NextResponse.json({ key, ...(ok ? {} : { warning: NOT_RECORDED }) }, { status: 201 });
+  const audited = await audit(admin, adminActor(who), { action: 'template.create', table: 'templates', id: key, route: 'POST /api/admin/templates', after: { label: checked.draft.label, kind: src.kind, version: 1, copied_from: `${src.key} v${src.current_version}` } });
+  return NextResponse.json({ key, ...(ok ? {} : { warning: NOT_RECORDED }), ...audited }, { status: 201 });
 }

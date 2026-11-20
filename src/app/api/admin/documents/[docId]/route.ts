@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/require-admin';
+import { getAdminIdentity, requireAdmin } from '@/lib/require-admin';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { invalidateDashboard } from '@/lib/dashboard-data';
 import { parseExpiryDate } from '@/lib/documents';
+import { audit, adminActor } from '@/lib/audit';
 
 // Set, change or clear a document's expiry date. Only the expiry date can be changed here.
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ docId: string }> }) {
@@ -24,17 +25,18 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ do
 
 // Delete a document: the record and the stored file.
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ docId: string }> }) {
-  const denied = await requireAdmin();
-  if (denied) return denied;
+  const who = await getAdminIdentity();
+  if ('denied' in who) return who.denied;
 
   const { docId } = await params;
   const admin = createAdminClient();
-  const { data: doc } = await admin.from('documents').select('id, file_path').eq('id', docId).maybeSingle();
+  const { data: doc } = await admin.from('documents').select('id, file_path, title, doc_type, file_name, file_size, order_id').eq('id', docId).maybeSingle();
   if (!doc) return NextResponse.json({ error: 'Document not found.' }, { status: 404 });
 
   await admin.storage.from('documents').remove([doc.file_path]);
   const { error } = await admin.from('documents').delete().eq('id', docId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   invalidateDashboard(); // the document count changed
-  return NextResponse.json({ ok: true });
+  const audited = await audit(admin, adminActor(who), { action: 'document.delete', table: 'documents', id: docId, route: 'DELETE /api/admin/documents/[docId]', before: { order_id: doc.order_id, title: doc.title, doc_type: doc.doc_type, file_name: doc.file_name, file_size: doc.file_size }, after: null });
+  return NextResponse.json({ ok: true, ...audited });
 }

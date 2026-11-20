@@ -6,6 +6,7 @@ import { clearGarmentCache } from '@/lib/garment-types';
 import { readTemplates, validationContext } from '@/lib/template-admin-server';
 import { cleanText, validateTemplate, describeTemplateChanges, lowersCertification, CERT_WORDS, type Kind } from '@/lib/template-admin';
 import { recordCatalogChange, NOT_RECORDED } from '@/lib/catalog-log';
+import { audit, adminActor } from '@/lib/audit';
 import { adminUserIds, notifyUsers } from '@/lib/notify';
 import type { TemplateBody } from '@/lib/template-catalog';
 
@@ -53,5 +54,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ key
       link: `/admin/replication/templates/${encodeURIComponent(key)}`,
     });
   }
-  return NextResponse.json({ ok: true, version: next, changes, ...(ok ? {} : { warning: NOT_RECORDED }) });
+  const audited = await audit(admin, adminActor(who), {
+    action: 'template.version', table: 'templates', id: key, route: 'POST /api/admin/templates/[key]/versions',
+    before: { version: Number(t.current_version) }, after: { version: next, changes, ...(lowered ? { certification_lowered: true } : {}) },
+    note: lowered ? `${note}\nReason for lowering the certification level: ${reason}` : note,
+  });
+  return NextResponse.json({ ok: true, version: next, changes, ...(ok ? {} : { warning: NOT_RECORDED }), ...audited });
 }

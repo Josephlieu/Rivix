@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase-admin';
 import { clearGarmentCache, loadGarmentLibrary } from '@/lib/garment-types';
 import { clearTemplateCache, getTemplateCatalog } from '@/lib/template-store';
 import { recordCatalogChange, NOT_RECORDED } from '@/lib/catalog-log';
+import { audit, adminActor } from '@/lib/audit';
 import { cleanText } from '@/lib/template-admin';
 
 // Task 31: add a category (two-step admins only). Categories are never deleted, only switched off. Recorded in the change log.
@@ -26,5 +27,6 @@ export async function POST(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   clearGarmentCache(); clearTemplateCache();
   const ok = await recordCatalogChange(admin, who, { kind: 'category', key, action: `added category "${label}"`, changes: [`Base template: ${base}`] });
-  return NextResponse.json({ ok: true, key, ...(ok ? {} : { warning: NOT_RECORDED }) });
+  const audited = await audit(admin, adminActor(who), { action: 'category.create', table: 'garment_categories', id: key, route: 'POST /api/admin/garment-categories', after: { label, base_template: base, active: true } });
+  return NextResponse.json({ ok: true, key, ...(ok ? {} : { warning: NOT_RECORDED }), ...audited });
 }

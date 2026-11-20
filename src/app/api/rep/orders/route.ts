@@ -7,6 +7,7 @@ import { localDateKey } from '@/lib/format';
 import { invalidateDashboard } from '@/lib/dashboard-data';
 import { logForOrder } from '@/lib/rep-activity';
 import { CONVERT_RACE_MESSAGE, checkRequestForOrder, claimRequestForOrder } from '@/lib/order-requests';
+import { audit } from '@/lib/audit';
 
 // A sales rep creates an order for one of THEIR customers; the rep is worked out from the session.
 // (Admins can create orders too, for any customer: see POST /api/admin/orders. Changed 2026-10-16 at the client's request.)
@@ -77,6 +78,9 @@ export async function POST(req: NextRequest) {
     await admin.from('orders').delete().eq('id', order.id);
     return NextResponse.json({ error: CONVERT_RACE_MESSAGE }, { status: 409 });
   }
+  const audited = requestId
+    ? await audit(admin, { userId: rep.userId, role: 'rep', email: rep.loginEmail }, { action: 'order_request.convert', table: 'order_requests', id: requestId, route: 'POST /api/rep/orders', before: { status: 'open' }, after: { status: 'converted', order_id: order.id, batch_number: order.batch_number ?? null } })
+    : {};
 
   await logForOrder(admin, order.id, { kind: 'order_created', by: rep.name, text: (o) => `Order ${o.batch} created for ${o.company}` });
 
@@ -98,5 +102,5 @@ export async function POST(req: NextRequest) {
     order_id: order.id,
   });
 
-  return NextResponse.json({ order }, { status: 201 });
+  return NextResponse.json({ order, ...audited }, { status: 201 });
 }

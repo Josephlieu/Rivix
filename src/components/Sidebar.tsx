@@ -20,7 +20,8 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   BookOpen,
-  ClipboardList
+  ClipboardList,
+  ScrollText,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import RepWidget from './RepWidget';
@@ -41,6 +42,7 @@ const adminLinks = [
   { href: '/admin/hiring', label: 'Sales Hiring', icon: Users },
   { href: '/admin/team', label: 'Team / Reps', icon: Settings },
   { href: '/admin/import', label: 'Import CSV', icon: FileUp },
+  { href: '/admin/audit-log', label: 'Audit log', icon: ScrollText },
 ];
 
 const clientLinks = [

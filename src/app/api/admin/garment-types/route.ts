@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminIdentity } from '@/lib/require-admin';
 import { recordCatalogChange, NOT_RECORDED } from '@/lib/catalog-log';
+import { audit, adminActor } from '@/lib/audit';
 import { cleanText } from '@/lib/template-admin';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { clearGarmentCache, loadGarmentLibrary } from '@/lib/garment-types';
@@ -46,5 +47,6 @@ export async function POST(req: NextRequest) {
   clearGarmentCache();
   clearTemplateCache(); // a type's family or category feeds the template catalog
   const ok = await recordCatalogChange(admin, who, { kind: 'type', key, action: `added product type "${label}"`, changes: [`Category: ${category}`, `Template: ${family || 'general'}`, ...(modules.length ? [`Add-ons: ${modules.join(', ')}`] : [])] });
-  return NextResponse.json({ type: data, ...(ok ? {} : { warning: NOT_RECORDED }) }, { status: 201 });
+  const audited = await audit(admin, adminActor(who), { action: 'type.create', table: 'garment_types', id: key, route: 'POST /api/admin/garment-types', after: { label, category, template_family: family || null, template_modules: modules } });
+  return NextResponse.json({ type: data, ...(ok ? {} : { warning: NOT_RECORDED }), ...audited }, { status: 201 });
 }

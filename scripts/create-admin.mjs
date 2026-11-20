@@ -23,6 +23,16 @@ for (const line of readFileSync('.env.local', 'utf-8').split('\n')) {
 
 const supabase = createClient(env.NEXT_PUBLIC_SUPABASE_URL, (env.SUPABASE_SECRET_KEY||env.SUPABASE_SERVICE_ROLE_KEY));
 
+// Audit log (2026-11-21): giving the admin role is recorded (actor "system": a script, not a signed-in person). Never the
+// password. If the audit_log table is not there yet, the admin is still made and this prints a warning.
+async function auditRoleGrant(userId, oldRole) {
+  const { error } = await supabase.from('audit_log').insert({
+    actor_user_id: null, actor_role: 'system', actor_email: null, action: 'role.grant', record_table: 'auth.users', record_id: userId,
+    before: { role: oldRole }, after: { role: 'admin', email }, route: 'script: scripts/create-admin.mjs',
+  });
+  if (error) console.error(`Warning: the admin was made, but it could not be written to the audit log (${error.code || 'error'}).`);
+}
+
 const { data: list, error: listErr } = await supabase.auth.admin.listUsers({ perPage: 1000 });
 if (listErr) { console.error('Failed to list users:', listErr.message); process.exit(1); }
 const existing = list.users.find((u) => u.email?.toLowerCase() === email.toLowerCase());
@@ -34,8 +44,9 @@ if (existing) {
   });
   if (error) { console.error('Failed to update user:', error.message); process.exit(1); }
   console.log(`Updated existing user and made them an admin: ${email}`);
+  if (existing.app_metadata?.role !== 'admin') await auditRoleGrant(existing.id, existing.app_metadata?.role ?? null);
 } else {
-  const { error } = await supabase.auth.admin.createUser({
+  const { data: made, error } = await supabase.auth.admin.createUser({
     email,
     password,
     email_confirm: true,
@@ -43,4 +54,5 @@ if (existing) {
   });
   if (error) { console.error('Failed to create user:', error.message); process.exit(1); }
   console.log(`Created admin: ${email}`);
+  await auditRoleGrant(made.user.id, null);
 }

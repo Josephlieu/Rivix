@@ -53,6 +53,8 @@ function AdminMfaForm() {
       setCode('');
       return;
     }
+    // Audit log: the server records a newly set-up authenticator (it checks the factors itself). Never blocks signing in.
+    await fetch('/api/admin/mfa/enrolled', { method: 'POST' }).catch(() => null);
     go();
   };
 

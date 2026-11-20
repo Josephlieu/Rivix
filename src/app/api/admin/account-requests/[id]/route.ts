@@ -6,6 +6,7 @@ import { notifyUsers } from '@/lib/notify';
 import { sendEmail } from '@/lib/email';
 import { loginEmailChangeEmail } from '@/lib/account-emails';
 import { invalidateDashboard } from '@/lib/dashboard-data';
+import { audit, adminActor } from '@/lib/audit';
 
 // An admin approves or rejects a customer's account change request. Body: { decision: 'approve' | 'reject', note? }
 // Approving applies the value. A login email change updates the sign-in email (Supabase Auth) and contact_email
@@ -41,6 +42,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   let emailWarning: string | undefined;
   let oldAddressNotice: 'sent' | 'dry_run' | 'failed' | undefined;
+  let applied: { old: unknown; new: unknown } | null = null;
   if (decision === 'approve') {
     const checked = checkField(field, reqRow.new_value);
     if (!checked.ok) return release(`The requested value is not valid any more: ${checked.error}`);
@@ -56,6 +58,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       }
       const { error: cErr } = await admin.from('customers').update({ contact_email: newEmail }).eq('id', customer.id);
       if (cErr) console.error('contact_email update after login change failed:', cErr.message);
+      applied = { old: oldEmail ?? reqRow.old_value ?? null, new: newEmail };
       const r = await sendEmail(loginEmailChangeEmail({ oldEmail, newEmail, company: customer.company_name, stage: 'approved' }));
       oldAddressNotice = r.ok ? (r.dryRun ? 'dry_run' : 'sent') : 'failed';
       if (!r.ok) {
@@ -66,8 +69,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       const { error } = await admin.from('customers').update({ [field]: checked.value }).eq('id', customer.id);
       if (error) return release(error.message, 500);
       if (field === 'company_name') invalidateDashboard(); // the dashboard shows company names
+      applied = { old: reqRow.old_value ?? null, new: checked.value };
     }
   }
+
+  const audited = await audit(admin, adminActor(who), {
+    action: decision === 'approve' ? 'account_request.approve' : 'account_request.reject',
+    table: 'account_change_requests', id, route: 'PATCH /api/admin/account-requests/[id]',
+    before: { status: 'pending', ...(applied ? { [field]: applied.old } : {}) },
+    after: { status: decided.status, ...(applied ? { [field]: applied.new } : {}) },
+    note,
+  });
 
   const label = FIELD_LABELS[field];
   await notifyUsers(admin, [customer.user_id], {
@@ -77,5 +89,5 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     link: '/portal/account',
   });
 
-  return NextResponse.json({ ok: true, status: decided.status, emailWarning, oldAddressNotice });
+  return NextResponse.json({ ok: true, status: decided.status, emailWarning, oldAddressNotice, ...audited });
 }

@@ -101,6 +101,19 @@ export function settleConfirmations(next: unknown, saved: unknown, opts: { scan?
  *             Review-tab draft: no scan was run.
  *   otherwise the saved marker is kept; an analysis saved before the marker existed stays unmarked (never guessed).
  *  Whatever `source` the browser sends is ignored. */
+/** Audit log (2026-11-21): the items a save stamped (their confirmedAt is that save's time), as "list: label" lines. */
+export function confirmedInSave(a: unknown, stamp: string): string[] {
+  if (!isObj(a)) return [];
+  const out: string[] = [];
+  for (const list of CONFIRMABLE_LISTS) {
+    const rows = Array.isArray(a[list]) ? (a[list] as Row[]) : [];
+    rows.forEach((r, i) => {
+      if (isStamped(r) && r.confirmedAt === stamp) out.push(`${list}: ${String(r.label ?? r.name ?? r.key ?? r.point ?? i + 1).slice(0, 120)}`);
+    });
+  }
+  return out;
+}
+
 export type DraftSource = 'ai_scan' | 'manual';
 export function settleSource(next: unknown, saved: unknown, opts: { scan?: boolean } = {}): Row | null {
   if (!isObj(next)) return null;

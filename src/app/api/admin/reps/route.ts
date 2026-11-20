@@ -3,6 +3,7 @@ import { requireAdmin, getAdminIdentity } from '@/lib/require-admin';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { createOrResetRepLogin } from '@/lib/rep-login';
 import { logRepActivity } from '@/lib/rep-activity';
+import { audit, adminActor } from '@/lib/audit';
 
 export async function GET() {
   const denied = await requireAdmin();
@@ -83,7 +84,10 @@ export async function POST(req: NextRequest) {
         { status: 201 }
       );
     }
-    return NextResponse.json({ rep: data, credentials: result.credentials }, { status: 201 });
+    const audited = result.userId
+      ? await audit(admin, adminActor(who), { action: 'role.grant', table: 'reps', id: data.id, route: 'POST /api/admin/reps', before: { role: null }, after: { role: 'rep', user_id: result.userId } })
+      : {};
+    return NextResponse.json({ rep: data, credentials: result.credentials, ...audited }, { status: 201 });
   }
 
   return NextResponse.json({ rep: data }, { status: 201 });

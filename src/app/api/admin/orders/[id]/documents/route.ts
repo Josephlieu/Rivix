@@ -5,6 +5,7 @@ import { logForOrder } from '@/lib/rep-activity';
 import { DOC_TYPES, MAX_DOC_BYTES, parseExpiryDate } from '@/lib/documents';
 import { customerParties, notifyUsers } from '@/lib/notify';
 import { invalidateDashboard } from '@/lib/dashboard-data';
+import { audit, adminActor } from '@/lib/audit';
 
 // Step 2 of an upload: the file is already in storage; record it against the order.
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -70,6 +71,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   invalidateDashboard(); // the document count changed
+  const audited = await audit(admin, adminActor(who), { action: 'document.upload', table: 'documents', id: doc.id, route: 'POST /api/admin/orders/[id]/documents', after: { order: order.batch_number, title, doc_type: docType, file_name: fileName || name, file_size: size, mime_type: mime, expires_on: expiry.value } });
   await logForOrder(admin, order.id, { kind: 'document', by: who.email, text: (o) => `Document uploaded on ${o.batch}: ${docType} (${title})` });
 
   // Open rep requests for this order and this kind of document are now answered.
@@ -97,5 +99,5 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     order_id: order.id,
   });
 
-  return NextResponse.json({ id: doc.id }, { status: 201 });
+  return NextResponse.json({ id: doc.id, ...audited }, { status: 201 });
 }
