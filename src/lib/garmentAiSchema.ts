@@ -39,6 +39,7 @@ export const garmentResponseSchema = (fieldKeys?: string[]) => obj({
   stitchReference: { type: 'array', items: obj({ code: str, name: str }) },
   labelPlacements: { type: 'array', items: obj({ type: str, location: str, attachment: str, dimensions: str, material: str }) },
   colorway: obj({ bodyColor: str, contrastColors: strList, threadColor: str, hardwareFinish: str, reflectiveTape: str }),
+  otherColourways: strList, // 2026-11-20: one colourway per tech file; other colours seen go here, with their photo
   washCare: obj({ instructions: strList, specialNotes: str }),
   suggestions: { type: 'object', additionalProperties: str },
   markings: MARKINGS,
@@ -53,6 +54,7 @@ export const productResponseSchema = (fieldKeys?: string[]) => obj({
   overallConfidence: num,
   components: { type: 'array', items: obj({ id: str, type: { type: 'string', enum: PRODUCT_COMPONENT_TYPES }, label: str, location: str, confidence: num, x: num, y: num }) },
   colorway: obj({ bodyColor: str, contrastColors: strList, hardwareFinish: str }),
+  otherColourways: strList, // 2026-11-20: one colourway per tech file
   labelPlacements: { type: 'array', items: obj({ type: str, location: str }) },
   washCare: obj({ instructions: strList }),
   suggestions: { type: 'object', additionalProperties: str },

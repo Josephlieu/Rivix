@@ -49,16 +49,32 @@ const noPhotosIdle = [
   ['no photos: "Run AI Scan" says why it is disabled', RUN_BTN('Confirm the product type first (below).'), RUN_BTN('Add photos first: the scan reads the photos, and this request has none.'), 24],
   ['no photos: the note under the scan header', '</div>', `</div>\n${NO_PHOTO_NOTE}`, 29],
 ];
+// (f) 2026-11-20, approved: the PDF footer names the company as "RIVIX" (one constant, COMPANY_NAME). Every one of the 9
+// footer lines of each golden PDF changes, and nothing else: a 4th value 'all' = every line equal to it, exactly that many.
+const FOOTER_OLD = 'RIVIX Apparel Manufacturing  ·  rivix.ca  ·  info@rivix.ca';
+const footer = ['(f) company name in the footer', FOOTER_OLD, 'RIVIX  ·  rivix.ca  ·  info@rivix.ca', 'all', 9];
+// (g) 2026-11-20, approved: the cover note names the AI only for a scan. The golden jacket cases carry a confidence but no
+// product identification and no source marker (they were made up for the test), so they now get the neutral wording.
+const NOTE_AI = 'DRAFT. This specification has not been approved. Values were drafted by AI from photos and must be checked against the physical garment before this file goes to a factory.';
+const coverNote = ['(g) cover note: no scan signal, neutral wording', NOTE_AI, 'DRAFT. This specification has not been approved. Values must be checked against the physical garment before this file goes to a factory.'];
+// (h) 2026-11-20, approved: a reflective checklist item is never "read from photo"; it shows "Looks reflective: needs
+// confirmation" (the golden jacket's item 14 was read from a photo). Line numbers: these lines are not unique.
+const reflectivePdf = ['(h) reflective item: needs confirmation', 'Read from photo, not confirmed', 'Looks reflective: needs confirmation', 151];
+const reflectiveReview = [
+  ['(h) "Confirm all read-from-photo items" no longer counts the reflective item', '<button type="button" class="rounded-lg border border-sky-300 bg-white px-3 py-1.5 text-[11px] font-bold text-sky-800 hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-50">Confirm all read-from-photo items (5)</button>', '<button type="button" class="rounded-lg border border-sky-300 bg-white px-3 py-1.5 text-[11px] font-bold text-sky-800 hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-50">Confirm all read-from-photo items (4)</button>'],
+  ['(h) the reflective row is "needs confirmation" (amber), not "read" (blue)', '<div class="rounded-xl border p-3 border-sky-200 bg-sky-50/40">', '<div class="rounded-xl border p-3 border-amber-200 bg-amber-50/50">', 215],
+  ['(h) the reflective row\'s flag', '<span class="rounded bg-sky-100 px-1.5 py-0.5 font-bold uppercase tracking-widest text-sky-800">Read from photo, not checked</span>', '<span class="rounded bg-amber-100 px-1.5 py-0.5 font-bold uppercase tracking-widest text-amber-800">Looks reflective: needs confirmation</span>', 220],
+];
 const EXPECTED = {
   'ai-tab-ai-values': [item5, ...noPhotosScanned],
   'ai-tab-empty-values': [item5, ...noPhotosScanned, ['(e) no values: nothing about estimates', FOOT_OLD, `${FOOT}* NO MEASUREMENTS FILLED IN YET. MEASURE A SAMPLE OR USE THE APPROVED SIZE CHART.</div>`]],
   'ai-tab-all-confirmed': [item5, ...noPhotosScanned, ['(e) all confirmed by a person: not "AI-estimated"', FOOT_OLD, `${FOOT}* ALL ABOVE MEASUREMENTS ARE IN INCHES AND TAKEN FLAT, CONFIRMED BY A PERSON. IT IS RECOMMENDED THAT ALL SIZES ARE SAMPLED BEFORE PRODUCTION.</div>`]],
-  'ai-tab-not-scanned': noPhotosIdle, 'ai-tab-scanning': [], 'review-tab': [], 'review-tab-approved': [], 'panel-received': [], 'new-request': [],
+  'ai-tab-not-scanned': noPhotosIdle, 'ai-tab-scanning': [], 'review-tab': reflectiveReview, 'review-tab-approved': [], 'panel-received': [], 'new-request': [],
   'panel-expected': [['(c) garment expected', NOTE_OLD, `${NOTE}Verify details such as safety ratings and structural seams against the physical garment when it arrives. Until then, check them against the photos.</p>`]],
   'panel-photos-only': [['(c) photos only', NOTE_OLD, `${NOTE}Photos only: no garment is coming. Check details such as safety ratings and seams against the photos, and ask the customer for anything the photos do not show.</p>`]],
-  'pdf-draft-ai-values': [], 'pdf-approved': [],
-  'pdf-draft-empty-values': [['(e) no values', PDF_OLD, 'No measurements filled in yet. Measure the physical garment or use the approved size chart.']],
-  'pdf-draft-all-confirmed': [['(e) all confirmed by a person', PDF_OLD, 'Every measurement was confirmed by a person. This file is not approved yet.']],
+  'pdf-draft-ai-values': [footer, coverNote, reflectivePdf], 'pdf-approved': [footer],
+  'pdf-draft-empty-values': [footer, coverNote, reflectivePdf, ['(e) no values', PDF_OLD, 'No measurements filled in yet. Measure the physical garment or use the approved size chart.']],
+  'pdf-draft-all-confirmed': [footer, coverNote, ['(e) all confirmed by a person', PDF_OLD, 'Every measurement was confirmed by a person. This file is not approved yet.']],
 };
 const cases = JSON.parse(fs.readFileSync(`${GOLD}/cases.json`, 'utf8'));
 const jt = res('jacket');
@@ -69,7 +85,13 @@ for (const name of goldNames) {
   let want = fs.readFileSync(`${GOLD}/${name}.txt`, 'utf8');
   const lines = want.split('\n');
   let listed = true;
-  for (const [why, from, to, at] of EXPECTED[name]) {
+  for (const [why, from, to, at, count] of EXPECTED[name]) {
+    if (at === 'all') { // every line equal to `from`, and exactly `count` of them
+      const idx = lines.map((l, j) => (l === from ? j : -1)).filter((j) => j >= 0);
+      if (idx.length !== count) { listed = false; console.log('  expected line count wrong in the golden file:', name, why, idx.length); continue; }
+      for (const j of idx) lines[j] = to;
+      continue;
+    }
     if (at) { // a line that is not unique: named by its line number in the golden file, and it must match exactly
       if (lines[at - 1] !== from) { listed = false; console.log('  expected line not at its golden line number:', name, why, at); continue; }
       lines[at - 1] = to;
@@ -85,6 +107,23 @@ for (const name of goldNames) {
   if (!same) { const a = want.split('\n'), b = got.split('\n'); const i = a.findIndex((l, j) => l !== b[j]); console.log(`  first other difference in ${name} at line ${i + 1}:\n   golden: ${String(a[i]).slice(0, 200)}\n   now:    ${String(b[i]).slice(0, 200)}`); }
   ok(`jacket ${name}: ${EXPECTED[name].length ? `only the listed differences (${EXPECTED[name].map((e) => e[0]).join('; ')})` : 'unchanged'}`, listed && same);
 }
+
+// --- 1b) The frozen clock (2026-11-20): "today" is never a fixed test date ---------------------------------------------------
+const frozen = R.dateForms(R.FROZEN_TODAY), fixedDay = R.dateForms(R.GOLDEN_MADE_ON);
+ok('the clock is frozen: today is 15 March 2030 (never NOW, never the golden day)', new Date().getTime() === R.FROZEN_TODAY.getTime() && Date.now() === R.FROZEN_TODAY.getTime() && new Date().getFullYear() === 2030 && new Date(R.NOW).toISOString() === R.NOW);
+const rawApproved = R.pdfTextsRaw(R.makeRep('jacket', cases.approved), jt);
+ok('approved PDF (unmasked): prints the approval date (18 Nov 2026), never "today"', rawApproved.includes(`RIVIX, ${fixedDay[0]}`) && !frozen.some((f) => rawApproved.includes(f)));
+const rawReview = R.drawReview(R.makeRep('jacket', cases.approved));
+ok('approved Review tab (unmasked): shows the approval date, never "today"', fixedDay.some((f) => rawReview.includes(f)) && !frozen.some((f) => rawReview.includes(f)));
+const rawAi = R.drawAiTab(R.makeRep('jacket', cases.ai), { template: jt });
+ok('AI tab (unmasked): its date stamp is "today" (the frozen day)', frozen.some((f) => rawAi.includes(f)));
+
+// --- 1c) The footer (2026-11-20): the company name is one constant, and the old name is gone everywhere -----------------------
+const Pdf = await import('../../src/lib/TechPackPDF.tsx');
+ok('COMPANY_NAME is one named constant: "RIVIX"', Pdf.COMPANY_NAME === 'RIVIX');
+const srcFiles = []; const walkSrc = (d) => { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const f = `${d}/${e.name}`; if (e.isDirectory()) walkSrc(f); else if (/\.(ts|tsx)$/.test(e.name)) srcFiles.push(f); } };
+walkSrc('src');
+ok('"Apparel Manufacturing" appears nowhere in src/', !srcFiles.some((f) => fs.readFileSync(f, 'utf8').includes('Apparel Manufacturing')));
 
 // --- 2) Glove, boot, harness: the screens and the PDF -----------------------------------------------------------------------
 const answer = { productIdentification: { mode: 'visual', brand: null, model: null, source: 'photos' }, garmentClass: 'ZZ item', overallConfidence: 90, components: [], colorway: { bodyColor: 'tan', contrastColors: [], hardwareFinish: '' }, labelPlacements: [], washCare: { instructions: [] }, suggestions: {}, markings: [], fields: { outsole: { value: 'Lugged rubber', photo: 1 }, cuff: { value: 'Safety cuff', photo: 1 } }, flags: ['fabricAnalysis.material', 'bom.hardware', 'colorway.threadColor'] };
@@ -153,6 +192,15 @@ for (const p of PRODUCTS) {
   ok(`${p.key} PDF: no empty jacket fields or Hood; a saved one is printed`, !['Buttons / snaps', 'Reflective striping', 'Pockets', 'Seam construction', 'Hood'].some((f) => pl.includes(f)) && pl.includes('Zippers') && pl.includes('ZZ kept zipper'));
   ok(`${p.key} PDF: "Checklist for this product type", "(inches)", "physical product"`, pl.includes('Checklist for this product type') && pl.includes('Measurement specification (inches)') && pdf.includes('physical product') && !pdf.includes('physical garment') && !pdf.includes('flat on the half'));
   ok(`${p.key} PDF: an empty field still prints "Not specified" (never invented)`, pdf.includes('Not specified'));
+  // 1d (2026-11-20): a product file has no "Garment class" and none of the clothing-only Section 2 fields (thread colour,
+  // reflective tape, the fabric block), unless a person filled one in; it says "Product description".
+  const CLOTHING_ONLY = ['Garment class', 'Thread colour', 'Reflective tape', 'Material', 'Weight', 'Weave', 'Flame-resistance rating', 'Finish', 'Shrinkage'];
+  ok(`${p.key} PDF: no "Garment class" or clothing-only Section 2 field; "Product description" instead`, !CLOTHING_ONLY.some((f) => pl.includes(f)) && pl.includes('Product description') && pl.includes('Body colour') && pl.includes('Hardware finish'), CLOTHING_ONLY.filter((f) => pl.includes(f)).join(', '));
+  const personMaterial = R.pdfTexts(rep({ ...withVals, fabricAnalysis: { material: 'ZZ nitrile coating', weight: '', weaveType: '', frRating: '', finish: '', shrinkage: '' } }), t).split('\n');
+  ok(`${p.key} PDF: a material a person filled in is still printed`, personMaterial.includes('Material') && personMaterial.includes('ZZ nitrile coating') && !personMaterial.includes('Weave'));
+  ok(`${p.key} PDF: the footer says RIVIX`, pl.filter((l) => l === 'RIVIX  ·  rivix.ca  ·  info@rivix.ca').length >= 1 && !pdf.includes('Apparel Manufacturing'));
+  const rvProduct = text(R.drawReview(rep(base)));
+  ok(`${p.key} Review tab: no empty clothing-only field (thread colour, reflective tape, fabric block)`, !/Thread colour|Reflective tape|Weave|Shrinkage|Flame-resistance rating/.test(rvProduct) && rvProduct.includes('Body colour'));
   const pdfEmpty = R.pdfTexts(rep(base), t);
   ok(`${p.key} PDF draft with no values: nothing about estimates`, pdfEmpty.includes('No measurements filled in yet') && !/estimate/i.test(pdfEmpty.split('\n').filter((l) => /measure/i.test(l)).join(' ')));
 }

@@ -37,6 +37,36 @@ const filled = (v: unknown) => v != null && String(v).trim() !== '';
 /** Show a specs field? Clothing: always. Product: the clothing fields only when they already hold a value (never hidden). */
 export const showSpecField = (t: Partial<DisplayTemplate> | null | undefined, key: string, value: unknown) => !isProduct(t) || !isApparelKey(key) || filled(value);
 
+// ---- Section 2 of the tech file: colour and fabric (2026-11-20) ------------------------------------------------------------
+/** Section 2 fields that only make sense for clothing. A glove, boot or other PPE item shows them only when a person filled one. */
+export const CLOTHING_ONLY_ANALYSIS = ['colorway.threadColor', 'colorway.reflectiveTape', 'fabricAnalysis.material', 'fabricAnalysis.weight',
+  'fabricAnalysis.weaveType', 'fabricAnalysis.frRating', 'fabricAnalysis.finish', 'fabricAnalysis.shrinkage'] as const;
+export const showAnalysisField = (t: Partial<DisplayTemplate> | null | undefined, path: string, value: unknown) =>
+  !isProduct(t) || !(CLOTHING_ONLY_ANALYSIS as readonly string[]).includes(path) || filled(value);
+/** The cover's name for "what it is": a product file never says "Garment class". */
+export const descriptionLabel = (t: Partial<DisplayTemplate> | null | undefined) => (isProduct(t) ? 'Product description' : 'Garment class');
+
+// ---- Where a draft came from: the cover note (2026-11-20) --------------------------------------------------------------------
+export type DraftOrigin = 'ai' | 'manual' | 'unknown';
+/** 'ai': the server's marker says a scan made it, or (older drafts) a scan's product identification and confidence are there.
+ *  'manual': the server marked it as a person's first draft (Review tab, no scan). Anything else: not known. */
+export function draftOrigin(a: Row | null | undefined): DraftOrigin {
+  if (!a || typeof a !== 'object') return 'unknown';
+  if (a.source === 'ai_scan') return 'ai';
+  if (a.source === 'manual') return 'manual';
+  const pid = a.productIdentification;
+  return pid && typeof pid === 'object' && typeof a.overallConfidence === 'number' ? 'ai' : 'unknown';
+}
+/** The cover's draft note: names the AI only for a scan, a person only for a hand-made draft, neither when not known. */
+export function draftNote(a: Row | null | undefined, word: string): string {
+  const head = 'DRAFT. This specification has not been approved.';
+  const tail = `must be checked against the physical ${word} before this file goes to a factory.`;
+  const o = draftOrigin(a);
+  if (o === 'ai') return `${head} Values were drafted by AI from photos and ${tail}`;
+  if (o === 'manual') return `${head} No AI scan was run: the values were entered by a person and ${tail}`;
+  return `${head} Values ${tail}`;
+}
+
 /** The words for a checklist item's state, as the Review tab says them. */
 export const STATE_WORDS: Record<ItemState, string> = { needs: 'Needs confirmation', read: 'Read from photo, not checked', confirmed: 'Confirmed' };
 

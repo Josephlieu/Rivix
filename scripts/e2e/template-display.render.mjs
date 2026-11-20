@@ -5,6 +5,18 @@ import { env as E2E_ENV } from './env.mjs'; // the test project only (guarded), 
 import fs from 'fs';
 import React from 'react';
 
+// The clock is frozen (2026-11-20, approved): "today" is 15 March 2030, 12:00 local time, for every `new Date()` and
+// `Date.now()` in the code under test, so it can never fall on a fixed test date (NOW below, or 18 November 2026, the day the
+// golden files were made). Dates given to the constructor are untouched. Installed before the app's modules load.
+export const FROZEN_TODAY = new Date(2030, 2, 15, 12, 0, 0);
+const RealDate = Date;
+const FROZEN_MS = FROZEN_TODAY.getTime();
+class FrozenDate extends RealDate {
+  constructor(...args) { if (args.length === 0) super(FROZEN_MS); else super(...args); }
+  static now() { return FROZEN_MS; }
+}
+globalThis.Date = FrozenDate;
+
 // The browser Supabase client is created when its module loads: give it the public values (never a secret).
 const env = E2E_ENV;
 process.env.NEXT_PUBLIC_SUPABASE_URL = env.NEXT_PUBLIC_SUPABASE_URL;
@@ -73,14 +85,14 @@ export function jacketCases() {
 const idle = () => ({ status: 'idle', currentStep: 0, totalSteps: View.AI_SCAN_STEPS.length, stepLabel: '', progress: 0, components: [], detectedSoFar: [], fabricAnalysis: null, wireframeGenerated: false, garmentClass: null, overallConfidence: null, season: null, measurements: [], bom: null, construction: [], stitchReference: [], labelPlacements: [], colorway: null, washCare: null });
 
 /** The day the golden files were made (template-display.make-golden.mjs ran on 18 November 2026, local time). */
-const GOLDEN_MADE_ON = new Date(2026, 10, 18);
-const dateForms = (d) => [d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }), d.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }), d.toLocaleDateString()];
+export const GOLDEN_MADE_ON = new Date(2026, 10, 18);
+/** A date in the three forms the screens and the PDF print. */
+export const dateForms = (d) => [d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }), d.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }), d.toLocaleDateString()];
 
-/** Today's date as the screens print it, masked (the AI tab prints the current date).
- *  Why 18 November is masked too: the golden files were made on 18 November 2026, the same day as the fixed test date NOW.
- *  So when they were made, this mask also replaced NOW's date (as printed by the PDF and the Review tab) with [TODAY].
- *  Masking 18 November in exactly the same three forms makes every later day compare exactly as strictly as the day the
- *  golden files were made. No golden file is regenerated and no expected line changes. (Later: freeze the clock instead.) */
+/** "Today" (the frozen day: the AI tab prints the current date) masked as [TODAY].
+ *  18 November 2026 is masked too, and must stay: the golden files were made on that day, which is also the day of the fixed
+ *  test date NOW, so the golden files hold [TODAY] where NOW's date is printed (the PDF and the Review tab). The frozen clock
+ *  keeps "today" away from NOW; template-display.check.mjs checks the unmasked output to prove the two are never mixed up. */
 export function mask(text) {
   const forms = [...dateForms(new Date()), ...dateForms(GOLDEN_MADE_ON)];
   return forms.reduce((s, f) => s.split(f).join('[TODAY]'), text);
@@ -100,7 +112,9 @@ export const drawReview = (rep) => renderToStaticMarkup(React.createElement(Revi
 export const drawNewRequest = () => renderToStaticMarkup(React.createElement(NewRequestDialog, { role: 'admin', onClose: noop, onCreated: noop }));
 
 /** Every text the PDF prints, in order (one line per Text element). Function components are expanded by calling them. */
-export function pdfTexts(rep, template) {
+export function pdfTexts(rep, template) { return mask(pdfTextsRaw(rep, template)); }
+/** The same, unmasked (for the date checks). */
+export function pdfTextsRaw(rep, template) {
   const d = P.buildTechFileData(rep, [], undefined, template);
   const out = [];
   const flat = (el) => (el == null || typeof el === 'boolean' ? '' : typeof el === 'string' || typeof el === 'number' ? String(el) : Array.isArray(el) ? el.map(flat).join('') : el.props ? flat(el.props.children) : '');
@@ -113,7 +127,7 @@ export function pdfTexts(rep, template) {
     if (el.props) walk(el.props.children);
   };
   walk(React.createElement(P.TechPackPDF, { d }));
-  return mask(out.join('\n'));
+  return out.join('\n');
 }
 
 /** Everything the golden files hold, for the jacket. `panel(rep)` draws the Client Spec Review panel. */

@@ -104,7 +104,8 @@ export function normalizeAnalysis<T = Row>(raw: unknown): T | null {
   if ('checklist' in raw) a.checklist = rows(raw.checklist, ['key', 'label', 'value']);
   if ('markings' in raw) a.markings = rows(raw.markings, ['kind', 'text', 'location'], ['photo']);
   if ('artwork' in raw) a.artwork = rows(raw.artwork, ['name', 'placement', 'size', 'method']);
-  for (const k of ['flags', 'fromCustomer', 'fromWebsite', 'testing']) if (k in raw) a[k] = texts(raw[k]);
+  for (const k of ['flags', 'fromCustomer', 'fromWebsite', 'testing', 'otherColourways', 'notSeenHardware']) if (k in raw) a[k] = texts(raw[k]);
+  if ('source' in raw) { if (typeof raw.source === 'string') a.source = raw.source; else delete a.source; } // set by the server only
   if ('suggestions' in raw) {
     const s = isObj(raw.suggestions) ? raw.suggestions : {};
     a.suggestions = Object.fromEntries(Object.entries(s).filter(([, v]) => typeof v === 'string'));

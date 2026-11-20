@@ -87,7 +87,9 @@ export function prefillSpecs(specs: ReplicationSpec, a: Partial<PersistedGarment
     fabricWeight: clean(a.fabricAnalysis?.weight),
     zippers: uniq([...ofType('zipper'), ...hw(/zip/i)]).slice(0, 4).join('; '),
     buttonsSnaps: uniq([...ofType('snap', 'button'), ...hw(/snap|button|hook|velcro|loop/i)]).slice(0, 4).join('; '),
-    reflectiveStriping: clean(a.colorway?.reflectiveTape) || uniq(ofType('reflective')).slice(0, 3).join('; '),
+    // 2026-11-20: never filled from a photo: a photo cannot show that tape is reflective (a person types it).
+    // Hardware a photo does not show (`notSeenHardware`) is not in bom.hardware, so it never fills Zippers or Buttons.
+    reflectiveStriping: '',
     pocketsCount: uniq(ofType('pocket')).slice(0, 5).join('; '),
     seamConstruction: uniq(seams).slice(0, 3).join('; '),
   };

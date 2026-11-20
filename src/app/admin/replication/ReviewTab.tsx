@@ -6,7 +6,7 @@ import type { ReplicationRequest, ReplicationSpec } from '@/lib/replicationStora
 import { suggestedTests, suggestFrenchCare, prefillSpecs, HIVIS_STANDARDS, TAPE_OPTIONS } from '@/lib/techFileStandards';
 import { protectiveText } from '@/lib/template-catalog';
 import { useRequestTemplate, type RequestTemplate } from './useRequestTemplate';
-import { isProduct, itemWord, measuredFlat, shortLabel, showSpecField, standardsLine, viewsOf } from '@/lib/template-display';
+import { isProduct, itemWord, measuredFlat, shortLabel, showSpecField, showAnalysisField, standardsLine, viewsOf } from '@/lib/template-display';
 import { checklistFor, templateMeasurements, outstandingConfirmations, missingInformation } from '@/lib/garmentAiAnalysis';
 import { garmentTypeLabel } from '@/lib/garment-types-data';
 import { drawingFor, rowNumbers } from '@/lib/drawings';
@@ -17,7 +17,7 @@ import { readWebSource, linkMissing, FROM_WEBSITE } from '@/lib/link-source';
 import WebFoundView from './WebFoundView';
 import StandardNote from '@/components/StandardNote';
 import { normalizeAnalysis } from '@/lib/analysis-shape';
-import { itemState, rowRef, isStamped, CONFIRMABLE_LISTS, type ConfirmationRef, type ConfirmableList } from '@/lib/checklist-confirm';
+import { itemState, rowRef, isStamped, isReflectiveItem, REFLECTIVE_FLAG, CONFIRMABLE_LISTS, type ConfirmationRef, type ConfirmableList } from '@/lib/checklist-confirm';
 import { formatDate } from '@/lib/format';
 import { contentKeyOf, isDirty, nextReviewState, type ReviewDraft, type SentSave } from '@/lib/review-sync';
 
@@ -67,8 +67,9 @@ function Section({ title, hint, children }: { title: string; hint?: string; chil
   );
 }
 
-function Field({ name, value, onChange, wide, options, flagged, onConfirm, suggestion, onUse, note, edition }: {
+function Field({ name, value, onChange, wide, options, flagged, onConfirm, suggestion, onUse, note, edition, flagLabel }: {
   name: string; value: string; onChange: (v: string) => void; wide?: boolean;
+  flagLabel?: string; // what the flag says, when not "Needs confirmation" (2026-11-20: reflective tape); never stored
   edition?: boolean; // a safety standard: note a replaced edition (never blocks)
   options?: string[]; // suggestions (the field stays free text)
   flagged?: boolean; onConfirm?: () => void; // "needs confirmation" flag and the button that clears it
@@ -85,7 +86,7 @@ function Field({ name, value, onChange, wide, options, flagged, onConfirm, sugge
       {listId && <datalist id={listId}>{options!.map(o => <option key={o} value={o} />)}</datalist>}
       {note && <span className="block text-[10px] text-slate-500">{note}</span>}
       {edition && <StandardNote value={value} />}
-      {flagged && onConfirm && <ConfirmFlag onConfirm={onConfirm} />}
+      {flagged && onConfirm && <ConfirmFlag onConfirm={onConfirm} label={flagLabel} />}
       {suggestion && onUse && <Suggestion text={suggestion} onUse={onUse} />}
     </div>
   );
@@ -100,12 +101,12 @@ function Suggestion({ text, onUse }: { text: string; onUse: () => void }) {
   );
 }
 
-function ConfirmFlag({ onConfirm, read }: { onConfirm: () => void; read?: boolean }) {
+function ConfirmFlag({ onConfirm, read, label: text }: { onConfirm: () => void; read?: boolean; label?: string }) {
   return (
     <span className="flex items-center gap-2 text-[10px]">
       {read
         ? <span className="rounded bg-sky-100 px-1.5 py-0.5 font-bold uppercase tracking-widest text-sky-800">Read from photo, not checked</span>
-        : <span className="rounded bg-amber-100 px-1.5 py-0.5 font-bold uppercase tracking-widest text-amber-800">Needs confirmation</span>}
+        : <span className="rounded bg-amber-100 px-1.5 py-0.5 font-bold uppercase tracking-widest text-amber-800">{text || 'Needs confirmation'}</span>}
       <button type="button" onClick={onConfirm} className="font-bold text-rivix hover:underline">Confirmed, it is correct</button>
     </span>
   );
@@ -238,6 +239,13 @@ export default function ReviewTab({ rep, onSave, requestTemplate }: Props) {
   // What to ask the customer for, worked out from the fields that are still open.
   // Gloves, footwear and PPE (template-display.ts): asked in the template's own words; clothing as before.
   const product = isProduct(template);
+  // 2026-11-20: Section 2 fields that only clothing has; the reflective-tape flag (shown next to the value, never stored).
+  const showA = (path: string, v: unknown) => showAnalysisField(template, path, v);
+  const fabricShown = (['material', 'weight', 'weaveType', 'frRating', 'finish', 'shrinkage'] as const).some(k => showA(`fabricAnalysis.${k}`, fabric[k]));
+  const reflectiveFlag = String(color.reflectiveTape || '').trim() && !/^none$/i.test(String(color.reflectiveTape).trim()) ? REFLECTIVE_FLAG : undefined;
+  // 1c: hardware the AI named but no photo shows, until a person confirms (it moves to Hardware) or removes it.
+  const notSeen = a.notSeenHardware || [];
+  const settleNotSeen = (line: string, keep: boolean) => setA({ notSeenHardware: notSeen.filter(x => x !== line), ...(keep ? { bom: { ...bom, hardware: [...bom.hardware, line] } } : {}) } as Partial<Analysis>);
   const askList: string[] = [];
   if (['fabricAnalysis.material', 'fabricAnalysis.weight', 'fabricAnalysis.weaveType', 'washCare.instructions', 'bom.labels'].some(isFlagged)) askList.push(product ? 'A clear photo of the labels and markings, or the product spec sheet' : 'A clear photo of the inside label (fabric and care text), or the fabric spec sheet');
   if (isFlagged('fabricAnalysis.frRating')) askList.push('The safety standard or certification, if any (a brand certification does not transfer to a copy)');
@@ -278,7 +286,7 @@ export default function ReviewTab({ rep, onSave, requestTemplate }: Props) {
     const r = row as { confirmedBy?: string; confirmedAt?: string };
     if (isPending(list, row, i)) return <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-700">Confirmed, recorded when you save</span>;
     if (isStamped(row)) return <span className="text-[10px] text-emerald-700"><b className="uppercase tracking-widest">Confirmed</b> by {r.confirmedBy} on {formatDate(r.confirmedAt!)}</span>;
-    return <ConfirmFlag read={itemState(row, list) === 'read'} onConfirm={() => confirmRow(list, row, i)} />;
+    return <ConfirmFlag read={itemState(row, list) === 'read'} label={list === 'checklist' && isReflectiveItem(row) ? REFLECTIVE_FLAG : undefined} onConfirm={() => confirmRow(list, row, i)} />;
   };
   const rowBox = (list: ConfirmableList, row: object, i: number) =>
     isPending(list, row, i) || isStamped(row) ? 'border-slate-100' : itemState(row, list) === 'read' ? 'border-sky-200 bg-sky-50/40' : 'border-amber-200 bg-amber-50/50';
@@ -445,25 +453,27 @@ export default function ReviewTab({ rep, onSave, requestTemplate }: Props) {
         </div>
       </Section>
 
-      <Section title="Fabric">
+      {/* 2026-11-20: a glove, boot or other PPE item shows the clothing-only fields only when a person filled one in. */}
+      {fabricShown && <Section title="Fabric">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <Field name="Material" value={fabric.material} onChange={v => setA({ fabricAnalysis: { ...fabric, material: v } })} flagged={isFlagged('fabricAnalysis.material')} onConfirm={() => confirm('fabricAnalysis.material')} suggestion={sug('fabricAnalysis.material')} onUse={() => use('fabricAnalysis.material')} note={src('fabricAnalysis.material')} />
-          <Field name="Weight" value={fabric.weight} onChange={v => setA({ fabricAnalysis: { ...fabric, weight: v } })} flagged={isFlagged('fabricAnalysis.weight')} onConfirm={() => confirm('fabricAnalysis.weight')} suggestion={sug('fabricAnalysis.weight')} onUse={() => use('fabricAnalysis.weight')} note={src('fabricAnalysis.weight')} />
-          <Field name="Weave" value={fabric.weaveType} onChange={v => setA({ fabricAnalysis: { ...fabric, weaveType: v } })} flagged={isFlagged('fabricAnalysis.weaveType')} onConfirm={() => confirm('fabricAnalysis.weaveType')} suggestion={sug('fabricAnalysis.weaveType')} onUse={() => use('fabricAnalysis.weaveType')} note={src('fabricAnalysis.weaveType')} />
-          <Field name="Flame-resistance rating" value={fabric.frRating} onChange={v => setA({ fabricAnalysis: { ...fabric, frRating: v } })} flagged={isFlagged('fabricAnalysis.frRating')} onConfirm={() => confirm('fabricAnalysis.frRating')} suggestion={sug('fabricAnalysis.frRating')} onUse={() => use('fabricAnalysis.frRating')} note={src('fabricAnalysis.frRating')} />
-          <Field name="Finish" value={fabric.finish || ''} onChange={v => setA({ fabricAnalysis: { ...fabric, finish: v } })} flagged={isFlagged('fabricAnalysis.finish')} onConfirm={() => confirm('fabricAnalysis.finish')} suggestion={sug('fabricAnalysis.finish')} onUse={() => use('fabricAnalysis.finish')} note={src('fabricAnalysis.finish')} />
-          <Field name="Shrinkage" value={fabric.shrinkage || ''} onChange={v => setA({ fabricAnalysis: { ...fabric, shrinkage: v } })} flagged={isFlagged('fabricAnalysis.shrinkage')} onConfirm={() => confirm('fabricAnalysis.shrinkage')} suggestion={sug('fabricAnalysis.shrinkage')} onUse={() => use('fabricAnalysis.shrinkage')} note={src('fabricAnalysis.shrinkage')} />
+          {showA('fabricAnalysis.material', fabric.material) && <Field name="Material" value={fabric.material} onChange={v => setA({ fabricAnalysis: { ...fabric, material: v } })} flagged={isFlagged('fabricAnalysis.material')} onConfirm={() => confirm('fabricAnalysis.material')} suggestion={sug('fabricAnalysis.material')} onUse={() => use('fabricAnalysis.material')} note={src('fabricAnalysis.material')} />}
+          {showA('fabricAnalysis.weight', fabric.weight) && <Field name="Weight" value={fabric.weight} onChange={v => setA({ fabricAnalysis: { ...fabric, weight: v } })} flagged={isFlagged('fabricAnalysis.weight')} onConfirm={() => confirm('fabricAnalysis.weight')} suggestion={sug('fabricAnalysis.weight')} onUse={() => use('fabricAnalysis.weight')} note={src('fabricAnalysis.weight')} />}
+          {showA('fabricAnalysis.weaveType', fabric.weaveType) && <Field name="Weave" value={fabric.weaveType} onChange={v => setA({ fabricAnalysis: { ...fabric, weaveType: v } })} flagged={isFlagged('fabricAnalysis.weaveType')} onConfirm={() => confirm('fabricAnalysis.weaveType')} suggestion={sug('fabricAnalysis.weaveType')} onUse={() => use('fabricAnalysis.weaveType')} note={src('fabricAnalysis.weaveType')} />}
+          {showA('fabricAnalysis.frRating', fabric.frRating) && <Field name="Flame-resistance rating" value={fabric.frRating} onChange={v => setA({ fabricAnalysis: { ...fabric, frRating: v } })} flagged={isFlagged('fabricAnalysis.frRating')} onConfirm={() => confirm('fabricAnalysis.frRating')} suggestion={sug('fabricAnalysis.frRating')} onUse={() => use('fabricAnalysis.frRating')} note={src('fabricAnalysis.frRating')} />}
+          {showA('fabricAnalysis.finish', fabric.finish) && <Field name="Finish" value={fabric.finish || ''} onChange={v => setA({ fabricAnalysis: { ...fabric, finish: v } })} flagged={isFlagged('fabricAnalysis.finish')} onConfirm={() => confirm('fabricAnalysis.finish')} suggestion={sug('fabricAnalysis.finish')} onUse={() => use('fabricAnalysis.finish')} note={src('fabricAnalysis.finish')} />}
+          {showA('fabricAnalysis.shrinkage', fabric.shrinkage) && <Field name="Shrinkage" value={fabric.shrinkage || ''} onChange={v => setA({ fabricAnalysis: { ...fabric, shrinkage: v } })} flagged={isFlagged('fabricAnalysis.shrinkage')} onConfirm={() => confirm('fabricAnalysis.shrinkage')} suggestion={sug('fabricAnalysis.shrinkage')} onUse={() => use('fabricAnalysis.shrinkage')} note={src('fabricAnalysis.shrinkage')} />}
         </div>
-      </Section>
+      </Section>}
 
       <Section title="Colours" hint="Pantone references are best (for example PANTONE 19-4052 TCX).">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field name="Body colour" value={color.bodyColor} onChange={v => setA({ colorway: { ...color, bodyColor: v } })} flagged={isFlagged('colorway.bodyColor')} onConfirm={() => confirm('colorway.bodyColor')} suggestion={sug('colorway.bodyColor')} onUse={() => use('colorway.bodyColor')} note={src('colorway.bodyColor')} />
-          <Field name="Thread colour" value={color.threadColor} onChange={v => setA({ colorway: { ...color, threadColor: v } })} flagged={isFlagged('colorway.threadColor')} onConfirm={() => confirm('colorway.threadColor')} suggestion={sug('colorway.threadColor')} onUse={() => use('colorway.threadColor')} note={src('colorway.threadColor')} />
+          {showA('colorway.threadColor', color.threadColor) && <Field name="Thread colour" value={color.threadColor} onChange={v => setA({ colorway: { ...color, threadColor: v } })} flagged={isFlagged('colorway.threadColor')} onConfirm={() => confirm('colorway.threadColor')} suggestion={sug('colorway.threadColor')} onUse={() => use('colorway.threadColor')} note={src('colorway.threadColor')} />}
           <Field name="Hardware finish" value={color.hardwareFinish} onChange={v => setA({ colorway: { ...color, hardwareFinish: v } })} flagged={isFlagged('colorway.hardwareFinish')} onConfirm={() => confirm('colorway.hardwareFinish')} suggestion={sug('colorway.hardwareFinish')} onUse={() => use('colorway.hardwareFinish')} note={src('colorway.hardwareFinish')} />
-          <Field name="Reflective tape" value={color.reflectiveTape} onChange={v => setA({ colorway: { ...color, reflectiveTape: v } })} options={TAPE_OPTIONS} flagged={isFlagged('colorway.reflectiveTape')} onConfirm={() => confirm('colorway.reflectiveTape')} suggestion={sug('colorway.reflectiveTape')} onUse={() => use('colorway.reflectiveTape')} note={src('colorway.reflectiveTape')} />
+          {showA('colorway.reflectiveTape', color.reflectiveTape) && <Field name="Reflective tape" value={color.reflectiveTape} onChange={v => setA({ colorway: { ...color, reflectiveTape: v } })} options={TAPE_OPTIONS} flagged={isFlagged('colorway.reflectiveTape')} onConfirm={() => confirm('colorway.reflectiveTape')} suggestion={sug('colorway.reflectiveTape')} onUse={() => use('colorway.reflectiveTape')} note={src('colorway.reflectiveTape')} flagLabel={reflectiveFlag} />}
           <Field wide name="Contrast colours (separate with commas)" value={color.contrastColors.join(', ')} onChange={v => setA({ colorway: { ...color, contrastColors: v.split(',').map(x => x.trim()).filter(Boolean) } })} />
         </div>
+        {(a.otherColourways || []).length > 0 && <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">{`Other colourways in the photos (not in this spec; make a separate request): ${(a.otherColourways || []).join('; ')}`}</p>}
       </Section>
 
       {drawing.show !== 'none' && (
@@ -518,6 +528,21 @@ export default function ReviewTab({ rep, onSave, requestTemplate }: Props) {
           <ListBox name="Thread" value={bom.thread} onChange={v => setA({ bom: { ...bom, thread: v } })} flagged={isFlagged('bom.thread')} onConfirm={() => confirm('bom.thread')} suggestion={sug('bom.thread')} onUse={() => use('bom.thread')} note={src('bom.thread')} />
           <ListBox name="Labels" value={bom.labels} onChange={v => setA({ bom: { ...bom, labels: v } })} flagged={isFlagged('bom.labels')} onConfirm={() => confirm('bom.labels')} suggestion={sug('bom.labels')} onUse={() => use('bom.labels')} note={src('bom.labels')} />
         </div>
+        {notSeen.length > 0 && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-3 text-xs">
+            <p className="font-bold text-amber-900">Not seen in the photos: confirm or remove</p>
+            <p className="mb-2 text-[11px] text-amber-800">The AI named these, but no photo shows them. They are not in the factory PDF until a person confirms them.</p>
+            <ul className="space-y-1">
+              {notSeen.map(line => (
+                <li key={line} className="flex flex-wrap items-center gap-2">
+                  <span className="text-slate-800">{line}</span>
+                  <button type="button" onClick={() => settleNotSeen(line, true)} className="font-bold text-rivix hover:underline">Confirmed, it is there</button>
+                  <button type="button" onClick={() => settleNotSeen(line, false)} className="font-bold text-slate-500 hover:underline">Remove</button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field name="Fold" value={bom.packaging.foldDescription} onChange={v => setA({ bom: { ...bom, packaging: { ...bom.packaging, foldDescription: v } } })} />
           <Field name="Polybag size" value={bom.packaging.polybagSize} onChange={v => setA({ bom: { ...bom, packaging: { ...bom.packaging, polybagSize: v } } })} />

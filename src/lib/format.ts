@@ -40,22 +40,26 @@ const fmt = (style: string, timeZone: string, opts: Intl.DateTimeFormatOptions) 
   return f;
 };
 
-export const formatDate = (v: DateInput, empty = '—') => {
+/** A date in a given time zone (LocalDate uses DEFAULT_TZ for the first render, the same on the server and in the browser). */
+export const formatDateIn = (v: DateInput, timeZone: string, empty = '—') => {
   // A plain calendar date ("2026-10-03") has no time of day or zone: show it as that same day for everyone.
   if (typeof v === 'string' && PLAIN_DATE.test(v)) {
     const [y, m, d] = v.split('-').map(Number);
     return fmt('date', 'UTC', { year: 'numeric', month: 'short', day: 'numeric' }).format(new Date(Date.UTC(y, m - 1, d)));
   }
   const d = toDate(v);
-  return d ? fmt('date', activeTimeZone(), { year: 'numeric', month: 'short', day: 'numeric' }).format(d) : empty;
+  return d ? fmt('date', timeZone, { year: 'numeric', month: 'short', day: 'numeric' }).format(d) : empty;
 };
+export const formatDate = (v: DateInput, empty = '—') => formatDateIn(v, activeTimeZone(), empty);
 
-export const formatDateTime = (v: DateInput, empty = '—') => {
+/** A date and time in a given time zone (LocalDate uses DEFAULT_TZ for the first render, the same on server and browser). */
+export const formatDateTimeIn = (v: DateInput, timeZone: string, empty = '—') => {
   const d = toDate(v);
   return d
-    ? fmt('datetime', activeTimeZone(), { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(d)
+    ? fmt('datetime', timeZone, { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(d)
     : empty;
 };
+export const formatDateTime = (v: DateInput, empty = '—') => formatDateTimeIn(v, activeTimeZone(), empty);
 
 /** "October 2026" for a timestamp. */
 export const formatMonthYear = (v: DateInput, empty = '—') => {

@@ -9,9 +9,9 @@
 import { garmentTypeLabel } from './garment-types-data';
 import { missingInformation } from './garmentAiAnalysis';
 import { sizeLabels, sizeNote, withDefaultSizes } from './size-run';
-import { isProduct, itemWord, measuredFlat, pdfMeasurementWarning, showSpecField, type DisplayTemplate } from './template-display';
+import { isProduct, itemWord, measuredFlat, pdfMeasurementWarning, showSpecField, showAnalysisField, descriptionLabel, draftNote, type DisplayTemplate } from './template-display';
 import { readWebSource } from './link-source';
-import { canonicalAnalysis, itemState } from './checklist-confirm';
+import { canonicalAnalysis, itemState, isReflectiveItem, REFLECTIVE_FLAG } from './checklist-confirm';
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Image, Font, Svg, Path, Circle } from '@react-pdf/renderer';
 import { drawingFor, drawingPrimitives, placeMarkers, rowNumbers, DRAWING_NOTE, type DrawingDef, type DrawingTemplate } from './drawings';
@@ -154,14 +154,18 @@ function PdfDrawing({ def, numbers, components, title }: { def: DrawingDef; numb
 
 const has = (v?: string | null) => !!v && v.trim() !== '';
 const NEEDS = 'Needs confirmation';
+/** The company name in the footer of every page (2026-11-20): one constant, so a change is one line. */
+export const COMPANY_NAME = 'RIVIX';
 // A checklist item's state for the factory copy: a person's confirmation prints with its date and "RIVIX" (never a name or email).
 const checklistStatus = (c: { confirmedAt?: string }): string => {
   const st = itemState(c, 'checklist');
-  return st === 'confirmed' ? `Confirmed, ${formatDate(String(c.confirmedAt))}, RIVIX` : st === 'read' ? 'Read from photo, not confirmed' : NEEDS;
+  // A reflective item waits for a person: a photo cannot show that it is reflective (2026-11-20).
+  return st === 'confirmed' ? `Confirmed, ${formatDate(String(c.confirmedAt))}, RIVIX` : isReflectiveItem(c) ? REFLECTIVE_FLAG : st === 'read' ? 'Read from photo, not confirmed' : NEEDS;
 };
-const Val = ({ v, flag }: { v?: string | null; flag?: boolean }) => (has(v) ? <Text style={s.value}>{v}{flag ? `  [${NEEDS}]` : ''}</Text> : <Text style={s.none}>{flag ? NEEDS : 'Not specified'}</Text>);
-const Field = ({ name, v, wide, flag }: { name: string; v?: string | null; wide?: boolean; flag?: boolean }) => (
-  <View style={wide ? s.cell2 : s.cell}><Text style={s.label}>{name}</Text><Val v={v} flag={flag} /></View>
+// `flagText`: what the flag says (default "Needs confirmation"). It is printed next to the value, never stored with it.
+const Val = ({ v, flag, flagText = NEEDS }: { v?: string | null; flag?: boolean; flagText?: string }) => (has(v) ? <Text style={s.value}>{v}{flag ? `  [${flagText}]` : ''}</Text> : <Text style={s.none}>{flag ? flagText : 'Not specified'}</Text>);
+const Field = ({ name, v, wide, flag, flagText }: { name: string; v?: string | null; wide?: boolean; flag?: boolean; flagText?: string }) => (
+  <View style={wide ? s.cell2 : s.cell}><Text style={s.label}>{name}</Text><Val v={v} flag={flag} flagText={flagText} /></View>
 );
 /** A table row's text with the flag added to its first text cell. */
 const flagRow = (cells: string[], flag?: boolean, at = 1): string[] => (flag ? cells.map((c, i) => (i === at ? `${c}${c ? ' ' : ''}[${NEEDS}]` : c)) : cells);
@@ -207,7 +211,7 @@ function Sheet({ d, no, title, children, landscape, cover }: { d: TechFileData; 
       <View style={s.footer} fixed>
         <Text style={s.footConf}>CONFIDENTIAL: RIVIX INTERNAL. Not for customers or third parties without RIVIX approval.</Text>
         <View style={s.footRow}>
-          <Text style={s.footText}>RIVIX Apparel Manufacturing  ·  rivix.ca  ·  info@rivix.ca</Text>
+          <Text style={s.footText}>{`${COMPANY_NAME}  ·  rivix.ca  ·  info@rivix.ca`}</Text>
           <Text style={s.footText} render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} />
         </View>
       </View>
@@ -249,6 +253,10 @@ export const TechPackPDF = ({ d }: { d: TechFileData }) => {
   const product = isProduct(tpl);
   const word = itemWord(tpl);
   const show = (key: string, v: unknown) => showSpecField(tpl, key, v);
+  // 2026-11-20: Section 2 fields that only clothing has (a product shows them only when a person filled one in).
+  const showA = (path: string, v: unknown) => showAnalysisField(tpl, path, v);
+  const fabricShown = [['fabricAnalysis.material', fab?.material || sp.coreMaterial], ['fabricAnalysis.weight', fab?.weight || sp.fabricWeight], ['fabricAnalysis.weaveType', fab?.weaveType],
+    ['fabricAnalysis.frRating', fab?.frRating], ['fabricAnalysis.finish', fab?.finish], ['fabricAnalysis.shrinkage', fab?.shrinkage]].some(([p, v]) => showA(String(p), v)) || !!sp.liningMaterial;
 
   return (
     <Document title={`${d.requestCode} ${d.productName} tech file`} author="RIVIX">
@@ -268,7 +276,7 @@ export const TechPackPDF = ({ d }: { d: TechFileData }) => {
           <View style={s.grid}>
             <Field name="Customer" v={d.clientName} />
             <Field name="Request no." v={d.requestCode} />
-            <Field name="Garment class" v={a.garmentClass} />
+            <Field name={descriptionLabel(tpl)} v={a.garmentClass} />
             <Field name="Season" v={a.season} />
             <Field name="Date created" v={formatDate(d.createdOn)} />
             <Field name="Sales rep" v={d.repName || 'Admin (handled directly)'} />
@@ -280,7 +288,8 @@ export const TechPackPDF = ({ d }: { d: TechFileData }) => {
         {d.photos[0] ? <Image style={s.photo} src={d.photos[0]} /> : <Text style={s.none}>No reference photo.</Text>}
         {/* Task 21: a request started from a product page says so (only then; older files print as before). Plain text. */}
         {(() => { const ws = readWebSource((d.specs as { webSource?: unknown } | undefined)?.webSource); return ws ? <Text style={s.warn}>{`Started from a website link: ${ws.url}${ws.readAt ? ` (read ${ws.readAt.slice(0, 10)})` : ''}. Photos taken from ${ws.site} are reference images from that site. What the site says is from the website and not confirmed; the original's certification does not carry over to a copy.`}</Text> : null; })()}
-        {!d.approved && <Text style={s.warn}>DRAFT. This specification has not been approved. Values were drafted by AI from photos and must be checked against the physical {word} before this file goes to a factory.</Text>}
+        {/* 2026-11-20: "drafted by AI" only for a scan; "No AI scan was run" only for a draft the server marked as hand-made. */}
+        {!d.approved && <Text style={s.warn}>{draftNote(a, word)}</Text>}
       </Sheet>
 
       {/* 2 — Colour & fabric */}
@@ -289,18 +298,19 @@ export const TechPackPDF = ({ d }: { d: TechFileData }) => {
         <View style={s.grid}>
           <Field name="Body colour" v={col?.bodyColor} flag={fl('colorway.bodyColor')} />
           <Field name="Contrast colours" v={col?.contrastColors?.join(', ')} />
-          <Field name="Thread colour" v={col?.threadColor} flag={fl('colorway.threadColor')} />
+          {showA('colorway.threadColor', col?.threadColor) && <Field name="Thread colour" v={col?.threadColor} flag={fl('colorway.threadColor')} />}
           <Field name="Hardware finish" v={col?.hardwareFinish} flag={fl('colorway.hardwareFinish')} />
-          <Field name="Reflective tape" v={col?.reflectiveTape} flag={fl('colorway.reflectiveTape')} />
+          {showA('colorway.reflectiveTape', col?.reflectiveTape) && <Field name="Reflective tape" v={col?.reflectiveTape} flag={fl('colorway.reflectiveTape')} flagText={has(col?.reflectiveTape) && !/^none$/i.test(String(col?.reflectiveTape).trim()) ? REFLECTIVE_FLAG : undefined} />}
         </View>
-        <Text style={s.h2}>Fabric</Text>
+        {(a.otherColourways || []).length > 0 && <Text style={s.warn}>{`Other colourways in the photos (not in this spec; make a separate request): ${(a.otherColourways || []).join('; ')}`}</Text>}
+        <Text style={s.h2}>{fabricShown ? 'Fabric' : 'Safety'}</Text>
         <View style={s.grid}>
-          <Field name="Material" v={fab?.material || sp.coreMaterial} flag={fl('fabricAnalysis.material')} />
-          <Field name="Weight" v={fab?.weight || sp.fabricWeight} flag={fl('fabricAnalysis.weight')} />
-          <Field name="Weave" v={fab?.weaveType} flag={fl('fabricAnalysis.weaveType')} />
-          <Field name="Flame-resistance rating" v={fab?.frRating} flag={fl('fabricAnalysis.frRating')} />
-          <Field name="Finish" v={fab?.finish} flag={fl('fabricAnalysis.finish')} />
-          <Field name="Shrinkage" v={fab?.shrinkage} flag={fl('fabricAnalysis.shrinkage')} />
+          {showA('fabricAnalysis.material', fab?.material || sp.coreMaterial) && <Field name="Material" v={fab?.material || sp.coreMaterial} flag={fl('fabricAnalysis.material')} />}
+          {showA('fabricAnalysis.weight', fab?.weight || sp.fabricWeight) && <Field name="Weight" v={fab?.weight || sp.fabricWeight} flag={fl('fabricAnalysis.weight')} />}
+          {showA('fabricAnalysis.weaveType', fab?.weaveType) && <Field name="Weave" v={fab?.weaveType} flag={fl('fabricAnalysis.weaveType')} />}
+          {showA('fabricAnalysis.frRating', fab?.frRating) && <Field name="Flame-resistance rating" v={fab?.frRating} flag={fl('fabricAnalysis.frRating')} />}
+          {showA('fabricAnalysis.finish', fab?.finish) && <Field name="Finish" v={fab?.finish} flag={fl('fabricAnalysis.finish')} />}
+          {showA('fabricAnalysis.shrinkage', fab?.shrinkage) && <Field name="Shrinkage" v={fab?.shrinkage} flag={fl('fabricAnalysis.shrinkage')} />}
           {show('liningMaterial', sp.liningMaterial) && <Field name="Lining" v={sp.liningMaterial} />}
           <Field name="Safety rating" v={sp.safetyRating} />
         </View>
@@ -321,7 +331,7 @@ export const TechPackPDF = ({ d }: { d: TechFileData }) => {
         <Text style={s.h2}>4. Call-outs (features detected on the {word})</Text>
         <Table
           cols={[{ h: 'No.', w: '8%' }, { h: 'Feature', w: '34%' }, { h: 'Type', w: '18%' }, { h: 'Location', w: '40%' }]}
-          rows={(a.components || []).map((c, i) => [String(i + 1), c.label, c.type, c.location])}
+          rows={(a.components || []).map((c, i) => [String(i + 1), c.label, c.type === 'reflective' ? `reflective [${REFLECTIVE_FLAG}]` : c.type, c.location])}
           empty="No features listed."
         />
         {(a.checklist || []).length > 0 && (
