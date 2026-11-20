@@ -34,10 +34,18 @@ export const fingerprint = (row: Row): string => stable(Object.fromEntries(Objec
 export const isStamped = (row: unknown): boolean =>
   isObj(row) && row.needsConfirmation === false && typeof row.confirmedBy === 'string' && row.confirmedBy.trim() !== '' && typeof row.confirmedAt === 'string' && row.confirmedAt.trim() !== '';
 
+/** 2026-11-20: a photo cannot show that tape or trim is reflective (grey or silver fabric looks the same). The words shown
+ *  wherever such a value waits for a person: next to the value, never added to it (the stored value is never changed). */
+export const REFLECTIVE_FLAG = 'Looks reflective: needs confirmation';
+/** A checklist item about reflective (or retroreflective) tape, trim or material, by its key or its label. */
+export const isReflectiveItem = (row: unknown): boolean =>
+  isObj(row) && (/^(reflective|tape-layout)$/.test(String(row.key ?? '')) || /reflect/i.test(String(row.label ?? '')));
+
 export function itemState(row: unknown, list: ConfirmableList = 'checklist'): ItemState {
   if (!isObj(row)) return 'needs';
   if (isStamped(row)) return 'confirmed';
-  if (list === 'checklist' && row.source !== 'document' && hasValue(row) && (row.readFromPhoto === true || row.needsConfirmation === false)) return 'read';
+  // A reflective item is never "read from photo", whatever an older file stored: only a person can confirm it.
+  if (list === 'checklist' && !isReflectiveItem(row) && row.source !== 'document' && hasValue(row) && (row.readFromPhoto === true || row.needsConfirmation === false)) return 'read';
   return 'needs';
 }
 
@@ -79,11 +87,27 @@ export function settleConfirmations(next: unknown, saved: unknown, opts: { scan?
       if (wanted.has(`${list}\u0000${rowRef(list, row, i)}`)) return { ...clean, needsConfirmation: false, confirmedBy: opts.actorEmail, confirmedAt: now };
       // Not confirmed. A checklist value the AI read (or an older item that said "confirmed" with no stamp) is "read from photo".
       const typed = list === 'checklist' && savedValue.has(String(row.key)) && savedValue.get(String(row.key)) !== String(row.value ?? '');
-      const read = list === 'checklist' && !typed && row.source !== 'document' && hasValue(row) && (row.readFromPhoto === true || row.needsConfirmation === false);
+      const read = list === 'checklist' && !typed && !isReflectiveItem(row) && row.source !== 'document' && hasValue(row) && (row.readFromPhoto === true || row.needsConfirmation === false);
       return { ...clean, needsConfirmation: true, ...(read ? { readFromPhoto: true } : {}) };
     });
   }
   return a;
+}
+
+/** Where the draft came from (2026-11-20), decided by the server on every admin save, never by the browser:
+ *   'ai_scan' a scan save (`scan: true`): the values were drafted by the AI;
+ *   'manual'  a person's save that created the request's FIRST analysis (none was saved before). A new request never carries
+ *             an analysis (POST /api/replications drops it) and a rep cannot change one, so this can only be an admin's
+ *             Review-tab draft: no scan was run.
+ *   otherwise the saved marker is kept; an analysis saved before the marker existed stays unmarked (never guessed).
+ *  Whatever `source` the browser sends is ignored. */
+export type DraftSource = 'ai_scan' | 'manual';
+export function settleSource(next: unknown, saved: unknown, opts: { scan?: boolean } = {}): Row | null {
+  if (!isObj(next)) return null;
+  const { source: _sent, ...rest } = next; // eslint-disable-line @typescript-eslint/no-unused-vars
+  if (opts.scan) return { ...rest, source: 'ai_scan' };
+  if (!isObj(saved)) return { ...rest, source: 'manual' };
+  return saved.source === 'ai_scan' || saved.source === 'manual' ? { ...rest, source: saved.source } : rest;
 }
 
 /** The canonical form of a saved analysis: its real stamps kept, everything else unconfirmed. Never adds a stamp. */

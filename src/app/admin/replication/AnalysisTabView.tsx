@@ -3,6 +3,7 @@
 // The AI analysis tab's display, moved AS IS out of ReplicationDetail.tsx (2026-11-17) so it can be rendered on its own: with
 // data passed in as props, a test can draw it for every category, and the page wraps it in an error boundary. ReplicationDetail
 // keeps the data, the state and the actions and passes them in under the same names; the markup below is unchanged.
+import { REFLECTIVE_FLAG } from '@/lib/checklist-confirm';
 import type { Dispatch, SetStateAction } from 'react';
 import TypeCheckPanel from './TypeCheckPanel';
 import { isTypeConfirmed } from '@/lib/type-check';
@@ -443,6 +444,8 @@ export default function AnalysisTabView({ selectedRep, getAIAnalysis, isAdmin, b
                                       <div className="flex-1 min-w-0">
                                         <span className="text-xs font-bold text-slate-800 block truncate">{comp.label}</span>
                                         <span className="text-[12px] text-slate-400 truncate block">{comp.location}</span>
+                                        {/* 2026-11-20: a photo cannot show that it is reflective; shown here, never added to the label. */}
+                                        {comp.type === 'reflective' && <span className="text-[11px] font-bold text-amber-700 block">{REFLECTIVE_FLAG}</span>}
                                       </div>
                                       <span className={`text-[12px] font-black px-1.5 py-0.5 rounded-full border ${componentTypeColor(comp.type)}`}>
                                         {comp.type.replace('_', ' ')}

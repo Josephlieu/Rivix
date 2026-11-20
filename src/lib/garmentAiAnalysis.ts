@@ -3,7 +3,7 @@ import type { ResolvedTemplate } from './template-catalog';
 import { MARKING_KINDS } from './garmentAiSchema';
 import type { DrawingStamp } from './drawings';
 import { defaultSizeRun, type SizeRun } from './size-run';
-import { unconfirmedRows, itemState } from './checklist-confirm';
+import { unconfirmedRows, itemState, isReflectiveItem } from './checklist-confirm';
 
 /** Clothing uses the full garment scan; gloves, footwear and other PPE (the product base template) a shorter one (task 28). */
 export type ScanKind = 'garment' | 'product';
@@ -30,6 +30,12 @@ export interface AnalysisReview {
 
 export interface PersistedGarmentAIAnalysis {
   analyzedAt: string;
+  /** Where the draft came from: set by the server only (settleSource in checklist-confirm.ts); absent on older drafts. */
+  source?: 'ai_scan' | 'manual';
+  /** Other colourways seen in the photos: not part of this tech file (one colourway per file). */
+  otherColourways?: string[];
+  /** Hardware the AI named but no photo shows: waits for a person on the Review tab; never printed until confirmed. */
+  notSeenHardware?: string[];
   review?: AnalysisReview;
   garmentClass: string | null;
   hasHood: boolean | null;
@@ -222,7 +228,40 @@ type Row = Record<string, any>; // eslint-disable-line @typescript-eslint/no-exp
  * The template's checklist as saved entries, filled from what the AI returned (matched by key). Anything unknown needs confirmation,
  * and so does every 'document' item (fabric, trims, layers, ratings, tests): a photo cannot prove those, whatever the AI says.
  */
-export function checklistFor(template: ResolvedTemplate, fromAi?: unknown, photoCount?: number): ChecklistEntry[] {
+// ---- What a photo can and cannot show (2026-11-20) --------------------------------------------------------------------------
+// Parts a value may name only when a component the AI pointed to in a photo is that part (by its type, or its label).
+const PARTS: Array<{ re: RegExp; types: string[] }> = [
+  { re: /\bzip(per|pers|s)?\b/i, types: ['zipper'] },
+  { re: /\bsnaps?\b|press[- ]?studs?/i, types: ['snap'] },
+  { re: /\bbuttons?\b/i, types: ['button'] },
+  { re: /hook[- ]and[- ]loop|velcro/i, types: ['closure'] },
+  { re: /\bpockets?\b/i, types: ['pocket'] },
+  { re: /\bhood(s|ed)?\b/i, types: ['hood'] },
+  { re: /draw[- ]?(cord|string)s?/i, types: ['drawcord'] },
+  { re: /\bbuckles?\b/i, types: ['buckle'] },
+  { re: /\b(eyelets?|grommets?)\b/i, types: ['eyelet'] },
+  { re: /\bd[- ]rings?\b/i, types: ['d_ring'] },
+];
+type SeenComponent = { type?: unknown; label?: unknown };
+/** The parts a text names that no component shows (empty: nothing named, or every named part is seen). */
+export function unseenParts(textValue: string, components: SeenComponent[]): string[] {
+  return PARTS.filter((p) => p.re.test(textValue) && !components.some((c) => p.types.includes(String(c?.type ?? '')) || p.re.test(String(c?.label ?? ''))))
+    .map((p) => p.types[0]);
+}
+
+/** One tech file is one colourway. The body colour is split only when every part carries its own, different "(photo N)":
+ *  photo 1's (the lowest number) stays, the others are listed as other colourways. Anything else is left as it is. */
+export function splitColourways(body: string): { body: string; others: string[]; mixed: boolean } {
+  const parts = body.split(';').map((x) => x.trim()).filter(Boolean);
+  if (parts.length < 2) return { body, others: [], mixed: false };
+  const tagged = parts.map((x) => ({ x, n: Number(x.match(/\(\s*photo\s*(\d+)\s*\)\s*$/i)?.[1] ?? NaN) }));
+  const distinct = tagged.every((t) => Number.isFinite(t.n)) && new Set(tagged.map((t) => t.n)).size === tagged.length;
+  if (!distinct) return { body, others: [], mixed: true };
+  const sorted = [...tagged].sort((a, b) => a.n - b.n);
+  return { body: sorted[0].x.replace(/\s*\(\s*photo\s*\d+\s*\)\s*$/i, '').trim(), others: sorted.slice(1).map((t) => t.x), mixed: true };
+}
+
+export function checklistFor(template: ResolvedTemplate, fromAi?: unknown, photoCount?: number, components?: SeenComponent[]): ChecklistEntry[] {
   // The answer is either the task 28 "fields" object (one entry per template key) or the older checklist list ({ key, value }).
   const entries: Array<[string, Row]> = Array.isArray(fromAi)
     ? fromAi.filter((x): x is Row => !!x && typeof x.key === 'string').map((x) => [x.key, x])
@@ -235,7 +274,10 @@ export function checklistFor(template: ResolvedTemplate, fromAi?: unknown, photo
     const photo = value ? photoNumber(hit?.photo, photoCount) : 0;
     // The AI never confirms (2026-11-18): every item needs a person. A value the AI read from a photo and is sure of is marked
     // "read from photo" (readFromPhoto); an empty item, an unsure one or a spec-sheet item simply needs confirmation.
-    const read = item.source !== 'document' && !!value && hit?.needsConfirmation !== true;
+    // 2026-11-20: never "read from photo" for a reflective item (a photo cannot show that), or for a value naming a part no
+    // component shows (for example a zipper nobody pointed to). The value is kept: a person confirms or changes it.
+    const unseen = components ? unseenParts(value, components).length > 0 : false;
+    const read = item.source !== 'document' && !!value && hit?.needsConfirmation !== true && !isReflectiveItem(item) && !unseen;
     return { key: item.key, label: item.label, required: item.required, source: item.source, value, needsConfirmation: true, ...(read ? { readFromPhoto: true } : {}), ...(photo ? { photo } : {}) };
   });
 }
@@ -296,6 +338,17 @@ export function applyTemplate(aiData: Row, template: ResolvedTemplate, given: Gi
     if (t && !isNotVisible(t)) suggestions[path] = t.slice(0, 500);
   }
   out.suggestions = suggestions;
+  // 1a: a photo cannot show that tape is reflective: the tape value always waits for a person (the value itself is untouched).
+  const col: Row | null = out.colorway && typeof out.colorway === 'object' ? (out.colorway as Row) : null;
+  if (col && paths.includes('colorway.reflectiveTape') && typeof col.reflectiveTape === 'string' && col.reflectiveTape.trim() && !/^none$/i.test(col.reflectiveTape.trim())) flags.add('colorway.reflectiveTape');
+  // 1b: one colourway per tech file. Parts from different photos are split (photo 1's stays); any other mix is only flagged.
+  const others = asLines(aiData.otherColourways).map((x) => cleanCopied(x, 120)).filter(Boolean); // the AI's own list (prompt)
+  if (col && typeof col.bodyColor === 'string' && !fromCustomer.includes('colorway.bodyColor') && !fromWebsite.includes('colorway.bodyColor')) {
+    const sp = splitColourways(col.bodyColor);
+    if (sp.mixed) flags.add('colorway.bodyColor');
+    if (sp.others.length) { out.colorway = { ...col, bodyColor: sp.body }; others.push(...sp.others); }
+  }
+  if (others.length) { out.otherColourways = Array.from(new Set(others)); flags.add('colorway.bodyColor'); } else delete out.otherColourways;
   out.fromCustomer = fromCustomer;
   out.fromWebsite = fromWebsite;
 
@@ -312,10 +365,20 @@ export function applyTemplate(aiData: Row, template: ResolvedTemplate, given: Gi
   const bom: Row = out.bom && typeof out.bom === 'object' ? out.bom : {};
   // The three BOM lists are always present: a gloves, footwear or PPE scan has none in its answer (RQ-0635 crashed on that).
   // The AI's list when it gave one, else empty: never a made-up item.
-  out.bom = { ...bom, hardware: asLines(bom.hardware), thread: asLines(bom.thread), labels: asLines(bom.labels), packaging: { foldDescription: '', polybagSize: '', cartonSize: '', hangtagSpec: '' } };
+  // 1c: hardware naming a part no component shows is not dropped. When the scan listed components, such a line waits on the
+  // Review tab ("Not seen in the photos: confirm or remove"), outside the factory PDF and Fill-from-AI, until a person
+  // decides. When the scan listed NO components at all, there is nothing to check it against: the line stays in Hardware,
+  // flagged as needing confirmation.
+  const seen = rows(aiData.components);
+  const hw = asLines(bom.hardware);
+  const unbacked = hw.filter((h) => unseenParts(h, seen).length > 0);
+  const notSeen = seen.length ? unbacked : [];
+  if (!seen.length && unbacked.length && paths.includes('bom.hardware')) flags.add('bom.hardware');
+  out.bom = { ...bom, hardware: hw.filter((h) => !notSeen.includes(h)), thread: asLines(bom.thread), labels: asLines(bom.labels), packaging: { foldDescription: '', polybagSize: '', cartonSize: '', hangtagSpec: '' } };
+  if (notSeen.length) out.notSeenHardware = notSeen; else delete out.notSeenHardware;
   out.washCare = { ...(out.washCare || {}), specialNotes: '', instructions: (out.washCare as Row).instructions };
   out.season = '';
-  out.checklist = checklistFor(template, aiData.fields ?? aiData.checklist, opts.photoCount);
+  out.checklist = checklistFor(template, aiData.fields ?? aiData.checklist, opts.photoCount, seen);
   // Gloves and footwear measure in their own sizes (task 30); clothing keeps XS to XL.
   const run = defaultSizeRun(template.family.sizing.style);
   if (run) out.sizeRun = run; else delete out.sizeRun;

@@ -10,7 +10,7 @@ import { getTemplateCatalog } from '@/lib/template-store';
 import { drawingStamp } from '@/lib/drawings';
 import { techFileSnapshot, contentKey } from '@/lib/revisions';
 import { recordRevision, snapshotOfRow, isApproved } from '@/lib/revision-server';
-import { settleConfirmations } from '@/lib/checklist-confirm';
+import { settleConfirmations, settleSource } from '@/lib/checklist-confirm';
 
 // An approval also makes and stores the PDF of that revision (task 30).
 export const maxDuration = 60;
@@ -61,6 +61,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const scanSave = isAdmin && body?.scan === true;
   if (isAdmin && parsed.row.ai_analysis) {
     parsed.row.ai_analysis = settleConfirmations(parsed.row.ai_analysis, existing.ai_analysis, { scan: scanSave, confirmations: body?.confirmations, actorEmail: actor.email });
+    // Where the draft came from (2026-11-20): 'ai_scan' for a scan save, 'manual' when a person's save creates the first
+    // analysis, else the saved marker. Decided here from the scan flag and the saved row; the browser's value is ignored.
+    parsed.row.ai_analysis = settleSource(parsed.row.ai_analysis, existing.ai_analysis, { scan: scanSave });
   }
   // Task 30: an approved tech file is locked. Changing it needs "Start a new draft" (newDraft); the approved revision and its
   // PDF stay as they were. Saves that do not change the tech file (status, tracking, the rep) are not affected.

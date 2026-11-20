@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, Loader2, CheckCircle2, XCircle } from 'lucide-react';
-import { formatDateTime } from '@/lib/format';
+import LocalDate from '@/components/LocalDate'; // the viewer's day, without a hydration mismatch (2026-11-20)
 
 export interface BoardRow {
   id: string; kind: 'reorder' | 'quote'; status: 'open' | 'converted' | 'declined'; created_at: string;
@@ -40,7 +40,7 @@ export default function RequestsBoard({ rows, newOrderPath, orderPath }: { rows:
         <div>
           <p className="font-bold text-slate-900">{r.company} <span className="text-xs font-semibold text-slate-400">{r.code}</span></p>
           <p className="text-xs text-slate-500">
-            {r.kind === 'reorder' ? `Reorder${r.source_batch ? ` of ${r.source_batch}` : ''}` : 'Quote request'} · {formatDateTime(r.created_at)}
+            {r.kind === 'reorder' ? `Reorder${r.source_batch ? ` of ${r.source_batch}` : ''}` : 'Quote request'} · <LocalDate value={r.created_at} time />
             {r.handler ? ` · Handled by ${r.handler}` : ''}
           </p>
         </div>

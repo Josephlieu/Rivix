@@ -47,7 +47,11 @@ const types = [...D.DEFAULT_GARMENT_CATEGORIES.map((c) => D.DEFAULT_GARMENT_TYPE
 for (const k of types) {
   const a = await scan(k);
   const st = (a.checklist || []).map((c) => K.itemState(c));
-  const readOk = (a.checklist || []).every((c, i) => (c.source === 'document' ? st[i] === 'needs' : (i % 3 === 2 ? st[i] === 'needs' : st[i] === 'read')));
+  // 2026-11-20 (approved, small-fixes 1a and 1c): a reflective item, or a value naming a part no component shows (this made-up
+  // scan lists no components), always needs a person, even when the AI says it is sure. Written from the rule, not the code.
+  const needsPerson = (c) => /^(reflective|tape-layout)$/.test(c.key) || /reflect/i.test(c.label)
+    || /\bzip(per|pers|s)?\b|\bsnaps?\b|press[- ]?studs?|\bbuttons?\b|hook[- ]and[- ]loop|velcro|\bpockets?\b|\bhood(s|ed)?\b|draw[- ]?(cord|string)s?|\bbuckles?\b|\b(eyelets?|grommets?)\b|\bd[- ]rings?\b/i.test(String(c.value ?? ''));
+  const readOk = (a.checklist || []).every((c, i) => (c.source === 'document' ? st[i] === 'needs' : (i % 3 === 2 || needsPerson(c) ? st[i] === 'needs' : st[i] === 'read')));
   ok(`${k}: a fresh scan confirms nothing (checklist, measurements, markings, labels), even when the AI says it is sure or sends a stamp`, stamps(a).length === 0 && !st.includes('confirmed'), JSON.stringify(stamps(a).slice(0, 2)));
   ok(`${k}: AI-read items are "read from photo"; unsure and spec-sheet items "need confirmation"`, readOk, st.join(','));
   const ready = { ...a, flags: [] };
