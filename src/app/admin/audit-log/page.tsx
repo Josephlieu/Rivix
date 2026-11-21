@@ -10,8 +10,8 @@ type Row = {
   id: number; at: string; actor_user_id: string | null; actor_role: string; actor_email: string | null; action: string;
   record_table: string; record_id: string; before: Record<string, unknown> | null; after: Record<string, unknown> | null; route: string; note: string | null;
 };
-const TABLES = ['account_change_requests', 'auth.mfa_factors', 'auth.users', 'catalogs', 'documents', 'garment_categories', 'garment_types', 'order_requests', 'orders',
-  'product_specs', 'rep_invites', 'replication_customer_approvals', 'replications', 'reps', 'templates'];
+const TABLES = ['account_change_requests', 'auth.mfa_factors', 'auth.users', 'catalog_import', 'catalogs', 'certificates', 'documents', 'garment_categories', 'garment_types', 'order_requests', 'orders',
+  'product_compliance', 'product_specs', 'product_suppliers', 'products', 'rep_invites', 'replication_customer_approvals', 'replications', 'reps', 'standards', 'supplier_contacts', 'suppliers', 'templates'];
 const input = 'w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-rivix/20';
 const label = 'text-[10px] font-black text-slate-400 uppercase tracking-widest px-1';
 

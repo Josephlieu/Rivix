@@ -39,6 +39,7 @@ const adminLinks = [
   { href: '/admin/requests', label: 'Requests', icon: ClipboardList },
   { href: '/admin/products', label: 'Product specs', icon: Package },
   { href: '/admin/catalogs', label: 'Catalogs', icon: BookOpen },
+  { href: '/admin/sourcing', label: 'Sourcing', icon: Package },
   { href: '/admin/hiring', label: 'Sales Hiring', icon: Users },
   { href: '/admin/team', label: 'Team / Reps', icon: Settings },
   { href: '/admin/import', label: 'Import CSV', icon: FileUp },
