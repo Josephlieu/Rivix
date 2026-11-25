@@ -373,7 +373,7 @@ try {
   const batch = crypto.randomUUID();
   const st = await call('POST', '/api/admin/catalog-import/upload-url', ac, { batch, file_name: 'zz-prd-import.pdf', size: PDF.length });
   const up = st.status === 200 ? await anon.storage.from(BUCKET).uploadToSignedUrl(st.j.path, st.j.token, Buffer.concat([PDF, Buffer.from('import')]), { contentType: 'application/pdf', upsert: true }) : { error: { message: String(st.status) } };
-  ok('import: certificate file staged for the batch', !up.error, up.error?.message);
+  ok('import: certificate file staged for the batch, in this admin\'s own folder (import/<user id>/<batch>/<file>)', !up.error && st.j.path === `import/${adm.id}/${batch}/zz-prd-import.pdf`, up.error?.message ?? String(st.j.path));
   r = await call('POST', '/api/admin/catalog-import', ac, { action: 'preview', suppliersCsv: supCsv(), productsCsv: prodCsv, batch });
   plan = r.j.plan;
   ok('import preview: creates 2 suppliers, 2 products, links, 2 claims and 1 certificate ("uploaded")', plan.canConfirm && plan.ops.filter((o) => o.kind === 'supplier.create').length === 2 && plan.ops.filter((o) => o.kind === 'product.create').length === 2 && plan.ops.filter((o) => o.kind === 'claim.create').length === 2 && plan.ops.filter((o) => o.kind === 'certificate.create').length === 1, JSON.stringify(plan.summary));
@@ -408,6 +408,25 @@ try {
   ok('running the same import again: every row "unchanged", 0 writes (the same certificate file is recognised)', plan.canConfirm && plan.summary.writes === 0 && plan.rows.every((x) => x.action === 'unchanged'), JSON.stringify(plan.rows.filter((x) => x.action !== 'unchanged')).slice(0, 300));
   r = await call('POST', '/api/admin/catalog-import', ac, { action: 'confirm', suppliersCsv: supCsv(), productsCsv: prodCsv, batch: batch2, fingerprint: plan.fingerprint });
   ok('  confirming it creates nothing and writes no audit row', r.status === 200 && r.j.writes === 0 && JSON.stringify(await counts()) === JSON.stringify(c2before) && (await auditCount()) === a2before);
+  // Staged files belong to the admin who staged them (2026-11-26).
+  const batchX = crypto.randomUUID(), otherName = 'zz-prd-other-import.pdf';
+  const stX = await call('POST', '/api/admin/catalog-import/upload-url', A2.cookie, { batch: batchX, file_name: otherName, size: PDF.length });
+  const upX = stX.status === 200 ? await anon.storage.from(BUCKET).uploadToSignedUrl(stX.j.path, stX.j.token, Buffer.concat([PDF, Buffer.from('other')]), { contentType: 'application/pdf', upsert: true }) : { error: { message: String(stX.status) } };
+  const stagedX = async () => ((await a.storage.from(BUCKET).list(`import/${adm2.id}/${batchX}`, { limit: 100 })).data ?? []).map((x) => x.name);
+  ok('import staging: a second admin\'s file lands in that admin\'s own folder', !upX.error && stX.j.path === `import/${adm2.id}/${batchX}/${otherName}` && (await stagedX()).includes(otherName), upX.error?.message ?? String(stX.j.path));
+  const otherCsv = csv(PH, [prow({ 'Product code': code1, 'Standard and edition': sNew.designation, 'Certificate type': 'Third-party certificate', 'Certificate file': otherName })]);
+  r = await call('POST', '/api/admin/catalog-import', ac, { action: 'preview', productsCsv: otherCsv, batch: batchX });
+  plan = r.j.plan;
+  ok('  using the other admin\'s batch id only looks in your own folder: their file is "not attached", no certificate planned', r.status === 200 && !plan.ops.some((o) => o.kind === 'certificate.create') && /not attached/.test(plan.rows[0].warnings.join(' ')), JSON.stringify(plan?.rows?.[0]).slice(0, 200));
+  r = await call('POST', '/api/admin/catalog-import', ac, { action: 'confirm', productsCsv: otherCsv, batch: batchX, fingerprint: plan.fingerprint });
+  ok('  confirming with it (which clears staging) leaves the other admin\'s file untouched', r.status === 200 && (await stagedX()).includes(otherName), `${r.status} ${JSON.stringify(r.j).slice(0, 120)}`);
+  for (const [what, b] of [['a ../ batch', `../${adm2.id}/${batchX}`], ['a batch that is not a strict UUID', '-'.repeat(36)], ['a path instead of a batch', `import/${adm2.id}/${batchX}`]]) {
+    const pv = await call('POST', '/api/admin/catalog-import', ac, { action: 'preview', productsCsv: otherCsv, batch: b });
+    const cf = await call('POST', '/api/admin/catalog-import', ac, { action: 'confirm', productsCsv: otherCsv, batch: b, fingerprint: plan.fingerprint });
+    const uu = await call('POST', '/api/admin/catalog-import/upload-url', ac, { batch: b, file_name: otherName, size: PDF.length });
+    ok(`  ${what} is refused by preview, confirm and upload-url before any file is touched`, [pv, cf, uu].every((x) => x.status === 400 && x.j.error === 'Bad import batch.') && (await stagedX()).includes(otherName), [pv, cf, uu].map((x) => x.status).join(','));
+  }
+  await a.storage.from(BUCKET).remove([`import/${adm2.id}/${batchX}/${otherName}`]);
   r = await call('POST', '/api/admin/catalog-import', ac, { action: 'preview', suppliersCsv: supCsv('Dongguan') });
   plan = r.j.plan;
   ok('one changed cell: one update, shown "City: Shenzhen → Dongguan"', plan.summary.update === 1 && plan.summary.writes === 1 && plan.rows[0].changes.includes('City: Shenzhen → Dongguan'));
@@ -438,8 +457,11 @@ try {
   const { data: zzStd } = await a.from('standards').select('id').like('designation', 'ZZ PRD%');
   const stids = [...new Set([...ids.standards, ...(zzStd ?? []).map((s) => s.id)].filter(Boolean))];
   if (stids.length) await a.from('standards').delete().in('id', stids);
-  const { data: staged } = await a.storage.from(BUCKET).list('import', { limit: 100 });
-  for (const f of staged ?? []) { const { data: inner } = await a.storage.from(BUCKET).list(`import/${f.name}`, { limit: 100 }); if (inner?.length) await a.storage.from(BUCKET).remove(inner.map((x) => `import/${f.name}/${x.name}`)); }
+  // Staged import files: import/<admin user id>/<batch>/<file> (only this run's admins).
+  for (const u of users.filter(Boolean)) {
+    const { data: batches } = await a.storage.from(BUCKET).list(`import/${u.id}`, { limit: 100 });
+    for (const b of batches ?? []) { const { data: inner } = await a.storage.from(BUCKET).list(`import/${u.id}/${b.name}`, { limit: 100 }); if (inner?.length) await a.storage.from(BUCKET).remove(inner.map((x) => `import/${u.id}/${b.name}/${x.name}`)); }
+  }
   const { data: pending } = await a.storage.from(BUCKET).list('pending', { limit: 100 });
   for (const f of pending ?? []) { const { data: inner } = await a.storage.from(BUCKET).list(`pending/${f.name}`, { limit: 100 }); await a.storage.from(BUCKET).remove([`pending/${f.name}`, ...(inner ?? []).map((x) => `pending/${f.name}/${x.name}`)]); }
   if (cust) await a.from('customers').delete().eq('id', cust.id);

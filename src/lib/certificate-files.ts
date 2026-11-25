@@ -18,9 +18,13 @@ export function checkCertificateFile(bytes: Uint8Array): { type: CertMime; ext: 
 }
 /** A file name safe to store and show: letters, digits, dot, dash, underscore and spaces; at most 150 characters. */
 export const safeName = (n: string) => (n.replace(/[^\w .-]+/g, '_').replace(/^[ .]+/, '').slice(0, 150) || 'certificate');
-/** Where a staged import file lives, and where a certificate file lives. */
-export const stagingPrefix = (batch: string) => `import/${batch}`;
-export const isBatchId = (v: unknown): v is string => typeof v === 'string' && /^[0-9a-f-]{36}$/i.test(v);
+/** An import batch id: a strict UUID (so nothing like "../" can ride along). */
+export const isBatchId = (v: unknown): v is string => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+/** Where this admin's staged import files live (2026-11-26): import/<admin user id>/<batch>. The browser only ever sends
+ *  the batch id; the server adds the signed-in admin's own id, so an import can only read, copy or clear files that the same
+ *  admin staged. Anything that is not two strict UUIDs is refused (null) before storage is touched. */
+export const stagingPrefix = (userId: string, batch: unknown): string | null =>
+  isBatchId(userId) && isBatchId(batch) ? `import/${userId}/${batch}` : null;
 
 // Pending uploads (2026-11-26): step 1 puts the file at pending/<admin user id>/<uuid>; step 2 accepts only that exact
 // shape for the SAME admin, so a refused upload's cleanup can never touch a file another admin started.

@@ -5,7 +5,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { audit, type AuditActor, type AuditAction } from '@/lib/audit';
 import { auditNames, CERT_COLUMNS, CLAIM_COLUMNS, CONTACT_COLUMNS, LINK_COLUMNS, PRODUCT_COLUMNS, PRODUCT_SPEC, STANDARD_COLUMNS, SUPPLIER_COLUMNS, checkCategory, checkFields } from '@/lib/catalog-fields';
 import { planImport, planText, type Op, type Plan, type Ref, type Snapshot } from '@/lib/catalog-import';
-import { CERT_BUCKET, checkCertificateFile, stagingPrefix } from '@/lib/certificate-files';
+import { CERT_BUCKET, checkCertificateFile } from '@/lib/certificate-files';
 import { pickSupplierCode } from '@/lib/supplier-code';
 import { businessToday, claimStatus, expiryWarning, CLAIM_LABEL, type CertFacts } from '@/lib/compliance';
 
@@ -55,7 +55,8 @@ export async function productCompliance(admin: SupabaseClient, productId: string
 // ---- Import --------------------------------------------------------------------------------------------------------
 
 /** What the import compares against, including the staged certificate files (checked by content, with their SHA-256). */
-export async function importSnapshot(admin: SupabaseClient, batch: string | null): Promise<Snapshot> {
+/** `staging` is the admin's own staging folder from stagingPrefix(userId, batch), or null when no files are attached. */
+export async function importSnapshot(admin: SupabaseClient, staging: string | null): Promise<Snapshot> {
   const [s, c, p, l, st, cl, ce, cat] = await Promise.all([
     admin.from('suppliers').select(SUPPLIER_COLUMNS),
     admin.from('supplier_contacts').select(CONTACT_COLUMNS).eq('is_primary', true),
@@ -68,10 +69,10 @@ export async function importSnapshot(admin: SupabaseClient, batch: string | null
   ]);
   for (const r of [s, c, p, l, st, cl, ce, cat]) if (r.error) throw new Error(`import snapshot: ${r.error.message}`);
   const files: Snapshot['files'] = [];
-  if (batch) {
-    const { data: list } = await admin.storage.from(CERT_BUCKET).list(stagingPrefix(batch), { limit: 200 });
+  if (staging) {
+    const { data: list } = await admin.storage.from(CERT_BUCKET).list(staging, { limit: 200 });
     for (const f of list ?? []) {
-      const { data: blob } = await admin.storage.from(CERT_BUCKET).download(`${stagingPrefix(batch)}/${f.name}`);
+      const { data: blob } = await admin.storage.from(CERT_BUCKET).download(`${staging}/${f.name}`);
       const bytes = blob ? new Uint8Array(await blob.arrayBuffer()) : new Uint8Array();
       const chk = checkCertificateFile(bytes);
       files.push({ name: f.name, size: bytes.length, sha256: 'error' in chk ? null : crypto.createHash('sha256').update(bytes).digest('hex'), type: 'error' in chk ? null : chk.type, error: 'error' in chk ? chk.error : null });
@@ -86,14 +87,14 @@ export async function importSnapshot(admin: SupabaseClient, batch: string | null
 export function previewOf(plan: Plan) {
   return { ...plan, fingerprint: crypto.createHash('sha256').update(planText(plan)).digest('hex') };
 }
-export async function preview(admin: SupabaseClient, input: { suppliersCsv?: string; productsCsv?: string }, batch: string | null) {
-  return previewOf(planImport(input, await importSnapshot(admin, batch)));
+export async function preview(admin: SupabaseClient, input: { suppliersCsv?: string; productsCsv?: string }, staging: string | null) {
+  return previewOf(planImport(input, await importSnapshot(admin, staging)));
 }
 
 const ROUTE = 'POST /api/admin/catalog-import';
 /** Runs the writes of a confirmed plan in order, one audit row per record created or changed, then one summary row. Stops at
  *  the first failure and says how far it got (running the import again picks up the rest: nothing is ever duplicated). */
-export async function applyPlan(admin: SupabaseClient, actor: AuditActor, plan: Plan & { fingerprint: string }, batch: string | null) {
+export async function applyPlan(admin: SupabaseClient, actor: AuditActor, plan: Plan & { fingerprint: string }, staging: string | null) {
   const warn = new AuditWarnings();
   const newSupplier = new Map<string, string>(), newProduct = new Map<string, string>();
   const idOf = (r: Ref) => ('id' in r ? r.id : 'newSupplier' in r ? newSupplier.get(r.newSupplier) : newProduct.get(r.newProduct)) as string;
@@ -143,7 +144,7 @@ export async function applyPlan(admin: SupabaseClient, actor: AuditActor, plan: 
       const pid = idOf(op.product);
       const ext = op.type === 'application/pdf' ? 'pdf' : op.type === 'image/png' ? 'png' : 'jpg';
       const path = `${pid}/${crypto.randomUUID()}.${ext}`;
-      const cp = await admin.storage.from(CERT_BUCKET).copy(`${stagingPrefix(batch as string)}/${op.file}`, path);
+      const cp = await admin.storage.from(CERT_BUCKET).copy(`${staging as string}/${op.file}`, path);
       if (cp.error) return fail(op, `the file ${op.file} could not be stored: ${cp.error.message}`);
       const { data, error } = await admin.from('certificates').insert({
         product_id: pid, standard_id: op.standardId, document_type: op.document_type, issuing_body: op.issuing_body, accreditation: op.accreditation, expires_on: op.expires_on, file_path: path, file_name: op.file, file_size: op.size,
@@ -156,13 +157,13 @@ export async function applyPlan(admin: SupabaseClient, actor: AuditActor, plan: 
   }
   // A run with nothing to write (the same file again) leaves no trace: no summary row either.
   if (done) await log('catalog_import.run', 'catalog_import', plan.fingerprint.slice(0, 16), null, { ...plan.summary, writes: done });
-  if (batch) await clearStaging(admin, batch);
+  if (staging) await clearStaging(admin, staging);
   return { ok: true as const, done, ...warn.value };
 }
 
-export async function clearStaging(admin: SupabaseClient, batch: string) {
-  const { data } = await admin.storage.from(CERT_BUCKET).list(stagingPrefix(batch), { limit: 200 });
-  const paths = (data ?? []).map((f) => `${stagingPrefix(batch)}/${f.name}`);
+export async function clearStaging(admin: SupabaseClient, staging: string) {
+  const { data } = await admin.storage.from(CERT_BUCKET).list(staging, { limit: 200 });
+  const paths = (data ?? []).map((f) => `${staging}/${f.name}`);
   if (paths.length) await admin.storage.from(CERT_BUCKET).remove(paths);
 }
 

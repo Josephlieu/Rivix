@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { adminCtx, bad, readJson } from '@/lib/catalog-route';
 import { applyPlan, preview } from '@/lib/catalog-server';
 import { STANDARD_SPEC, checkFields, designationKey } from '@/lib/catalog-fields';
-import { isBatchId } from '@/lib/certificate-files';
+import { stagingPrefix } from '@/lib/certificate-files';
 import { audit } from '@/lib/audit';
 
 // The supplier and product import (2026-11-21, admin only). Body: { action, suppliersCsv?, productsCsv?, batch?, fingerprint?, designations? }
@@ -17,7 +17,9 @@ export async function POST(req: Request) {
   const csv = (k: string) => (typeof body[k] === 'string' ? (body[k] as string) : undefined);
   const input = { suppliersCsv: csv('suppliersCsv'), productsCsv: csv('productsCsv') };
   if ((input.suppliersCsv?.length ?? 0) > MAX_CSV || (input.productsCsv?.length ?? 0) > MAX_CSV) return bad('Each CSV file must be 2 MB or smaller.');
-  const batch = body.batch === undefined || body.batch === null ? null : isBatchId(body.batch) ? (body.batch as string) : undefined;
+  // The staged files: only this admin's own folder for this batch (import/<user id>/<batch>); a bad batch id is refused here,
+  // before any file is listed, read, copied or deleted.
+  const batch = body.batch === undefined || body.batch === null ? null : stagingPrefix(c.who.userId, body.batch) ?? undefined;
   if (batch === undefined) return bad('Bad import batch.');
 
   if (body.action === 'preview') return NextResponse.json({ plan: await preview(c.admin, input, batch) });
