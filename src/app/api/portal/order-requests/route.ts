@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionCustomer } from '@/lib/session-customer';
 import { parseOrderItems, clean } from '@/lib/order-input';
-import { adminUsers, notifyUsers } from '@/lib/notify';
-import { sendEmail } from '@/lib/email';
-import { orderRequestEmail } from '@/lib/order-request-emails';
-import { MAX_OPEN_REQUESTS, OPEN_LIMIT_MESSAGE, type RequestItem } from '@/lib/order-requests';
+import { submitOrderRequest } from '@/lib/order-request-submit';
+import type { RequestItem } from '@/lib/order-requests';
 
 // The signed-in customer's own requests, newest first, with the order each became.
 export async function GET() {
@@ -45,42 +43,7 @@ export async function POST(req: NextRequest) {
     source = { id: data.id, batch_number: data.batch_number };
   }
 
-  const { count } = await admin.from('order_requests').select('id', { count: 'exact', head: true }).eq('customer_id', c.id).eq('status', 'open');
-  if ((count ?? 0) >= MAX_OPEN_REQUESTS) return NextResponse.json({ error: OPEN_LIMIT_MESSAGE }, { status: 409 });
-
-  const { data: row, error } = await admin
-    .from('order_requests')
-    .insert({ customer_id: c.id, kind, source_order_id: source?.id ?? null, items, note, created_by: c.user_id })
-    .select('id, kind, status, created_at')
-    .single();
-  if (error) {
-    // The database trigger enforces the same limit when two requests arrive at once.
-    if (/open_request_limit/.test(error.message)) return NextResponse.json({ error: OPEN_LIMIT_MESSAGE }, { status: 409 });
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  // Who handles it: the customer's active rep, otherwise every admin.
-  const { data: rep } = c.rep_id ? await admin.from('reps').select('name, email, user_id, active').eq('id', c.rep_id).maybeSingle() : { data: null };
-  const toRep = Boolean(rep && rep.active);
-  const what = kind === 'reorder' ? `Reorder of ${source?.batch_number}` : 'Quote request';
-  const units = items.reduce((n, it) => n + it.sizes.reduce((m, s) => m + s.qty, 0), 0);
-  const recipients = toRep ? [{ id: rep!.user_id as string | null, email: rep!.email as string | null }] : await adminUsers(admin);
-  await notifyUsers(admin, recipients.map((r) => r.id), {
-    kind: 'order_request',
-    title: `${what} from ${c.company_name}`,
-    body: `${items.length} product${items.length === 1 ? '' : 's'}, ${units} units${note ? `. Note: ${note}` : ''}`,
-    link: toRep ? '/rep/requests' : '/admin/requests',
-  });
-
-  // Emails never throw and never undo the request; a failure is logged (the in-app alert is already there).
-  const results = await Promise.all(
-    recipients.filter((r) => r.email).map((r) =>
-      sendEmail(orderRequestEmail({ to: r.email, handler: toRep ? 'rep' : 'admin', company: c.company_name, kind, sourceBatch: source?.batch_number, items, note }))
-    )
-  );
-  const failed = results.filter((r) => !r.ok);
-  if (failed.length) console.error('order request email failed:', failed.map((r) => (r.ok ? '' : r.error)).join(' | '));
-  const handlerEmail = !results.length || failed.length ? 'failed' : results.every((r) => r.ok && r.dryRun) ? 'dry_run' : 'sent';
-
-  return NextResponse.json({ request: row, handledBy: toRep ? 'rep' : 'admin', handlerEmail }, { status: 201 });
+  const sent = await submitOrderRequest(admin, c, { kind, items, note, source });
+  if (!sent.ok) return NextResponse.json({ error: sent.error }, { status: sent.status });
+  return NextResponse.json({ request: sent.request, handledBy: sent.handledBy, handlerEmail: sent.handlerEmail }, { status: 201 });
 }

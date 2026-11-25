@@ -5,10 +5,11 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import LocalDate from '@/components/LocalDate'; // the viewer's day, without a hydration mismatch (2026-11-20)
+import { specLines, type Spec } from '@/lib/catalog-families';
 
 export interface BoardRow {
   id: string; kind: 'reorder' | 'quote'; status: 'open' | 'converted' | 'declined'; created_at: string;
-  items: { product_name: string; sizes: { size: string; qty: number }[]; branding: string | null }[];
+  items: { product_name: string; sizes: { size: string; qty: number }[]; branding: string | null; family_code?: string; spec?: Partial<Spec> | null }[];
   note: string | null; decline_reason: string | null; decided_by: string | null; decided_at: string | null;
   company: string; code: string; handler?: string; source_batch: string | null; order_id: string | null; order_batch: string | null;
 }
@@ -50,6 +51,10 @@ export default function RequestsBoard({ rows, newOrderPath, orderPath }: { rows:
           <li key={i}>
             <span className="font-semibold">{it.product_name}</span>: {it.sizes.map((s) => `${s.size} x${s.qty}`).join(', ')} ({it.sizes.reduce((n, s) => n + s.qty, 0)} total)
             {it.branding ? <span className="text-slate-500">. Branding: {it.branding}</span> : null}
+            {/* A catalogue quote's spec (2026-11-26): what the customer typed, shown as plain text. */}
+            {it.spec && specLines({ ...it.spec, branding: null }).length > 0 && (
+              <span className="block text-xs text-slate-500 whitespace-pre-line pl-3 border-l-2 border-slate-100 mt-1">{specLines({ ...it.spec, branding: null }).join('\n')}</span>
+            )}
           </li>
         ))}
       </ul>

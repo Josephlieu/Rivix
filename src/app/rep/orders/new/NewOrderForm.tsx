@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { orderFormFromSpec, type Spec } from '@/lib/catalog-families';
 import { useRouter } from 'next/navigation';
 import { Plus, Trash2, Loader2, AlertCircle, Check } from 'lucide-react';
 import ComboInput from '@/components/ComboInput';
@@ -42,7 +43,7 @@ export default function NewOrderForm({
   emptyMessage?: string;
   // Pre-filled from a customer's reorder or quote request: the order is linked to it and the customer is fixed.
   specs?: SpecOption[];               // saved product specs, used as product suggestions for the chosen customer
-  fromRequest?: { id: string; label: string; items: { product_name: string; sizes: { size: string; qty: number }[]; branding: string | null }[]; note: string | null };
+  fromRequest?: { id: string; label: string; items: { product_name: string; sizes: { size: string; qty: number }[]; branding: string | null; spec?: Partial<Spec> | null }[]; note: string | null };
 }) {
   const router = useRouter();
   const [customerId, setCustomerId] = useState(
@@ -54,14 +55,19 @@ export default function NewOrderForm({
       ? fromRequest.items.map((it) => {
           // Fill fabric and standard from the customer's saved spec with the same product name (any capitals).
           const spec = findSpec(specs, customers.some((c) => c.id === initialCustomerId) ? initialCustomerId : undefined, it.product_name);
-          return { product_name: it.product_name, sizes: sizesToGrid(it.sizes), branding: it.branding || '', fabric: spec?.fabric || '', safety_standard: spec?.safety_standard || '' };
+          // A catalogue quote (2026-11-26): Fabric and Safety standard from the customer's spec; the rest goes to the notes.
+          const fromSpec = orderFormFromSpec(it.spec);
+          return { product_name: it.product_name, sizes: sizesToGrid(it.sizes), branding: it.branding || '', fabric: fromSpec.fabric || spec?.fabric || '', safety_standard: fromSpec.safety_standard || spec?.safety_standard || '' };
         })
       : [newItem()]
   );
   const [delivery, setDelivery] = useState('');
   const [po, setPo] = useState('');
   const [pricing, setPricing] = useState('');
-  const [notes, setNotes] = useState(fromRequest?.note ? `Customer note: ${fromRequest.note}` : '');
+  const [notes, setNotes] = useState(() => [
+    fromRequest?.note ? `Customer note: ${fromRequest.note}` : '',
+    ...(fromRequest?.items ?? []).map((it, i) => { const rest = orderFormFromSpec(it.spec).rest; return rest.length ? `Customer spec, line ${i + 1} (${it.product_name}):\n${rest.join('\n')}` : ''; }),
+  ].filter(Boolean).join('\n\n'));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -236,6 +242,7 @@ export default function NewOrderForm({
         <div className="sm:col-span-2 space-y-1.5">
           <label className={label}>Special requirements</label>
           <textarea rows={3} className={input} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Anything admin or the factory should know" />
+          {notes.length > 2000 && <p className="text-xs text-amber-700">The notes are {notes.length} characters; only the first 2,000 are saved. Shorten them (the full request stays on the Requests page).</p>}
         </div>
       </div>
 

@@ -17,11 +17,14 @@ const linkify = (escaped: string) =>
     return `<a href="${url}" style="color:${RED};text-decoration:underline;word-break:break-all;">${label}</a>${trail}`;
   });
 const nl = (v: string) => linkify(esc(v)).replace(/\r?\n/g, '<br>');
+// Text a customer typed (2026-11-26): escaped and NEVER turned into links, so it shows exactly as plain text.
+const plainNl = (v: string) => esc(v).replace(/\r?\n/g, '<br>');
 
 export type EmailLayout = {
   preheader?: string;                         // the grey preview line next to the subject in the inbox
   title: string;                              // big heading
   paragraphs: string[];                       // body text (line breaks kept)
+  customerText?: string[];                    // text a customer typed: escaped, line breaks kept, never linkified
   card?: { heading: string; name: string; lines: { label: string; value: string; href?: string }[] }; // a contact box
   button?: { label: string; url: string };
   closing?: string;                           // small text under the button
@@ -52,7 +55,7 @@ export function renderEmailHtml(o: EmailLayout): string {
   <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#ffffff;border-radius:12px;overflow:hidden;border-top:5px solid ${RED};font-family:-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;">
     <tr><td style="padding:26px 32px 8px;"><img src="cid:${LOGO_CID}" alt="RIVIX" width="130" style="display:block;border:0;width:130px;height:auto;font-size:22px;font-weight:800;color:${RED};"></td></tr>
     <tr><td style="padding:14px 32px 6px;"><h1 style="margin:0;font-size:22px;line-height:30px;color:#111827;">${esc(o.title)}</h1></td></tr>
-    <tr><td style="padding:12px 32px 4px;">${o.paragraphs.map(p).join('')}${card}${button}${o.closing ? `<p style="margin:0 0 8px;font-size:13px;line-height:20px;color:#6b7280;">${nl(o.closing)}</p>` : ''}</td></tr>
+    <tr><td style="padding:12px 32px 4px;">${o.paragraphs.map(p).join('')}${(o.customerText ?? []).map((t) => `<p style="margin:0 0 16px;font-size:15px;line-height:24px;color:#374151;">${plainNl(t)}</p>`).join('')}${card}${button}${o.closing ? `<p style="margin:0 0 8px;font-size:13px;line-height:20px;color:#6b7280;">${nl(o.closing)}</p>` : ''}</td></tr>
     <tr><td style="padding:18px 32px 26px;border-top:1px solid #eeeeee;"><p style="margin:0;font-size:12px;line-height:18px;color:#9ca3af;">RIVIX &middot; Canadian apparel manufacturing<br>Uniform, workwear and PPE programs &middot; one point of contact for every order</p></td></tr>
   </table>
 </td></tr></table></body></html>`;

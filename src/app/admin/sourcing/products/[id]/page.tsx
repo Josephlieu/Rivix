@@ -25,6 +25,7 @@ export default function ProductPage() {
   const [cats, setCats] = useState<Array<{ key: string; label: string }>>([]);
   const [stds, setStds] = useState<Std[]>([]);
   const [sups, setSups] = useState<Array<{ id: string; code: string; name: string }>>([]);
+  const [fams, setFams] = useState<Array<{ id: string; code: string; name: string }>>([]);
   const [error, setError] = useState<string | null>(null);
   const [key, setKey] = useState(0);
   const load = useCallback(() => { api<Data>(`/api/admin/products-catalog/${id}`).then((r) => { if (r.ok) { setD(r.data); setKey((k) => k + 1); } else setError(r.error); }); }, [id]);
@@ -33,6 +34,7 @@ export default function ProductPage() {
     api<{ categories: Array<{ key: string; label: string }> }>('/api/admin/products-catalog?active=true').then((r) => r.ok && setCats(r.data.categories));
     api<{ standards: Std[] }>('/api/admin/standards').then((r) => r.ok && setStds(r.data.standards));
     api<{ suppliers: Array<{ id: string; code: string; name: string }> }>('/api/admin/suppliers?active=true').then((r) => r.ok && setSups(r.data.suppliers));
+    api<{ families: Array<{ id: string; code: string; name: string }> }>('/api/admin/families').then((r) => r.ok && setFams(r.data.families));
   }, [load]);
   const act = async (url: string, method: string, body?: unknown) => { const r = await api(url, method, body); if (!r.ok) setError(r.error); else { setError(null); load(); } return r; };
   if (!d) return <ErrorText error={error ?? 'Loading…'} />;
@@ -50,6 +52,13 @@ export default function ProductPage() {
       <div className={card}>
         <h3 className="font-bold">Details</h3>
         <SpecForm key={key} fields={PRODUCT_SPEC.filter((f) => f.column !== 'active')} initial={p} options={{ category: cats.map((c) => ({ value: c.key, label: c.label })) }} submitLabel="Save" onSubmit={async (v) => { const r = await api(`/api/admin/products-catalog/${id}`, 'PATCH', v); if (!r.ok) return r.error; load(); return null; }} />
+        {/* The product family customers browse (2026-11-26). Admin only: customers never see which products are linked. */}
+        <label className="flex flex-wrap items-center gap-2 text-sm"><span className={label}>Product family</span>
+          <select className={`${input} max-w-sm`} value={String(p.family_id ?? '')} onChange={(e) => act(`/api/admin/products-catalog/${id}`, 'PATCH', { family_id: e.target.value || null })}>
+            <option value="">None</option>
+            {fams.map((x) => <option key={x.id} value={x.id}>{x.code} {x.name}</option>)}
+          </select>
+        </label>
       </div>
 
       <div className={card}>

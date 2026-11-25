@@ -175,6 +175,16 @@ export async function productValues(admin: SupabaseClient, body: Record<string, 
     const cat = checkCategory(body.category, cats ?? []);
     if ('error' in cat) f.errors.push(cat.error); else f.values.category = cat.value;
   }
+  // The product family (2026-11-26, admin only, never shown to customers): an existing family, or none.
+  if ('family_id' in body) {
+    const v = body.family_id;
+    if (v === null || v === '' || v === undefined) f.values.family_id = null;
+    else if (typeof v !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)) f.errors.push('Choose a product family.');
+    else {
+      const { data: fam } = await admin.from('product_families').select('id').eq('id', v).maybeSingle();
+      if (!fam) f.errors.push('That product family does not exist.'); else f.values.family_id = fam.id;
+    }
+  }
   if (!partial && !f.values.sourcing) f.errors.push('"Made to spec or resold brand" is required.');
   const sourcing = f.values.sourcing ?? existing?.sourcing, brand = 'brand' in f.values ? f.values.brand : existing?.brand;
   if (sourcing === 'resold_brand' && !brand) f.errors.push('Brand (if resold) is required for a resold brand.');

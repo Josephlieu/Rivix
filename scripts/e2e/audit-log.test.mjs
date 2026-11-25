@@ -68,7 +68,7 @@ ok('offline: "once" (two-step set-up): a row already there is not an error', !re
 const routeFiles = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((d) => (d.isDirectory() ? routeFiles(path.join(dir, d.name)) : d.name === 'route.ts' ? [path.join(dir, d.name)] : []));
 const callers = routeFiles('src/app/api').filter((f) => /\baudit\(/.test(fs.readFileSync(f, 'utf8')));
 const noWarning = callers.filter((f) => { const s = fs.readFileSync(f, 'utf8'); const vars = [...s.matchAll(/(?:const|let)\s+(\w+)\s*(?::[^=]+)?=\s*(?:[^;]*\?\s*)?await audit\(/g)].map((m) => m[1]); return !(vars.length || /audited = r/.test(s)) || !/\.\.\.(audited|warning)\b/.test(s); });
-const EXPECTED_CALLERS = 46; // 2026-11-21 (approved): 29 + 17 supplier/product record routes
+const EXPECTED_CALLERS = 54; // 2026-11-21 (approved): 29 + 17 supplier/product record routes; 2026-11-26 (approved): + 8 catalogue routes
 ok(`offline: all ${EXPECTED_CALLERS} routes that log return the warning in their response`, callers.length === EXPECTED_CALLERS && noWarning.length === 0, `${callers.length} callers; without the warning: ${noWarning.join(', ')}`);
 
 // =====================================================================================================================

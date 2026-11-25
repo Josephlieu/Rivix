@@ -7,10 +7,13 @@ import { Plus, Clock, CheckCircle2, XCircle, ClipboardList } from 'lucide-react'
 import OrderRequestForm from '@/components/OrderRequestForm';
 import { formatDate } from '@/lib/format';
 import { MAX_OPEN_REQUESTS } from '@/lib/order-requests-shared';
+import SpecText from '@/components/catalog/SpecText';
+import SampleRequests from '@/components/catalog/SampleRequests';
+import { PRICE_ON_QUOTE, type Spec } from '@/lib/catalog-families';
 
 interface Req {
   id: string; kind: 'reorder' | 'quote'; status: 'open' | 'converted' | 'declined'; note: string | null; decline_reason: string | null;
-  decided_at: string | null; created_at: string; items: { product_name: string; sizes: { size: string; qty: number }[] }[];
+  decided_at: string | null; created_at: string; items: { product_name: string; sizes: { size: string; qty: number }[]; branding?: string | null; spec?: Partial<Spec> | null }[];
   source: { batch_number: string } | null; order: { batch_number: string } | null;
 }
 
@@ -69,10 +72,11 @@ function RequestsInner() {
             </div>
             <ul className="text-sm text-slate-600 space-y-0.5">
               {r.items.map((it, i) => (
-                <li key={i}>{it.product_name}: {it.sizes.map((s) => `${s.size} x${s.qty}`).join(', ')}</li>
+                <li key={i}>{it.product_name}: {it.sizes.map((s) => `${s.size} x${s.qty}`).join(', ')}{it.spec ? <SpecText spec={it.spec} className="text-xs text-slate-500 pl-3" /> : null}</li>
               ))}
             </ul>
-            {r.note && <p className="text-xs text-slate-500">Your note: {r.note}</p>}
+            {r.note && <p className="text-xs text-slate-500 whitespace-pre-line break-words">Your note: {r.note}</p>}
+            {r.kind === 'quote' && r.status === 'open' && <p className="text-xs text-slate-400">{PRICE_ON_QUOTE}</p>}
             {r.status === 'open' && <p className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700"><Clock size={14} />Waiting for your sales rep or RIVIX</p>}
             {r.status === 'converted' && (
               <p className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
@@ -84,6 +88,7 @@ function RequestsInner() {
           </div>
         ))}
       </div>
+      <SampleRequests endpoint="/api/portal/sample-requests" canDecide={false} title="Your sample requests" />
     </div>
   );
 }

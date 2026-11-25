@@ -6,7 +6,7 @@ import { DOCUMENT_TYPES } from './compliance';
 
 export const SUPPLIER_COLUMNS = 'id, code, name, country, city, categories, moq, moq_unit, lead_time_days, payment_terms, usual_incoterm, quote_currency, factory_certifications, can_brand, website, notes, active, created_at, updated_at';
 export const CONTACT_COLUMNS = 'id, supplier_id, contact_name, email, whatsapp, is_primary, created_at, updated_at';
-export const PRODUCT_COLUMNS = 'id, code, name, sourcing, brand, category, country_of_origin, sizes, colours, unit_weight_g, pieces_per_carton, carton_length_cm, carton_width_cm, carton_height_cm, carton_weight_kg, notes, active, created_at, updated_at';
+export const PRODUCT_COLUMNS = 'id, code, name, sourcing, brand, category, country_of_origin, sizes, colours, unit_weight_g, pieces_per_carton, carton_length_cm, carton_width_cm, carton_height_cm, carton_weight_kg, notes, active, family_id, created_at, updated_at';
 export const LINK_COLUMNS = 'product_id, supplier_id, supplier_sku, moq, moq_unit, lead_time_days, created_at';
 export const STANDARD_COLUMNS = 'id, designation, standard, edition, title, provinces, source_url, checked, checked_on, checked_by_email, notes, created_at, updated_at';
 export const CLAIM_COLUMNS = 'id, product_id, standard_id, protection_type, protection_class, created_at, updated_at';

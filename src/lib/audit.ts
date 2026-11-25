@@ -65,6 +65,17 @@ export const AUDIT_ACTIONS = {
   'certificate.unverify': 'Certificate verification removed',
   'certificate.delete': 'Certificate deleted',
   'catalog_import.run': 'Supplier/product import run',
+  'family.create': 'Product family created',
+  'family.edit': 'Product family edited',
+  'family.publish': 'Product family published to customers',
+  'family.unpublish': 'Product family hidden from customers',
+  'family_image.upload': 'Product family image added',
+  'family_image.edit': 'Product family image edited',
+  'family_image.delete': 'Product family image removed',
+  'family_standard.add': 'Standard listed for a product family',
+  'family_standard.remove': 'Standard removed from a product family',
+  'catalog_settings.edit': 'Catalogue settings changed',
+  'sample_request.decide': 'Sample request sent or declined',
 } as const;
 export type AuditAction = keyof typeof AUDIT_ACTIONS;
 export const isAuditAction = (v: unknown): v is AuditAction => typeof v === 'string' && Object.prototype.hasOwnProperty.call(AUDIT_ACTIONS, v);

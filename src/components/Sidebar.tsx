@@ -22,6 +22,9 @@ import {
   BookOpen,
   ClipboardList,
   ScrollText,
+  Store,
+  ShoppingCart,
+  Heart,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import RepWidget from './RepWidget';
@@ -49,6 +52,9 @@ const adminLinks = [
 const clientLinks = [
   { href: '/portal', label: 'Overview', icon: LayoutDashboard },
   { href: '/portal/orders', label: 'My Orders', icon: FileText },
+  { href: '/portal/browse', label: 'Browse products', icon: Store },
+  { href: '/portal/quote', label: 'Quote cart', icon: ShoppingCart },
+  { href: '/portal/saved', label: 'Saved', icon: Heart },
   { href: '/portal/requests', label: 'Requests', icon: ClipboardList },
   { href: '/portal/products', label: 'Product Specs', icon: Package },
   { href: '/portal/catalogs', label: 'Catalogs', icon: BookOpen },
@@ -66,6 +72,7 @@ const repLinks = [
   { href: '/rep/orders', label: 'Orders', icon: FileText },
   { href: '/rep/orders/new', label: 'New Order', icon: PlusCircle },
   { href: '/rep/requests', label: 'Requests', icon: ClipboardList },
+  { href: '/rep/browse', label: 'Browse products', icon: Store },
   { href: '/rep/catalogs', label: 'Catalogs', icon: BookOpen },
   { href: '/rep/replication', label: 'Replication', icon: FileUp }, // internal tool between the rep and the admin; customers never see it
   { href: '/rep/account', label: 'Account', icon: UserCircle },

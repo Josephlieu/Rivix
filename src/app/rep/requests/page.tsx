@@ -2,6 +2,7 @@ import { getCurrentRep } from '@/lib/current-rep';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { loadBoardRows } from '@/lib/order-request-board';
 import RequestsBoard from '@/components/RequestsBoard';
+import SampleRequests from '@/components/catalog/SampleRequests';
 
 // Reorders and quote requests from this rep's own customers.
 export default async function RepRequestsPage() {
@@ -15,6 +16,8 @@ export default async function RepRequestsPage() {
         <p className="text-slate-500">Reorders and quote requests from your customers. Create the order from the request, or decline it with a reason.</p>
       </div>
       <RequestsBoard rows={rows} newOrderPath="/rep/orders/new" orderPath="/rep/orders" />
+      {/* Submitted sample requests from this rep's own customers (2026-11-26). Unsubmitted quote carts are never shown. */}
+      <SampleRequests endpoint="/api/rep/sample-requests" canDecide />
     </div>
   );
 }

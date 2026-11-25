@@ -1,7 +1,7 @@
 import Link from 'next/link';
 
 // Supplier and product records (2026-11-21): admin only (the proxy and every route check the two-step sign-in).
-const TABS = [['suppliers', 'Suppliers'], ['products', 'Products'], ['certificates', 'Certificates'], ['standards', 'Standards'], ['import', 'Import']] as const;
+const TABS = [['suppliers', 'Suppliers'], ['products', 'Products'], ['certificates', 'Certificates'], ['standards', 'Standards'], ['import', 'Import'], ['families', 'Families'], ['catalog-settings', 'Catalogue settings']] as const;
 export default function SourcingLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="max-w-7xl mx-auto space-y-6">

@@ -2,7 +2,7 @@
 // API exactly as the browser can (publishable key + their own session), after 90-harden-grants.sql.
 //   - the allowed columns of the 10 readable tables read fine (and the customer's own rows come back);
 //   - every other column of those tables is refused with a permission error, and so is select('*');
-//   - the other 26 public tables (including account_change_requests, order_requests, templates, template_versions, audit_log,
+//   - the other 34 public tables (including account_change_requests, order_requests, templates, template_versions, audit_log,
 //     and the 7 supplier and product record tables)
 //     are refused completely;
 //   - no insert, update or delete on any of the 36 tables;
@@ -57,15 +57,18 @@ const ALL = {
   catalogs: ['id', 'title', 'description', 'file_path', 'file_name', 'file_size', 'mime_type', 'uploaded_by', 'created_at', 'updated_at'],
   notifications: ['id', 'recipient_user_id', 'kind', 'title', 'body', 'link', 'order_id', 'read_at', 'created_at'],
 };
-// The other 26 tables, each with one of its columns (no right at all, so any column is refused).
+// The other 34 tables, each with one of its columns (no right at all, so any column is refused).
 // 2026-11-21 (approved): audit_log added (29 tables); customers and reps have no rights on it at all.
 // 2026-11-21 (approved): the 7 supplier and product record tables added (36 tables); admin only, through server routes.
+// 2026-11-26 (approved): the 8 customer catalogue tables added (44 tables); server routes only, carts private to the customer.
 const CLOSED = {
   account_change_requests: 'id', order_requests: 'id', templates: 'key', template_versions: 'template_key', catalog_changes: 'id',
   garment_categories: 'key', garment_types: 'key', hiring_candidates: 'id', hiring_settings: 'id', link_reads: 'id', rep_activity: 'id',
   rep_invites: 'id', rep_signup_attempts: 'id', replication_customer_approvals: 'id', replication_downloads: 'id',
   replication_messages: 'id', replication_revisions: 'id', replications: 'id', audit_log: 'id',
   suppliers: 'id', supplier_contacts: 'id', products: 'id', product_suppliers: 'product_id', standards: 'id', product_compliance: 'id', certificates: 'id',
+  product_families: 'id', family_images: 'id', family_standards: 'family_id', catalog_settings: 'id', quote_drafts: 'id', quote_draft_lines: 'id',
+  saved_families: 'customer_id', sample_requests: 'id',
 };
 const TABLES = { ...Object.fromEntries(Object.entries(ALLOWED).map(([t, c]) => [t, c[0]])), ...CLOSED };
 // Functions nobody but the service role may call (rpc arguments are only there so PostgREST finds the function).
@@ -75,8 +78,9 @@ const CLOSED_FUNCTIONS = [
   ['delete_test_replication', { p_id: 'zz-none' }], ['delete_test_template', { p_key: 'zz-none' }], ['delete_test_catalog_changes', {}],
   ['generate_customer_code', {}], ['generate_order_code', {}], ['generate_rep_code', {}], ['generate_replication_code', {}],
   ['log_order_status', {}], ['set_updated_at', {}], ['rls_auto_enable', {}], ['replications_delete_guard', {}],
+  ['family_images_limit', {}], ['quote_draft_lines_limit', {}], ['sample_requests_limit_open', {}],
 ];
-ok('the test\'s column lists match the plan (10 tables; every allowed column is a real column)', Object.keys(ALLOWED).every((t) => ALLOWED[t].every((c) => ALL[t].includes(c))) && Object.keys(TABLES).length === 36);
+ok('the test\'s column lists match the plan (10 tables; every allowed column is a real column)', Object.keys(ALLOWED).every((t) => ALLOWED[t].every((c) => ALL[t].includes(c))) && Object.keys(TABLES).length === 44);
 
 // A refusal from the database's rights: 42501 "permission denied for ...". Row security's own refusal ("new row violates
 // row-level security policy", also 42501) does NOT count: this test is about the rights. For rpc, PostgREST may also say
@@ -129,9 +133,9 @@ async function checkRole(who, c, { ownRows = {}, mustBeAbleToCallHelpers }) {
   ok(`${who}: select('*') is refused on the ${withHidden.length} tables with a hidden column`, star.length === 0 && withHidden.length === (who === 'anon' ? 10 : 9), star.join('; '));
   if (who !== 'anon') { const ps = await c.from('product_specs').select('*').limit(1); ok(`${who}: select('*') on product_specs (no hidden column) works`, !ps.error, code(ps)); }
 
-  // 3. The other 26 tables: refused.
+  // 3. The other 34 tables: refused.
   const open = (await pool(Object.entries(CLOSED), async ([tbl, col]) => { const r = await c.from(tbl).select(col).limit(1); return denied(r) ? null : `${tbl} (${code(r)})`; })).filter(Boolean);
-  ok(`${who}: the 26 other tables are refused (incl. account_change_requests, order_requests, templates, template_versions, audit_log, the 7 product record tables)`, open.length === 0, open.join('; '));
+  ok(`${who}: the 34 other tables are refused (incl. account_change_requests, order_requests, templates, template_versions, audit_log, the 7 product record tables, the 8 catalogue tables)`, open.length === 0, open.join('; '));
 
   // 4. Writes on all 36 tables: refused (insert, update, delete). The values never reach a row: the right is checked first.
   // (Each filter matches no row: the first column is never empty. A write that got through would change nothing.)
