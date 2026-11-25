@@ -21,3 +21,10 @@ export const safeName = (n: string) => (n.replace(/[^\w .-]+/g, '_').replace(/^[
 /** Where a staged import file lives, and where a certificate file lives. */
 export const stagingPrefix = (batch: string) => `import/${batch}`;
 export const isBatchId = (v: unknown): v is string => typeof v === 'string' && /^[0-9a-f-]{36}$/i.test(v);
+
+// Pending uploads (2026-11-26): step 1 puts the file at pending/<admin user id>/<uuid>; step 2 accepts only that exact
+// shape for the SAME admin, so a refused upload's cleanup can never touch a file another admin started.
+const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
+export const newPendingPath = (userId: string, uuid: string) => `pending/${userId}/${uuid}`;
+export const isOwnPendingPath = (path: unknown, userId: string): boolean =>
+  typeof path === 'string' && new RegExp(`^${UUID}$`).test(userId) && new RegExp(`^pending/${userId}/${UUID}$`).test(path);

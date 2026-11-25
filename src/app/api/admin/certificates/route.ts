@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import { adminCtx, bad, isId, readJson } from '@/lib/catalog-route';
 import { CERT_COLUMNS, today } from '@/lib/catalog-server';
 import { CERT_SPEC, accreditationProblem, checkFields } from '@/lib/catalog-fields';
-import { CERT_BUCKET, checkCertificateFile, safeName } from '@/lib/certificate-files';
+import { CERT_BUCKET, checkCertificateFile, isOwnPendingPath, safeName } from '@/lib/certificate-files';
 import { CLAIM_LABEL, claimStatus, daysToExpiry, expiryWarning, type CertFacts } from '@/lib/compliance';
 import { audit } from '@/lib/audit';
 
@@ -30,7 +30,8 @@ export async function POST(req: NextRequest) {
   const c = await adminCtx(); if (c instanceof NextResponse) return c;
   const body = await readJson(req); if (!body) return bad('Bad request');
   const path = String(body.path ?? '');
-  if (!/^pending\/[0-9a-f-]{36}$/.test(path)) return bad('Upload the file first.');
+  // Only a pending file this same admin started (pending/<their user id>/<uuid>); anything else is refused untouched.
+  if (!isOwnPendingPath(path, c.who.userId)) return bad('Upload the file first.');
   if (!isId(body.product_id) || !isId(body.standard_id)) return bad('Choose the product and the standard.');
   const f = checkFields(CERT_SPEC, body, 'create');
   if (!f.values.document_type) f.errors.push('Choose the document type (third-party certificate, accredited lab report or manufacturer declaration).');

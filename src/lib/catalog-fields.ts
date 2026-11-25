@@ -22,6 +22,13 @@ export const nameKey = (v: unknown) => String(v ?? '').trim().replace(/\s+/g, ' 
 /** A standard's full text compared ignoring case and every space. */
 export const designationKey = (v: unknown) => String(v ?? '').replace(/\s+/g, '').toLowerCase();
 
+/** A web address safe to store and to link to: parsed with new URL(), protocol http: or https: only, a host name, written
+ *  with "//" and no spaces, at most `max` characters (2026-11-26). Used by the checks and by the pages before linking. */
+export function isWebAddress(v: unknown, max = 500): boolean {
+  if (typeof v !== 'string' || v.length > max || !/^https?:\/\/\S+$/i.test(v)) return false;
+  try { const u = new URL(v); return (u.protocol === 'http:' || u.protocol === 'https:') && u.hostname.length > 0; } catch { return false; }
+}
+
 const isBlank = (v: unknown) => v === undefined || v === null || (typeof v === 'string' && v.trim() === '') || (Array.isArray(v) && v.length === 0);
 export type Kind =
   | { t: 'text'; max: number; required?: boolean }
@@ -76,7 +83,7 @@ export function checkValue(v: unknown, k: Kind, label: string): { value: unknown
     }
     case 'currency': { const x = String(s).toUpperCase(); return /^[A-Z]{3}$/.test(x) ? { value: x } : { error: `${label} must be a 3-letter currency code such as USD or CAD (got "${String(s)}").` }; }
     case 'email': { const x = String(s); return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x) && x.length <= 254 ? { value: x } : { error: `${label} is not a valid email address.` }; }
-    case 'url': { const x = String(s), max = k.max ?? 500; return /^https?:\/\/\S+$/.test(x) && x.length <= max ? { value: x } : { error: `${label} must be a web address starting with http:// or https:// (at most ${max} characters).` }; }
+    case 'url': { const x = String(s), max = k.max ?? 500; return isWebAddress(x, max) ? { value: x } : { error: `${label} must be a web address starting with http:// or https:// (at most ${max} characters).` }; }
     case 'date': {
       const x = String(s);
       const ok = /^\d{4}-\d{2}-\d{2}$/.test(x) && (() => { const [y, m, d] = x.split('-').map(Number); const t = new Date(Date.UTC(y, m - 1, d)); return t.getUTCFullYear() === y && t.getUTCMonth() === m - 1 && t.getUTCDate() === d; })();

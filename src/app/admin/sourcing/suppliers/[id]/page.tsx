@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { CONTACT_SPEC, SUPPLIER_SPEC } from '@/lib/catalog-fields';
+import { CONTACT_SPEC, SUPPLIER_SPEC, isWebAddress } from '@/lib/catalog-fields';
 import { SpecForm, api, asText, btnGhost, card, ErrorText } from '../../ui';
 
 type Contact = { id: string; contact_name: string | null; email: string | null; whatsapp: string | null; is_primary: boolean };
@@ -25,7 +25,7 @@ export default function SupplierPage() {
         <h2 className="text-xl font-black">{s.name}</h2>
         <span className="font-mono text-xs px-2 py-0.5 bg-slate-100 rounded">{s.code}</span>
         <span className="text-xs text-slate-500">{s.active ? 'Active' : 'Inactive'}</span>
-        {typeof s.website === 'string' && /^https?:\/\//i.test(s.website) && <a className="text-sm text-rivix font-semibold underline" href={s.website} target="_blank" rel="noopener noreferrer">Website ↗</a>}
+        {isWebAddress(s.website, 300) && <a className="text-sm text-rivix font-semibold underline" href={s.website as string} target="_blank" rel="noopener noreferrer">Website ↗</a>}
         <button className={btnGhost} onClick={() => act(`/api/admin/suppliers/${id}`, 'PATCH', { active: !s.active })}>{s.active ? 'Switch off' : 'Switch on'}</button>
         <button className={btnGhost} onClick={async () => { if (!window.confirm(`Delete ${s.name}? This cannot be undone.`)) return; const r = await api(`/api/admin/suppliers/${id}`, 'DELETE'); if (r.ok) router.push('/admin/sourcing/suppliers'); else setError(r.error); }}>Delete</button>
       </div>

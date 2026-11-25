@@ -21,6 +21,7 @@ const K = await import('../../src/lib/compliance.ts');
 const SC = await import('../../src/lib/supplier-code.ts');
 const IM = await import('../../src/lib/catalog-import.ts');
 const F = await import('../../src/lib/catalog-fields.ts');
+const CF = await import('../../src/lib/certificate-files.ts');
 
 // =====================================================================================================================
 // Offline: the certificate rule
@@ -46,7 +47,7 @@ ok('type: a valid, verified accredited lab report → Compliant', rs([cert({ doc
 ok('type: a verified manufacturer declaration valid until 2099 → "Manufacturer declaration only", never Compliant', rs([decl({ expires_on: '2099-12-31' })]) === 'declaration_only' && K.CLAIM_LABEL.declaration_only === 'Manufacturer declaration only');
 ok('type: a verified declaration with no expiry date → declaration only', rs([decl({ expires_on: null })]) === 'declaration_only');
 ok('type: a declaration plus a valid third-party certificate → Compliant', rs([decl(), cert()]) === 'compliant');
-ok('type: an expired third-party certificate plus a valid declaration → Expired (Joseph, 2026-11-25)', rs([cert({ expires_on: '2026-11-20' }), decl()]) === 'expired');
+ok('type: an expired third-party certificate plus a valid declaration → Expired (our decision, 2026-11-25)', rs([cert({ expires_on: '2026-11-20' }), decl()]) === 'expired');
 ok('type: an expired lab report plus a valid declaration → Expired', rs([cert({ document_type: 'accredited_lab_report', expires_on: '2026-11-20' }), decl()]) === 'expired');
 ok('type: an uploaded (not verified) declaration → Certificate needed', rs([decl({ status: 'uploaded' })]) === 'certificate_needed');
 ok('type: a declaration past its own expiry date → Certificate needed', rs([decl({ expires_on: '2026-11-20' })]) === 'certificate_needed');
@@ -108,6 +109,9 @@ ok('planner: a named certificate file that is not attached: the claim is created
 const web = (v) => F.checkFields(F.SUPPLIER_SPEC, { website: v }, 'update');
 ok('website: https and http addresses are accepted', web('https://example.org/factory').values.website === 'https://example.org/factory' && web('http://example.org').errors.length === 0);
 ok('website: javascript:, data:, a bare domain and over 300 characters are refused', ['javascript:alert(1)', 'data:text/html,x', 'www.example.org', 'https://example.org/has space', `https://example.org/${'a'.repeat(290)}`].every((v) => web(v).errors.length === 1));
+ok('website: checked with new URL(): http/https only, a host, "//" and no spaces', F.isWebAddress('https://example.org/x?y=1') && !F.isWebAddress('https:example.org') && !F.isWebAddress('http:/example.org') && !F.isWebAddress('https://') && !F.isWebAddress('ftp://example.org') && !F.isWebAddress('JAVASCRIPT:alert(1)') && !F.isWebAddress(' https://example.org') && !F.isWebAddress(null));
+const U1 = '11111111-1111-4111-8111-111111111111', U2 = '22222222-2222-4222-8222-222222222222', FU = '33333333-3333-4333-8333-333333333333';
+ok('pending path: only pending/<this admin>/<uuid> is accepted', CF.isOwnPendingPath(CF.newPendingPath(U1, FU), U1) && !CF.isOwnPendingPath(CF.newPendingPath(U2, FU), U1) && !CF.isOwnPendingPath(`pending/${FU}`, U1) && !CF.isOwnPendingPath(`pending/${U1}/../${U2}/${FU}`, U1) && !CF.isOwnPendingPath(`pending/${U1}/${FU}/x`, U1) && !CF.isOwnPendingPath(`${U1}/${FU}`, U1) && !CF.isOwnPendingPath(42, U1));
 ok('website: blank clears it on an edit', web('').values.website === null && web('').errors.length === 0);
 const dt = (v) => F.checkValue(v, F.DOCUMENT_TYPE_KIND, 'Document type');
 ok('document type: labels and short names in any capitals ("Lab report", "Third-party certificate", "declaration")', dt('Lab report').value === 'accredited_lab_report' && dt('THIRD-PARTY CERTIFICATE').value === 'third_party_certificate' && dt('declaration').value === 'manufacturer_declaration' && dt('accredited_lab_report').value === 'accredited_lab_report');
@@ -152,6 +156,7 @@ const ids = { suppliers: [], products: [], standards: [] };
 let rep = null, cust = null;
 
 try {
+  const adm2 = await mk('a2', { role: 'admin' });
   const adm = await mk('a', { role: 'admin' }), ru = await mk('r', { role: 'rep' }), cu = await mk('c');
   rep = (await a.from('reps').insert({ name: 'ZZ PRD Rep', email: ru.email, user_id: ru.id, active: true }).select('id').single()).data;
   cust = (await a.from('customers').insert({ user_id: cu.id, company_name: 'ZZ PRD Co', contact_email: cu.email, customer_code: '', rep_id: rep.id }).select('id').single()).data;
@@ -247,7 +252,19 @@ try {
   ok('rule (live): uploaded but not verified → still "Certificate needed"', (await status(p1.id, claimA.id)) === 'certificate_needed');
   r = await upload(p1.id, sNew.id, {}, Buffer.from('<html><script>alert(1)</script></html>'), 'evil.pdf');
   ok('a file that is not really a PDF/JPEG/PNG is refused (checked by content, not by name)', r.status === 400 && /only PDF, JPEG or PNG/.test(r.j.error));
-  const pendingNow = async () => ((await a.storage.from(BUCKET).list('pending', { limit: 100 })).data ?? []).length;
+  const pendingIn = async (uid) => ((await a.storage.from(BUCKET).list(`pending/${uid}`, { limit: 100 })).data ?? []).map((x) => x.name);
+  const pendingNow = async () => (await pendingIn(adm.id)).length;
+  // Pending uploads belong to the admin who started them (2026-11-26).
+  const A2 = await signIn(adm2.email);
+  const u2 = await call('POST', '/api/admin/certificates/upload-url', A2.cookie, { file_name: 'zz-prd-other.pdf', size: PDF.length });
+  const up2 = await anon.storage.from(BUCKET).uploadToSignedUrl(u2.j.path, u2.j.token, PDF, { contentType: 'application/pdf' });
+  const other = String(u2.j.path ?? '').split('/').pop();
+  ok('upload-url: the path is in this admin\'s own pending folder', !up2.error && u2.j.path === `pending/${adm2.id}/${other}`, String(u2.j.path));
+  for (const [what, path] of [['another admin\'s pending file', u2.j.path], ['the old shape pending/<uuid>', `pending/${other}`], ['a ../ path', `pending/${adm.id}/../${adm2.id}/${other}`]]) {
+    r = await call('POST', '/api/admin/certificates', ac, { path, product_id: p1.id, standard_id: sNew.id, file_name: 'x.pdf' }); // no type: the refusal path that cleans up
+    ok(`  ${what} is refused before anything else, and that file is left untouched`, r.status === 400 && r.j.error === 'Upload the file first.' && (await pendingIn(adm2.id)).includes(other), `${r.status} ${r.j.error}`);
+  }
+  await a.storage.from(BUCKET).remove([u2.j.path]);
   const pendingBefore = await pendingNow();
   r = await upload(p1.id, sNew.id, { document_type: undefined, issuing_body: 'ZZ Lab' });
   ok('type: an upload without a document type is refused; its pending file is removed', r.status === 400 && /document type/.test(r.j.error) && (await pendingNow()) === pendingBefore, `${r.status} ${r.j.error}`);
@@ -423,7 +440,8 @@ try {
   if (stids.length) await a.from('standards').delete().in('id', stids);
   const { data: staged } = await a.storage.from(BUCKET).list('import', { limit: 100 });
   for (const f of staged ?? []) { const { data: inner } = await a.storage.from(BUCKET).list(`import/${f.name}`, { limit: 100 }); if (inner?.length) await a.storage.from(BUCKET).remove(inner.map((x) => `import/${f.name}/${x.name}`)); }
-  const { data: pending } = await a.storage.from(BUCKET).list('pending', { limit: 100 }); if (pending?.length) await a.storage.from(BUCKET).remove(pending.map((x) => `pending/${x.name}`));
+  const { data: pending } = await a.storage.from(BUCKET).list('pending', { limit: 100 });
+  for (const f of pending ?? []) { const { data: inner } = await a.storage.from(BUCKET).list(`pending/${f.name}`, { limit: 100 }); await a.storage.from(BUCKET).remove([`pending/${f.name}`, ...(inner ?? []).map((x) => `pending/${f.name}/${x.name}`)]); }
   if (cust) await a.from('customers').delete().eq('id', cust.id);
   if (rep) { await a.from('rep_activity').delete().eq('rep_id', rep.id); await a.from('reps').delete().eq('id', rep.id); }
   const uids = users.map((u) => u?.id).filter(Boolean);
