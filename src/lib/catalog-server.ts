@@ -146,11 +146,11 @@ export async function applyPlan(admin: SupabaseClient, actor: AuditActor, plan: 
       const cp = await admin.storage.from(CERT_BUCKET).copy(`${stagingPrefix(batch as string)}/${op.file}`, path);
       if (cp.error) return fail(op, `the file ${op.file} could not be stored: ${cp.error.message}`);
       const { data, error } = await admin.from('certificates').insert({
-        product_id: pid, standard_id: op.standardId, issuing_body: op.issuing_body, expires_on: op.expires_on, file_path: path, file_name: op.file, file_size: op.size,
+        product_id: pid, standard_id: op.standardId, document_type: op.document_type, issuing_body: op.issuing_body, accreditation: op.accreditation, expires_on: op.expires_on, file_path: path, file_name: op.file, file_size: op.size,
         mime_type: op.type, file_sha256: op.sha256, status: 'uploaded', uploaded_by: actor.userId, uploaded_by_email: actor.email,
       }).select('id').single();
       if (error) { await admin.storage.from(CERT_BUCKET).remove([path]); return fail(op, error.message); }
-      await log('certificate.upload', 'certificates', data.id, null, { product: op.productLabel, standard: op.designation, file_name: op.file, file_sha256: op.sha256, expires_on: op.expires_on, issuing_body: op.issuing_body, status: 'uploaded' });
+      await log('certificate.upload', 'certificates', data.id, null, { product: op.productLabel, standard: op.designation, file_name: op.file, file_sha256: op.sha256, document_type: op.document_type, issuing_body: op.issuing_body, accreditation: op.accreditation, expires_on: op.expires_on, status: 'uploaded' });
     }
     done++;
   }

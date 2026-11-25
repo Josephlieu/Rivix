@@ -12,12 +12,12 @@ export async function GET(req: NextRequest) {
   let q = c.admin.from('products').select(PRODUCT_COLUMNS).order('name');
   const active = req.nextUrl.searchParams.get('active');
   if (active === 'true' || active === 'false') q = q.eq('active', active === 'true');
-  const [p, cl, ce, cats] = await Promise.all([q, c.admin.from('product_compliance').select('product_id, standard_id, standard:standards(checked)'), c.admin.from('certificates').select('product_id, standard_id, status, expires_on'), c.admin.from('garment_categories').select('key, label').eq('active', true).order('sort')]);
+  const [p, cl, ce, cats] = await Promise.all([q, c.admin.from('product_compliance').select('product_id, standard_id, standard:standards(checked)'), c.admin.from('certificates').select('product_id, standard_id, status, expires_on, document_type'), c.admin.from('garment_categories').select('key, label').eq('active', true).order('sort')]);
   if (p.error) return bad('Could not read the products.', 500);
   const term = (req.nextUrl.searchParams.get('q') ?? '').trim().toLowerCase();
   const day = today(), certs = (ce.data ?? []) as CertFacts[];
   const products = (p.data ?? []).filter((x) => !term || String(x.name).toLowerCase().includes(term) || String(x.code ?? '').toLowerCase().includes(term)).map((x) => {
-    const counts: Record<ClaimStatus, number> = { compliant: 0, expired: 0, certificate_needed: 0, standard_not_checked: 0 };
+    const counts: Record<ClaimStatus, number> = { compliant: 0, expired: 0, declaration_only: 0, certificate_needed: 0, standard_not_checked: 0 };
     for (const k of (cl.data ?? []).filter((k) => k.product_id === x.id)) counts[claimStatus(k, (k as unknown as { standard: { checked: boolean } }).standard, certs, day)]++;
     return { ...x, claims: counts };
   });

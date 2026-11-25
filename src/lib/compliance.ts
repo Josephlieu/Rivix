@@ -1,12 +1,21 @@
-// Product compliance (2026-11-21). Pure: "today" is passed in (the business day, YYYY-MM-DD, America/Vancouver), so the
-// rule never reads the clock. A product is compliant for a claimed standard ONLY with an admin-verified, unexpired
-// certificate for that exact product and that exact standard edition (a standards row is one edition). A certificate is
-// valid through the end of its expiry day. A claim against a standard that is not checked yet shows "Standard not checked".
-export type ClaimStatus = 'compliant' | 'expired' | 'certificate_needed' | 'standard_not_checked';
+// Product compliance (2026-11-21; document types 2026-11-25). Pure: "today" is passed in (the business day, YYYY-MM-DD,
+// America/Vancouver), so the rule never reads the clock. A product is compliant for a claimed standard ONLY with an
+// admin-verified, unexpired third-party certificate or accredited lab report for that exact product and that exact standard
+// edition (a standards row is one edition). A manufacturer declaration never makes a claim compliant: it shows
+// "Manufacturer declaration only". A document is valid through the end of its expiry day. A claim against a standard that is
+// not checked yet shows "Standard not checked". Order: not checked → Compliant → Expired → declaration only → needed.
+export type ClaimStatus = 'compliant' | 'expired' | 'declaration_only' | 'certificate_needed' | 'standard_not_checked';
 export const CLAIM_LABEL: Record<ClaimStatus, string> = {
-  compliant: 'Compliant', expired: 'Expired', certificate_needed: 'Certificate needed', standard_not_checked: 'Standard not checked',
+  compliant: 'Compliant', expired: 'Expired', declaration_only: 'Manufacturer declaration only', certificate_needed: 'Certificate needed', standard_not_checked: 'Standard not checked',
 };
-export interface CertFacts { product_id: string; standard_id: string; status: 'uploaded' | 'verified' | string; expires_on: string | null }
+export const DOCUMENT_TYPES = ['third_party_certificate', 'accredited_lab_report', 'manufacturer_declaration'] as const;
+export type DocumentType = (typeof DOCUMENT_TYPES)[number];
+export const DOCUMENT_TYPE_LABEL: Record<DocumentType, string> = {
+  third_party_certificate: 'Third-party certificate', accredited_lab_report: 'Accredited lab report', manufacturer_declaration: 'Manufacturer declaration',
+};
+/** Only these document types can make a claim "Compliant". A missing or unknown type never counts. */
+export const countsAsProof = (t: unknown): boolean => t === 'third_party_certificate' || t === 'accredited_lab_report';
+export interface CertFacts { product_id: string; standard_id: string; status: 'uploaded' | 'verified' | string; expires_on: string | null; document_type: DocumentType | string | null }
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 /** Day number of a YYYY-MM-DD date (exact, no time zone involved), or null. */
@@ -20,7 +29,7 @@ export function dayNumber(d: string | null | undefined): number | null {
 }
 
 /** Valid on `today` when verified and today is on or before the expiry day. A verified certificate with no expiry date
- *  does not count (an expiry date is needed to rely on it). */
+ *  does not count (an expiry date is needed to rely on it). The document type is checked by claimStatus. */
 export const isValidOn = (c: CertFacts, today: string): boolean => {
   const exp = dayNumber(c.expires_on), now = dayNumber(today);
   return c.status === 'verified' && exp !== null && now !== null && now <= exp;
@@ -30,8 +39,12 @@ export function claimStatus(claim: { product_id: string; standard_id: string }, 
   if (dayNumber(today) === null) throw new Error('claimStatus: today must be YYYY-MM-DD');
   if (!standard.checked) return 'standard_not_checked';
   const mine = certificates.filter((c) => c.product_id === claim.product_id && c.standard_id === claim.standard_id && c.status === 'verified');
-  if (mine.some((c) => isValidOn(c, today))) return 'compliant';
-  if (mine.some((c) => c.expires_on && dayNumber(c.expires_on) !== null)) return 'expired';
+  const proof = mine.filter((c) => countsAsProof(c.document_type));
+  if (proof.some((c) => isValidOn(c, today))) return 'compliant';
+  if (proof.some((c) => c.expires_on && dayNumber(c.expires_on) !== null)) return 'expired';
+  // A verified declaration counts as "declaration only" unless it has an expiry date that has passed.
+  const now = dayNumber(today) as number;
+  if (mine.some((c) => c.document_type === 'manufacturer_declaration' && (() => { const e = dayNumber(c.expires_on); return e === null || now <= e; })())) return 'declaration_only';
   return 'certificate_needed';
 }
 

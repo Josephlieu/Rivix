@@ -71,7 +71,7 @@ export function SpecForm({ fields, initial, onSubmit, submitLabel, options = {} 
   );
 }
 
-const TONE: Record<ClaimStatus, string> = { compliant: 'bg-emerald-50 text-emerald-700', expired: 'bg-red-50 text-red-700', certificate_needed: 'bg-amber-50 text-amber-800', standard_not_checked: 'bg-slate-100 text-slate-600' };
+const TONE: Record<ClaimStatus, string> = { compliant: 'bg-emerald-50 text-emerald-700', expired: 'bg-red-50 text-red-700', declaration_only: 'bg-sky-50 text-sky-800', certificate_needed: 'bg-amber-50 text-amber-800', standard_not_checked: 'bg-slate-100 text-slate-600' };
 export const StatusBadge = ({ status }: { status: ClaimStatus }) => <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${TONE[status]}`}>{CLAIM_LABEL[status]}</span>;
 export const WarningBadge = ({ w, days }: { w: string | null; days: number | null }) => !w ? null : (
   <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${w === 'expired' ? 'bg-red-50 text-red-700' : w === 'within_30' ? 'bg-orange-50 text-orange-700' : 'bg-amber-50 text-amber-800'}`}>

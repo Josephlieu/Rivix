@@ -1,15 +1,16 @@
 // Supplier and product records (2026-11-21): the column lists every route reads (never select('*')) and the field rules
 // the forms and the CSV import share. Pure (relative imports only; the tests load this file directly).
+import { DOCUMENT_TYPES } from './compliance';
 // Values arrive as JSON from the admin forms or as CSV text from the import; both go through the same checks. A blank
 // value means "not given": on create it is saved as empty, on an update it is left out (the current value is kept).
 
-export const SUPPLIER_COLUMNS = 'id, code, name, country, city, categories, moq, moq_unit, lead_time_days, payment_terms, usual_incoterm, quote_currency, factory_certifications, can_brand, notes, active, created_at, updated_at';
+export const SUPPLIER_COLUMNS = 'id, code, name, country, city, categories, moq, moq_unit, lead_time_days, payment_terms, usual_incoterm, quote_currency, factory_certifications, can_brand, website, notes, active, created_at, updated_at';
 export const CONTACT_COLUMNS = 'id, supplier_id, contact_name, email, whatsapp, is_primary, created_at, updated_at';
 export const PRODUCT_COLUMNS = 'id, code, name, sourcing, brand, category, country_of_origin, sizes, colours, unit_weight_g, pieces_per_carton, carton_length_cm, carton_width_cm, carton_height_cm, carton_weight_kg, notes, active, created_at, updated_at';
 export const LINK_COLUMNS = 'product_id, supplier_id, supplier_sku, moq, moq_unit, lead_time_days, created_at';
 export const STANDARD_COLUMNS = 'id, designation, standard, edition, title, provinces, source_url, checked, checked_on, checked_by_email, notes, created_at, updated_at';
 export const CLAIM_COLUMNS = 'id, product_id, standard_id, protection_type, protection_class, created_at, updated_at';
-export const CERT_COLUMNS = 'id, product_id, standard_id, issuing_body, issued_on, expires_on, file_name, file_size, mime_type, file_sha256, status, verified_by_email, verified_at, uploaded_by_email, created_at, updated_at';
+export const CERT_COLUMNS = 'id, product_id, standard_id, document_type, issuing_body, accreditation, issued_on, expires_on, file_name, file_size, mime_type, file_sha256, status, verified_by_email, verified_at, uploaded_by_email, created_at, updated_at';
 
 export const INCOTERM_CODES = ['EXW', 'FCA', 'FAS', 'FOB', 'CFR', 'CIF', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP'] as const;
 export const MOQ_UNITS = ['pieces', 'pairs', 'boxes'] as const;
@@ -31,7 +32,7 @@ export type Kind =
   | { t: 'enum'; values: readonly string[]; aliases?: Record<string, string> }
   | { t: 'currency' }
   | { t: 'email' }
-  | { t: 'url' }
+  | { t: 'url'; max?: number }
   | { t: 'date' }
   | { t: 'provinces' };
 
@@ -75,7 +76,7 @@ export function checkValue(v: unknown, k: Kind, label: string): { value: unknown
     }
     case 'currency': { const x = String(s).toUpperCase(); return /^[A-Z]{3}$/.test(x) ? { value: x } : { error: `${label} must be a 3-letter currency code such as USD or CAD (got "${String(s)}").` }; }
     case 'email': { const x = String(s); return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x) && x.length <= 254 ? { value: x } : { error: `${label} is not a valid email address.` }; }
-    case 'url': { const x = String(s); return /^https?:\/\/\S+$/.test(x) && x.length <= 500 ? { value: x } : { error: `${label} must be a web address starting with http:// or https://.` }; }
+    case 'url': { const x = String(s), max = k.max ?? 500; return /^https?:\/\/\S+$/.test(x) && x.length <= max ? { value: x } : { error: `${label} must be a web address starting with http:// or https:// (at most ${max} characters).` }; }
     case 'date': {
       const x = String(s);
       const ok = /^\d{4}-\d{2}-\d{2}$/.test(x) && (() => { const [y, m, d] = x.split('-').map(Number); const t = new Date(Date.UTC(y, m - 1, d)); return t.getUTCFullYear() === y && t.getUTCMonth() === m - 1 && t.getUTCDate() === d; })();
@@ -103,6 +104,7 @@ export const SUPPLIER_SPEC: FieldSpec[] = [
   { column: 'quote_currency', label: 'Quote currency', kind: { t: 'currency' } },
   { column: 'factory_certifications', label: 'Factory certifications', kind: { t: 'list', max: 100 } },
   { column: 'can_brand', label: 'Can do RIVIX branding?', kind: { t: 'bool' } },
+  { column: 'website', label: 'Website', kind: { t: 'url', max: 300 } },
   { column: 'notes', label: 'Notes', kind: { t: 'text', max: 4000 } },
   { column: 'active', label: 'Active', kind: { t: 'bool' } },
 ];
@@ -145,6 +147,27 @@ export const STANDARD_SPEC: FieldSpec[] = [
   { column: 'checked_on', label: 'Date checked', kind: { t: 'date' } },
   { column: 'notes', label: 'Notes', kind: { t: 'text', max: 2000 } },
 ];
+/** A certificate's document type (2026-11-25): the stored key, or its label in any capitals, or a short alias. */
+export const DOCUMENT_TYPE_KIND: Kind = {
+  t: 'enum', values: DOCUMENT_TYPES,
+  aliases: {
+    'third-party certificate': 'third_party_certificate', 'third party certificate': 'third_party_certificate', 'certificate': 'third_party_certificate',
+    'accredited lab report': 'accredited_lab_report', 'lab report': 'accredited_lab_report', 'test report': 'accredited_lab_report',
+    'manufacturer declaration': 'manufacturer_declaration', 'manufacturer\'s declaration': 'manufacturer_declaration', 'declaration': 'manufacturer_declaration',
+  },
+};
+/** The certificate fields an admin types (upload and edit share them). Accreditation is for accredited lab reports only. */
+export const CERT_SPEC: FieldSpec[] = [
+  { column: 'document_type', label: 'Document type', kind: DOCUMENT_TYPE_KIND },
+  { column: 'issuing_body', label: 'Issued by', kind: { t: 'text', max: 200 } },
+  { column: 'accreditation', label: 'Lab accreditation', kind: { t: 'text', max: 300 } },
+  { column: 'issued_on', label: 'Issue date', kind: { t: 'date' } },
+  { column: 'expires_on', label: 'Expiry date', kind: { t: 'date' } },
+];
+/** Cross-field rule: accreditation only on an accredited lab report. Returns an error or null. */
+export const accreditationProblem = (documentType: unknown, accreditation: unknown): string | null =>
+  accreditation && documentType !== 'accredited_lab_report' ? 'Lab accreditation is only for an accredited lab report.' : null;
+
 export const CLAIM_SPEC: FieldSpec[] = [
   { column: 'protection_type', label: 'Protection type', kind: { t: 'text', max: 200 } },
   { column: 'protection_class', label: 'Protection class', kind: { t: 'text', max: 100 } },

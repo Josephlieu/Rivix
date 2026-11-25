@@ -5,6 +5,10 @@
 //   - live on the TEST project: customers, reps and visitors are refused by the database and the routes; every create, edit,
 //     delete, upload and verification writes exactly one audit row; the certificate rule through the API; the import dry run
 //     writes nothing, "add as unchecked standards", confirm, running it twice changes nothing, one changed cell = one update.
+//   - follow-up (2026-11-25): document types (only a third-party certificate or an accredited lab report can make a claim
+//     Compliant; a declaration shows "Manufacturer declaration only"; an expired certificate plus a declaration is "Expired"),
+//     lab accreditation (lab reports only), the issuer needed to verify, supplier websites (http/https only), the new import
+//     columns (optional, but a certificate file needs its type), all through the rule, the fields, the routes and the database.
 // Test project only ("ZZ PRD" data, zz-prd logins, deleted at the end; audit rows stay). Needs the server on port 10001.
 import { env as E2E_ENV } from './env.mjs'; // the test project only (guarded), never Development
 import { createClient } from '@supabase/supabase-js';
@@ -16,13 +20,14 @@ const ok = (n, c, x = '') => console.log(c ? 'PASS' : 'FAIL', n, x);
 const K = await import('../../src/lib/compliance.ts');
 const SC = await import('../../src/lib/supplier-code.ts');
 const IM = await import('../../src/lib/catalog-import.ts');
+const F = await import('../../src/lib/catalog-fields.ts');
 
 // =====================================================================================================================
 // Offline: the certificate rule
 // =====================================================================================================================
 const claim = { product_id: 'P1', standard_id: 'S2016' };
 const checked = { checked: true };
-const cert = (o) => ({ product_id: 'P1', standard_id: 'S2016', status: 'verified', expires_on: '2027-06-30', ...o });
+const cert = (o) => ({ product_id: 'P1', standard_id: 'S2016', status: 'verified', expires_on: '2027-06-30', document_type: 'third_party_certificate', ...o });
 const T = '2026-11-21';
 ok('rule: a verified, unexpired certificate for this product and this exact edition → Compliant', K.claimStatus(claim, checked, [cert()], T) === 'compliant');
 ok('rule: only "uploaded" (not verified) → Certificate needed', K.claimStatus(claim, checked, [cert({ status: 'uploaded' })], T) === 'certificate_needed');
@@ -34,6 +39,21 @@ ok('rule: one expired and one valid verified certificate → Compliant', K.claim
 ok('rule: a verified certificate without an expiry date never counts → Certificate needed', K.claimStatus(claim, checked, [cert({ expires_on: null })], T) === 'certificate_needed');
 ok('rule: an unchecked standard → Standard not checked (even with a verified certificate)', K.claimStatus(claim, { checked: false }, [cert()], T) === 'standard_not_checked');
 ok('rule: no certificate at all → Certificate needed', K.claimStatus(claim, checked, [], T) === 'certificate_needed');
+// Document types (2026-11-25).
+const decl = (o) => cert({ document_type: 'manufacturer_declaration', ...o });
+const rs = (certs) => K.claimStatus(claim, checked, certs, T);
+ok('type: a valid, verified accredited lab report → Compliant', rs([cert({ document_type: 'accredited_lab_report' })]) === 'compliant');
+ok('type: a verified manufacturer declaration valid until 2099 → "Manufacturer declaration only", never Compliant', rs([decl({ expires_on: '2099-12-31' })]) === 'declaration_only' && K.CLAIM_LABEL.declaration_only === 'Manufacturer declaration only');
+ok('type: a verified declaration with no expiry date → declaration only', rs([decl({ expires_on: null })]) === 'declaration_only');
+ok('type: a declaration plus a valid third-party certificate → Compliant', rs([decl(), cert()]) === 'compliant');
+ok('type: an expired third-party certificate plus a valid declaration → Expired (Joseph, 2026-11-25)', rs([cert({ expires_on: '2026-11-20' }), decl()]) === 'expired');
+ok('type: an expired lab report plus a valid declaration → Expired', rs([cert({ document_type: 'accredited_lab_report', expires_on: '2026-11-20' }), decl()]) === 'expired');
+ok('type: an uploaded (not verified) declaration → Certificate needed', rs([decl({ status: 'uploaded' })]) === 'certificate_needed');
+ok('type: a declaration past its own expiry date → Certificate needed', rs([decl({ expires_on: '2026-11-20' })]) === 'certificate_needed');
+ok('type: a declaration for another edition → Certificate needed', rs([decl({ standard_id: 'S2003' })]) === 'certificate_needed');
+ok('type: a missing or unknown document type never counts → Certificate needed', rs([cert({ document_type: null })]) === 'certificate_needed' && rs([cert({ document_type: 'supplier_says_so' })]) === 'certificate_needed' && rs([cert({ document_type: undefined })]) === 'certificate_needed');
+ok('type: an unchecked standard → Standard not checked, whatever the documents', K.claimStatus(claim, { checked: false }, [decl(), cert({ document_type: 'accredited_lab_report' })], T) === 'standard_not_checked');
+ok('type: only the two proof types count', K.countsAsProof('third_party_certificate') && K.countsAsProof('accredited_lab_report') && !K.countsAsProof('manufacturer_declaration') && !K.countsAsProof(null) && K.DOCUMENT_TYPES.length === 3);
 let threw = false; try { K.claimStatus(claim, checked, [], '21/11/2026'); } catch { threw = true; }
 ok('rule: "today" must be passed in as YYYY-MM-DD (the rule never reads the clock)', threw);
 ok('warnings: expired, within 30 days (30 included), within 60 days (31–60), none after 60', K.expiryWarning('2026-11-20', T) === 'expired' && K.expiryWarning('2026-12-21', T) === 'within_30' && K.expiryWarning('2026-12-22', T) === 'within_60' && K.expiryWarning('2027-01-20', T) === 'within_60' && K.expiryWarning('2027-01-21', T) === null && K.expiryWarning(null, T) === null);
@@ -83,6 +103,33 @@ pl = IM.planImport({ productsCsv: csv(PH, [prow({ 'Product code': 'X1', 'Country
 ok('planner: one changed cell is one update, shown old → new', pl.rows[0].action === 'update' && pl.ops.length === 1 && pl.rows[0].changes.includes('Country of origin: CN → VN'));
 pl = IM.planImport({ productsCsv: csv(PH, [prow({ 'Product code': 'X1', 'Standard and edition': 'EN 388:2016+A1:2018', 'Certificate file': 'missing.pdf', 'Certificate expiry': '2027-01-01' })]) }, existing);
 ok('planner: a named certificate file that is not attached: the claim is created, no certificate, a warning', pl.canConfirm && pl.ops.some((o) => o.kind === 'claim.create') && !pl.ops.some((o) => o.kind === 'certificate.create') && /not attached/.test(pl.rows[0].warnings.join(' ')));
+
+// Fields (2026-11-25): supplier website, document type, accreditation.
+const web = (v) => F.checkFields(F.SUPPLIER_SPEC, { website: v }, 'update');
+ok('website: https and http addresses are accepted', web('https://example.org/factory').values.website === 'https://example.org/factory' && web('http://example.org').errors.length === 0);
+ok('website: javascript:, data:, a bare domain and over 300 characters are refused', ['javascript:alert(1)', 'data:text/html,x', 'www.example.org', 'https://example.org/has space', `https://example.org/${'a'.repeat(290)}`].every((v) => web(v).errors.length === 1));
+ok('website: blank clears it on an edit', web('').values.website === null && web('').errors.length === 0);
+const dt = (v) => F.checkValue(v, F.DOCUMENT_TYPE_KIND, 'Document type');
+ok('document type: labels and short names in any capitals ("Lab report", "Third-party certificate", "declaration")', dt('Lab report').value === 'accredited_lab_report' && dt('THIRD-PARTY CERTIFICATE').value === 'third_party_certificate' && dt('declaration').value === 'manufacturer_declaration' && dt('accredited_lab_report').value === 'accredited_lab_report');
+ok('document type: anything else is refused', 'error' in dt('supplier says so') && 'error' in dt('self-certified'));
+ok('accreditation: allowed on a lab report only', F.accreditationProblem('accredited_lab_report', 'ISO/IEC 17025') === null && F.accreditationProblem('manufacturer_declaration', 'ISO/IEC 17025') !== null && F.accreditationProblem('third_party_certificate', 'x') !== null && F.accreditationProblem('manufacturer_declaration', null) === null);
+// Planner (2026-11-25): the new columns.
+const OLD_SH = SH.filter((h) => h !== 'Website'), OLD_PH = PH.filter((h) => h !== 'Certificate type' && h !== 'Lab accreditation');
+pl = IM.planImport({ suppliersCsv: csv(OLD_SH, [OLD_SH.map((h) => (h === 'Supplier' ? 'Old A' : ''))]), productsCsv: csv(OLD_PH, [OLD_PH.map((h) => ({ 'Product code': 'X9', 'Product name': 'Old glove', 'Made to spec or resold brand': 'Made to spec' })[h] ?? '')]) }, empty);
+ok('planner: a CSV from the older templates (no Website, Certificate type or Lab accreditation) still reads', pl.fileErrors.length === 0 && pl.canConfirm && pl.summary.create === 2, JSON.stringify(pl.fileErrors));
+pl = IM.planImport({ suppliersCsv: csv(SH, [srow({ Supplier: 'Web A', Website: 'https://web-a.example.org' }), srow({ Supplier: 'Web B', Website: 'javascript:alert(1)' })]) }, empty);
+ok('planner: Website is imported; a non-http(s) one is an error', pl.ops.find((o) => o.kind === 'supplier.create')?.values.website === 'https://web-a.example.org' && pl.rows[1].action === 'error' && /Website/.test(pl.rows[1].errors.join(' ')));
+const withFile = { ...existing, files: [{ name: 'c.pdf', size: 10, sha256: 'a'.repeat(64), type: 'application/pdf', error: null }] };
+const certRow = (o) => prow({ 'Product code': 'X1', 'Standard and edition': 'EN 388:2016+A1:2018', 'Certificate file': 'c.pdf', 'Certificate expiry': '2027-01-01', 'Certificate issued by': 'ZZ Lab', ...o });
+pl = IM.planImport({ productsCsv: csv(PH, [certRow({})]) }, withFile);
+ok('planner: an attached certificate file without a "Certificate type" is an error', pl.rows[0].action === 'error' && /Certificate type" is required/.test(pl.rows[0].errors.join(' ')) && !pl.ops.some((o) => o.kind === 'certificate.create'));
+pl = IM.planImport({ productsCsv: csv(PH, [certRow({ 'Certificate type': 'Lab report', 'Lab accreditation': 'ISO/IEC 17025, SCC #1' })]) }, withFile);
+const cop = pl.ops.find((o) => o.kind === 'certificate.create');
+ok('planner: a lab report with its accreditation is planned with both, shown in the changes', pl.canConfirm && cop?.document_type === 'accredited_lab_report' && cop?.accreditation === 'ISO/IEC 17025, SCC #1' && /Accredited lab report/.test(pl.rows[0].changes.join(' ')));
+pl = IM.planImport({ productsCsv: csv(PH, [certRow({ 'Certificate type': 'Manufacturer declaration', 'Lab accreditation': 'ISO/IEC 17025' })]) }, withFile);
+ok('planner: accreditation on a declaration is an error', pl.rows[0].action === 'error' && /only for an accredited lab report/.test(pl.rows[0].errors.join(' ')));
+pl = IM.planImport({ productsCsv: csv(PH, [certRow({ 'Certificate type': 'Self-certified' })]) }, withFile);
+ok('planner: an unknown certificate type is an error', pl.rows[0].action === 'error' && /Certificate type must be one of/.test(pl.rows[0].errors.join(' ')));
 
 // =====================================================================================================================
 // Live, on the test project
@@ -192,7 +239,7 @@ try {
     if (u.status !== 200) return u;
     const up = await anon.storage.from(BUCKET).uploadToSignedUrl(u.j.path, u.j.token, bytes, { contentType: 'application/pdf' });
     if (up.error) return { status: 0, j: { error: up.error.message } };
-    return call('POST', '/api/admin/certificates', ac, { path: u.j.path, product_id: pid, standard_id: sid, file_name: name, ...extra });
+    return call('POST', '/api/admin/certificates', ac, { path: u.j.path, product_id: pid, standard_id: sid, file_name: name, document_type: 'third_party_certificate', ...extra });
   };
   r = await upload(p1.id, sNew.id, { issuing_body: 'ZZ Lab', issued_on: '2026-01-10' });
   const cA = r.j.certificate;
@@ -200,6 +247,18 @@ try {
   ok('rule (live): uploaded but not verified → still "Certificate needed"', (await status(p1.id, claimA.id)) === 'certificate_needed');
   r = await upload(p1.id, sNew.id, {}, Buffer.from('<html><script>alert(1)</script></html>'), 'evil.pdf');
   ok('a file that is not really a PDF/JPEG/PNG is refused (checked by content, not by name)', r.status === 400 && /only PDF, JPEG or PNG/.test(r.j.error));
+  const pendingNow = async () => ((await a.storage.from(BUCKET).list('pending', { limit: 100 })).data ?? []).length;
+  const pendingBefore = await pendingNow();
+  r = await upload(p1.id, sNew.id, { document_type: undefined, issuing_body: 'ZZ Lab' });
+  ok('type: an upload without a document type is refused; its pending file is removed', r.status === 400 && /document type/.test(r.j.error) && (await pendingNow()) === pendingBefore, `${r.status} ${r.j.error}`);
+  r = await upload(p1.id, sNew.id, { document_type: 'supplier_says_so' });
+  ok('type: an unknown document type is refused', r.status === 400 && /Document type must be one of/.test(r.j.error));
+  r = await upload(p1.id, sNew.id, { document_type: 'manufacturer_declaration', accreditation: 'ISO/IEC 17025' });
+  ok('accreditation on a manufacturer declaration is refused', r.status === 400 && /only for an accredited lab report/.test(r.j.error));
+  const direct = await a.from('certificates').insert({ product_id: p1.id, standard_id: sNew.id, file_path: `zz-prd-direct-${t}`, file_name: 'x', file_size: 1, mime_type: 'application/pdf', file_sha256: 'a'.repeat(64), document_type: 'supplier_says_so' }).select('id');
+  const direct2 = await a.from('certificates').insert({ product_id: p1.id, standard_id: sNew.id, file_path: `zz-prd-direct2-${t}`, file_name: 'x', file_size: 1, mime_type: 'application/pdf', file_sha256: 'a'.repeat(64) }).select('id');
+  const direct3 = await a.from('certificates').insert({ product_id: p1.id, standard_id: sNew.id, file_path: `zz-prd-direct3-${t}`, file_name: 'x', file_size: 1, mime_type: 'application/pdf', file_sha256: 'a'.repeat(64), document_type: 'third_party_certificate', expires_on: '2030-01-01', status: 'verified', verified_by: adm.id, verified_by_email: 'zz', verified_at: new Date().toISOString() }).select('id');
+  ok('the database itself refuses an unknown type, a missing type and a verified document with no issuer (even with the server key)', direct.error?.code === '23514' && direct2.error?.code === '23502' && direct3.error?.code === '23514', [direct.error?.code, direct2.error?.code, direct3.error?.code].join(','));
   r = await call('POST', `/api/admin/certificates/${cA.id}/verify`, ac);
   ok('verify without an expiry date is refused', r.status === 400 && /expiry date/.test(r.j.error));
   await call('PATCH', `/api/admin/certificates/${cA.id}`, ac, { expires_on: '2030-12-31' });
@@ -207,10 +266,10 @@ try {
   ok('verified: who and when recorded; one certificate.verify row', r.status === 200 && r.j.certificate.status === 'verified' && r.j.certificate.verified_by_email === adm.email && (await auditRows('certificate.verify', cA.id)).length === 1);
   ok('rule (live): verified and unexpired, this product, this edition → "Compliant"', (await status(p1.id, claimA.id)) === 'compliant');
   ok('rule (live): the other product claiming the same edition stays "Certificate needed" (certificates are per product)', (await status(p2.id, claimP2.id)) === 'certificate_needed');
-  const cOld = (await upload(p2.id, sOld.id, { expires_on: '2030-12-31' })).j.certificate;
+  const cOld = (await upload(p2.id, sOld.id, { expires_on: '2030-12-31', issuing_body: 'ZZ Lab' })).j.certificate;
   await call('POST', `/api/admin/certificates/${cOld.id}/verify`, ac);
   ok('rule (live): a verified certificate for ANOTHER edition (EN 388:2003) does not cover the 2016 claim', (await status(p2.id, claimP2.id)) === 'certificate_needed');
-  const cU = (await upload(p1.id, sUnchecked.id, { expires_on: '2030-12-31' })).j.certificate;
+  const cU = (await upload(p1.id, sUnchecked.id, { expires_on: '2030-12-31', issuing_body: 'ZZ Lab' })).j.certificate;
   await call('POST', `/api/admin/certificates/${cU.id}/verify`, ac);
   ok('rule (live): a verified certificate against an unchecked standard → "Standard not checked"', (await status(p1.id, claimU.id)) === 'standard_not_checked');
   r = await call('PATCH', `/api/admin/certificates/${cA.id}`, ac, { expires_on: '2026-01-31' });
@@ -232,12 +291,56 @@ try {
   r = await call('DELETE', `/api/admin/standards/${sUnchecked.id}`, ac);
   ok('delete: a standard with claims or certificates is refused', r.status === 409);
 
+  // ---- Document types (2026-11-25) --------------------------------------------------------------------------------------
+  const p3 = (await call('POST', '/api/admin/products-catalog', ac, { code: `ZZ-PRD3-${t}`, name: 'ZZ PRD Declared glove', sourcing: 'made_to_spec', category: 'gloves' })).j.product; ids.products.push(p3.id);
+  const claim3 = (await call('POST', `/api/admin/products-catalog/${p3.id}/compliance`, ac, { standard_id: sNew.id })).j.claim;
+  const cD = (await upload(p3.id, sNew.id, { document_type: 'manufacturer_declaration' })).j.certificate;
+  r = await call('POST', `/api/admin/certificates/${cD.id}/verify`, ac);
+  ok('verify without "Issued by" is refused (every type; for a declaration, the manufacturer)', r.status === 400 && /Issued by/.test(r.j.error));
+  await call('PATCH', `/api/admin/certificates/${cD.id}`, ac, { issuing_body: 'ZZ PRD Manufacturer' });
+  r = await call('POST', `/api/admin/certificates/${cD.id}/verify`, ac);
+  rows = await auditRows('certificate.verify', cD.id);
+  ok('a declaration can be verified without an expiry date; the verify audit row names its type', r.status === 200 && rows.length === 1 && rows[0].after.document_type === 'manufacturer_declaration', `${r.status} ${r.j.error ?? ''}`);
+  ok('rule (live): a verified declaration only → "Manufacturer declaration only", not Compliant', (await status(p3.id, claim3.id)) === 'declaration_only');
+  r = await call('GET', '/api/admin/products-catalog', ac);
+  ok('  the product list counts it as "declaration only" (the list reads the type too)', r.j.products?.find((x) => x.id === p3.id)?.claims?.declaration_only === 1 && r.j.products.find((x) => x.id === p3.id).claims.compliant === 0);
+  r = await call('GET', `/api/admin/certificates?product=${p3.id}`, ac);
+  ok('  the certificates list shows its type and "Manufacturer declaration only"', r.j.certificates?.[0]?.document_type === 'manufacturer_declaration' && r.j.certificates[0].ruleStatus === 'Manufacturer declaration only');
+  const cE = (await upload(p3.id, sNew.id, { issuing_body: 'ZZ Lab', expires_on: '2026-01-31' })).j.certificate;
+  await call('POST', `/api/admin/certificates/${cE.id}/verify`, ac);
+  ok('rule (live): an expired third-party certificate plus a valid declaration → "Expired"', (await status(p3.id, claim3.id)) === 'expired');
+  r = await upload(p3.id, sNew.id, { document_type: 'accredited_lab_report', issuing_body: 'ZZ PRD Accredited Lab', accreditation: 'ISO/IEC 17025, SCC #ZZ', expires_on: '2030-12-31' });
+  const cL = r.j.certificate;
+  rows = await auditRows('certificate.upload', cL?.id);
+  ok('a lab report keeps its accreditation; the upload audit row has the type and accreditation', r.status === 201 && cL.accreditation === 'ISO/IEC 17025, SCC #ZZ' && cL.document_type === 'accredited_lab_report' && rows[0]?.after.document_type === 'accredited_lab_report' && rows[0]?.after.accreditation === 'ISO/IEC 17025, SCC #ZZ');
+  await call('POST', `/api/admin/certificates/${cL.id}/verify`, ac);
+  ok('rule (live): a verified, unexpired accredited lab report → "Compliant"', (await status(p3.id, claim3.id)) === 'compliant');
+  r = await call('PATCH', `/api/admin/certificates/${cL.id}`, ac, { document_type: 'manufacturer_declaration' });
+  ok('edit: changing a lab report with an accreditation into a declaration is refused (clear the accreditation first)', r.status === 400 && /only for an accredited lab report/.test(r.j.error));
+  r = await call('PATCH', `/api/admin/certificates/${cL.id}`, ac, { document_type: '' });
+  ok('edit: the document type cannot be cleared', r.status === 400 && /cannot be cleared/.test(r.j.error));
+  r = await call('PATCH', `/api/admin/certificates/${cL.id}`, ac, { document_type: 'manufacturer_declaration', accreditation: '' });
+  rows = await auditRows('certificate.edit', cL.id);
+  ok('edit: lab report → declaration removes the verification; one certificate.edit row with the type change', r.status === 200 && r.j.verificationRemoved === true && r.j.certificate.document_type === 'manufacturer_declaration' && r.j.certificate.accreditation === null && rows.length === 1 && rows[0].after.document_type === 'manufacturer_declaration' && rows[0].before.document_type === 'accredited_lab_report');
+  ok('rule (live): with the lab report gone, it is "Expired" again', (await status(p3.id, claim3.id)) === 'expired');
+
+  // ---- Supplier website (2026-11-25) -------------------------------------------------------------------------------------
+  r = await call('POST', '/api/admin/suppliers', ac, { name: `ZZ PRD Bad Web ${t}`, website: 'javascript:alert(1)' });
+  ok('website: a supplier with a javascript: website is refused', r.status === 400 && /web address/.test(r.j.error));
+  r = await call('PATCH', `/api/admin/suppliers/${s1.id}`, ac, { website: 'https://zz-prd.example.org/factory' });
+  rows = await auditRows('supplier.edit', s1.id);
+  ok('website: saved on an edit; the supplier.edit row records it', r.status === 200 && r.j.supplier?.website === 'https://zz-prd.example.org/factory' && rows.some((x) => x.after?.website === 'https://zz-prd.example.org/factory'), JSON.stringify(r.j).slice(0, 200));
+  r = await call('GET', `/api/admin/suppliers/${s1.id}`, ac);
+  ok('website: returned on the supplier page', r.j.supplier?.website === 'https://zz-prd.example.org/factory');
+  const badWeb = await a.from('suppliers').update({ website: 'javascript:alert(1)' }).eq('id', s1.id);
+  ok('website: the database itself refuses a non-http(s) address', badWeb.error?.code === '23514');
+
   // ---- Import -------------------------------------------------------------------------------------------------------------
   const supA = `ZZ PRD Imp Supplier A ${t}`, supB = `ZZ PRD Imp Supplier B ${t}`, code1 = `ZZ-PRD-IMP-${t}`, nameOnly = `ZZ PRD Imp Name Only ${t}`, unknownStd = `ZZ PRD Unknown Std ${t}`;
-  const supCsv = (city = 'Shenzhen') => csv(SH, [srow({ Supplier: supA, Country: 'CN', City: city, Categories: 'Gloves; Sleeves', MOQ: '1000', 'Lead time (days)': '45', 'Usual shipping terms': 'EXW', 'Quote currency': 'USD', 'Can do RIVIX branding?': 'Yes', 'Contact name': 'ZZ Chen', Email: `zz-prd-chen-${t}@yopmail.com`, WhatsApp: '+86 555 0199' }),
+  const supCsv = (city = 'Shenzhen') => csv(SH, [srow({ Supplier: supA, Country: 'CN', City: city, Categories: 'Gloves; Sleeves', MOQ: '1000', 'Lead time (days)': '45', 'Usual shipping terms': 'EXW', 'Quote currency': 'USD', 'Can do RIVIX branding?': 'Yes', 'Contact name': 'ZZ Chen', Email: `zz-prd-chen-${t}@yopmail.com`, WhatsApp: '+86 555 0199', Website: 'https://zz-prd-a.example.org' }),
     srow({ Supplier: supB, Country: 'VN', MOQ: '500', 'MOQ unit': 'pairs' })]);
   const prodCsv = csv(PH, [
-    prow({ 'Product code': code1, 'Product name': 'ZZ PRD Imported glove', 'Made to spec or resold brand': 'Made to spec', Category: 'Gloves and Hand Protection', 'Supplier(s)': `${supA}; ${supB}`, 'Country of origin': 'CN', Sizes: 'M; L', 'Standard and edition': sNew.designation, 'Certificate issued by': 'ZZ Lab', 'Certificate expiry': '2030-06-30', 'Certificate file': 'zz-prd-import.pdf' }),
+    prow({ 'Product code': code1, 'Product name': 'ZZ PRD Imported glove', 'Made to spec or resold brand': 'Made to spec', Category: 'Gloves and Hand Protection', 'Supplier(s)': `${supA}; ${supB}`, 'Country of origin': 'CN', Sizes: 'M; L', 'Standard and edition': sNew.designation, 'Certificate type': 'Third-party certificate', 'Certificate issued by': 'ZZ Lab', 'Certificate expiry': '2030-06-30', 'Certificate file': 'zz-prd-import.pdf' }),
     prow({ 'Product code': code1, 'Standard and edition': unknownStd }),
     prow({ 'Product name': nameOnly, 'Made to spec or resold brand': 'Resold brand', 'Brand (if resold)': 'ZZ Brand', Category: 'ppe', 'Supplier(s)': supB }),
   ]);
@@ -261,15 +364,17 @@ try {
   ok('confirm with a fingerprint that does not match the preview is refused, nothing written', r.status === 409 && (await a.from('suppliers').select('id').eq('name', supA)).data.length === 0);
   const auditMid = await auditCount();
   r = await call('POST', '/api/admin/catalog-import', ac, { action: 'confirm', suppliersCsv: supCsv(), productsCsv: prodCsv, batch, fingerprint: plan.fingerprint });
-  const sA = (await a.from('suppliers').select('id, code, name, city, moq_unit').eq('name', supA).maybeSingle()).data, sB = (await a.from('suppliers').select('id, code, moq, moq_unit').eq('name', supB).maybeSingle()).data;
+  const sA = (await a.from('suppliers').select('id, code, name, city, moq_unit, website').eq('name', supA).maybeSingle()).data, sB = (await a.from('suppliers').select('id, code, moq, moq_unit').eq('name', supB).maybeSingle()).data;
   if (sA) ids.suppliers.push(sA.id); if (sB) ids.suppliers.push(sB.id);
   const ip1 = (await a.from('products').select('id').eq('code', code1).maybeSingle()).data, ip2 = (await a.from('products').select('id, brand, category').eq('name', nameOnly).maybeSingle()).data;
   if (ip1) ids.products.push(ip1.id); if (ip2) ids.products.push(ip2.id);
   ok('import confirmed: suppliers with random codes, MOQ unit pairs for B (default pieces for A)', r.status === 200 && sA && sB && /^Supplier \d+$/.test(sA.code) && sB.moq === 500 && sB.moq_unit === 'pairs' && sA.moq_unit === 'pieces', JSON.stringify(r.j).slice(0, 300));
   const pc = (await a.from('supplier_contacts').select('contact_name, is_primary').eq('supplier_id', sA?.id ?? '00000000-0000-0000-0000-000000000000')).data ?? [];
   ok('  the primary contact was written', pc.length === 1 && pc[0].is_primary && pc[0].contact_name === 'ZZ Chen');
-  const icerts = (await a.from('certificates').select('id, status, standard_id, expires_on, issuing_body').eq('product_id', ip1?.id ?? '00000000-0000-0000-0000-000000000000')).data ?? [];
+  ok('  the supplier website was imported', sA?.website === 'https://zz-prd-a.example.org');
+  const icerts = (await a.from('certificates').select('id, status, standard_id, expires_on, issuing_body, document_type').eq('product_id', ip1?.id ?? '00000000-0000-0000-0000-000000000000')).data ?? [];
   ok('  the imported certificate is "uploaded", never "verified" (issuer and expiry kept)', icerts.length === 1 && icerts[0].status === 'uploaded' && icerts[0].expires_on === '2030-06-30' && icerts[0].issuing_body === 'ZZ Lab');
+  ok('  the imported certificate keeps its type (third-party certificate)', icerts[0]?.document_type === 'third_party_certificate');
   ok('  products linked to their suppliers (glove → A and B; name-only product → B, resold, brand kept, category ppe)', (await a.from('product_suppliers').select('supplier_id').eq('product_id', ip1?.id)).data.length === 2 && ip2?.brand === 'ZZ Brand' && ip2?.category === 'ppe');
   const istat = (await call('GET', `/api/admin/products-catalog/${ip1?.id}`, ac)).j.claims ?? [];
   ok('  the imported claims: "Certificate needed" (certificate only uploaded) and "Standard not checked"', istat.length === 2 && istat.some((x) => x.status === 'certificate_needed') && istat.some((x) => x.status === 'standard_not_checked'));

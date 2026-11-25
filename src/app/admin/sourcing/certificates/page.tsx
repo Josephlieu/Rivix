@@ -1,9 +1,10 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { DOCUMENT_TYPE_LABEL, type DocumentType } from '@/lib/compliance';
 import { WarningBadge, api, input, ErrorText } from '../ui';
 
-type Row = { id: string; file_name: string; status: string; issuing_body: string | null; expires_on: string | null; verified_by_email: string | null; daysToExpiry: number | null; warning: string | null; ruleStatus: string;
+type Row = { id: string; file_name: string; status: string; document_type: DocumentType; issuing_body: string | null; accreditation: string | null; expires_on: string | null; verified_by_email: string | null; daysToExpiry: number | null; warning: string | null; ruleStatus: string;
   product: { id: string; code: string | null; name: string }; standard: { designation: string; checked: boolean } };
 export default function CertificatesPage() {
   const [rows, setRows] = useState<Row[] | null>(null);
@@ -31,7 +32,7 @@ export default function CertificatesPage() {
               <tr key={r.id} className="border-t border-slate-100">
                 <td className="p-3"><Link className="text-rivix font-semibold" href={`/admin/sourcing/products/${r.product.id}`}>{r.product.code ?? ''} {r.product.name}</Link></td>
                 <td className="p-3">{r.standard.designation}{r.standard.checked ? '' : ' (not checked)'}</td>
-                <td className="p-3">{r.file_name}{r.issuing_body ? <div className="text-xs text-slate-500">{r.issuing_body}</div> : null}</td>
+                <td className="p-3">{r.file_name}<div className="text-xs font-semibold text-slate-600">{DOCUMENT_TYPE_LABEL[r.document_type] ?? r.document_type}</div>{r.issuing_body ? <div className="text-xs text-slate-500">{r.issuing_body}{r.document_type === 'accredited_lab_report' && r.accreditation ? ` · ${r.accreditation}` : ''}</div> : null}</td>
                 <td className="p-3">{r.status === 'verified' ? `Verified (${r.verified_by_email})` : 'Uploaded'}</td>
                 <td className="p-3 space-x-2"><span>{r.expires_on ?? '—'}</span><WarningBadge w={r.warning} days={r.daysToExpiry} /></td>
                 <td className="p-3">{r.ruleStatus}</td>

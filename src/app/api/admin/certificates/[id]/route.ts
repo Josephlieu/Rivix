@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminCtx, bad, beforeAfter, isId, readJson } from '@/lib/catalog-route';
 import { CERT_COLUMNS } from '@/lib/catalog-server';
-import { checkValue } from '@/lib/catalog-fields';
+import { CERT_SPEC, accreditationProblem, checkFields } from '@/lib/catalog-fields';
 import { CERT_BUCKET } from '@/lib/certificate-files';
 import { audit } from '@/lib/audit';
 
-// One certificate (2026-11-21, admin only). GET: a 10-minute download link (always as a download). PATCH: issuer and dates;
+// One certificate (2026-11-21, admin only). GET: a 10-minute download link (always as a download). PATCH: document type,
+// issuer, lab accreditation and dates (2026-11-25: the type cannot be cleared; accreditation only on a lab report);
 // changing a verified certificate sets it back to "uploaded" (it must be verified again). DELETE: only while "uploaded"
 // (remove the verification first, so a verified record is never deleted by one click).
 type P = { params: Promise<{ id: string }> };
@@ -25,12 +26,10 @@ export async function PATCH(req: NextRequest, { params }: P) {
   const body = await readJson(req); if (!body) return bad('Bad request');
   const { data: before } = await c.admin.from('certificates').select(CERT_COLUMNS).eq('id', id).maybeSingle();
   if (!before) return bad('Certificate not found.', 404);
-  const values: Record<string, unknown> = {}, errors: string[] = [];
-  for (const [k, kind, label] of [['issuing_body', { t: 'text', max: 200 }, 'Issued by'], ['issued_on', { t: 'date' }, 'Issue date'], ['expires_on', { t: 'date' }, 'Expiry date']] as const) {
-    if (!(k in body)) continue;
-    const r = checkValue(body[k], kind, label);
-    if ('error' in r) errors.push(r.error); else values[k] = r.value;
-  }
+  const { values, errors } = checkFields(CERT_SPEC, body, 'update');
+  if ('document_type' in values && !values.document_type) errors.push('The document type cannot be cleared.');
+  const ap = accreditationProblem('document_type' in values ? values.document_type : before.document_type, 'accreditation' in values ? values.accreditation : before.accreditation);
+  if (ap) errors.push(`${ap} Clear the accreditation or choose "Accredited lab report".`);
   if (errors.length) return bad(errors.join(' '));
   const d = beforeAfter(before, values);
   if (!d.changed) return NextResponse.json({ certificate: before, changed: false });

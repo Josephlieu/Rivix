@@ -11,17 +11,20 @@
 //   - an imported standard is a claim; a certificate is created only when its file is attached, always as "uploaded".
 import Papa from 'papaparse';
 import {
-  CONTACT_SPEC, PRODUCT_SPEC, SUPPLIER_SPEC, checkCategory, checkFields, checkValue, designationKey, diffRow, nameKey, sameValue,
+  CONTACT_SPEC, DOCUMENT_TYPE_KIND, PRODUCT_SPEC, SUPPLIER_SPEC, accreditationProblem, checkCategory, checkFields, checkValue, designationKey, diffRow, nameKey, sameValue,
 } from './catalog-fields';
+import { DOCUMENT_TYPE_LABEL, type DocumentType } from './compliance';
 
-export const SUPPLIER_HEADERS = ['Supplier', 'Country', 'City', 'Categories', 'MOQ', 'MOQ unit', 'Lead time (days)', 'Payment terms', 'Usual shipping terms', 'Quote currency', 'Factory certifications', 'Can do RIVIX branding?', 'Contact name', 'Email', 'WhatsApp', 'Notes'] as const;
-export const OPTIONAL_SUPPLIER_HEADERS = ['MOQ unit'];
-export const PRODUCT_HEADERS = ['Product code', 'Product name', 'Made to spec or resold brand', 'Brand (if resold)', 'Category', 'Supplier(s)', 'Country of origin', 'Sizes', 'Colours', 'Unit weight (g)', 'Pieces per carton', 'Carton length (cm)', 'Carton width (cm)', 'Carton height (cm)', 'Carton weight (kg)', 'Standard and edition', 'Certificate issued by', 'Certificate expiry', 'Certificate file', 'Notes'] as const;
+export const SUPPLIER_HEADERS = ['Supplier', 'Country', 'City', 'Categories', 'MOQ', 'MOQ unit', 'Lead time (days)', 'Payment terms', 'Usual shipping terms', 'Quote currency', 'Factory certifications', 'Can do RIVIX branding?', 'Contact name', 'Email', 'WhatsApp', 'Website', 'Notes'] as const;
+// Optional columns: a CSV made from an older template (without them) still reads.
+export const OPTIONAL_SUPPLIER_HEADERS = ['MOQ unit', 'Website'];
+export const PRODUCT_HEADERS = ['Product code', 'Product name', 'Made to spec or resold brand', 'Brand (if resold)', 'Category', 'Supplier(s)', 'Country of origin', 'Sizes', 'Colours', 'Unit weight (g)', 'Pieces per carton', 'Carton length (cm)', 'Carton width (cm)', 'Carton height (cm)', 'Carton weight (kg)', 'Standard and edition', 'Certificate type', 'Certificate issued by', 'Lab accreditation', 'Certificate expiry', 'Certificate file', 'Notes'] as const;
+export const OPTIONAL_PRODUCT_HEADERS = ['Certificate type', 'Lab accreditation'];
 
 const SUPPLIER_COLUMN: Record<string, string> = {
   Supplier: 'name', Country: 'country', City: 'city', Categories: 'categories', MOQ: 'moq', 'MOQ unit': 'moq_unit', 'Lead time (days)': 'lead_time_days',
   'Payment terms': 'payment_terms', 'Usual shipping terms': 'usual_incoterm', 'Quote currency': 'quote_currency', 'Factory certifications': 'factory_certifications',
-  'Can do RIVIX branding?': 'can_brand', 'Contact name': 'contact_name', Email: 'email', WhatsApp: 'whatsapp', Notes: 'notes',
+  'Can do RIVIX branding?': 'can_brand', 'Contact name': 'contact_name', Email: 'email', WhatsApp: 'whatsapp', Website: 'website', Notes: 'notes',
 };
 const PRODUCT_COLUMN: Record<string, string> = {
   'Product code': 'code', 'Product name': 'name', 'Made to spec or resold brand': 'sourcing', 'Brand (if resold)': 'brand', Category: 'category',
@@ -55,7 +58,7 @@ export type Op =
   | { kind: 'product.update'; id: string; values: Record<string, unknown>; changes: Record<string, [unknown, unknown]> }
   | { kind: 'link.create'; product: Ref; supplier: Ref; productLabel: string; supplierName: string }
   | { kind: 'claim.create'; product: Ref; standardId: string; productLabel: string; designation: string }
-  | { kind: 'certificate.create'; product: Ref; standardId: string; productLabel: string; designation: string; file: string; sha256: string; type: string; size: number; issuing_body: string | null; expires_on: string | null };
+  | { kind: 'certificate.create'; product: Ref; standardId: string; productLabel: string; designation: string; file: string; sha256: string; type: string; size: number; document_type: string; issuing_body: string | null; accreditation: string | null; expires_on: string | null };
 
 export interface RowPlan { tab: 'suppliers' | 'products'; row: number; label: string; action: 'create' | 'update' | 'unchanged' | 'error'; errors: string[]; warnings: string[]; changes: string[] }
 export interface Plan {
@@ -97,7 +100,7 @@ export function readTab(text: string | undefined, headers: readonly string[], op
 
 export function planImport(input: { suppliersCsv?: string; productsCsv?: string }, db: Snapshot): Plan {
   const s = readTab(input.suppliersCsv, SUPPLIER_HEADERS, OPTIONAL_SUPPLIER_HEADERS, 'Suppliers');
-  const p = readTab(input.productsCsv, PRODUCT_HEADERS, [], 'Products');
+  const p = readTab(input.productsCsv, PRODUCT_HEADERS, OPTIONAL_PRODUCT_HEADERS, 'Products');
   const fileErrors = [...s.errors, ...p.errors];
   if (!fileErrors.length && !s.rows.length && !p.rows.length) fileErrors.push('Nothing to import: attach the Suppliers and/or Products CSV.');
   const rows: RowPlan[] = [], ops: Op[] = [];
@@ -242,12 +245,17 @@ export function planImport(input: { suppliersCsv?: string; productsCsv?: string 
     for (const { plan: rp, cells } of g.rows) {
       const d = cells['Standard and edition'];
       const file = cells['Certificate file'], issuer = cells['Certificate issued by'], expiry = cells['Certificate expiry'];
-      if (!d) { if (file || issuer || expiry) rp.errors.push('Certificate columns need a "Standard and edition" on the same row.'); continue; }
+      const docType = cells['Certificate type'], accred = cells['Lab accreditation'];
+      if (!d) { if (file || issuer || expiry || docType || accred) rp.errors.push('Certificate columns need a "Standard and edition" on the same row.'); continue; }
       const st = standardByKey.get(designationKey(d));
       if (!st) { rp.errors.push(`Unknown standard "${d}". Add it to the standards reference (or use "Add these as unchecked standards").`); if (!unknown.has(designationKey(d))) unknown.set(designationKey(d), d); continue; }
       let exp: string | null = null;
       if (expiry) { const e = checkValue(expiry, { t: 'date' }, 'Certificate expiry'); if ('error' in e) { rp.errors.push(e.error); continue; } exp = e.value as string; }
       if (issuer && issuer.length > 200) { rp.errors.push('Certificate issued by is longer than 200 characters.'); continue; }
+      let type: string | null = null;
+      if (docType) { const ty = checkValue(docType, DOCUMENT_TYPE_KIND, 'Certificate type'); if ('error' in ty) { rp.errors.push(ty.error); continue; } type = ty.value as string; }
+      if (accred && accred.length > 300) { rp.errors.push('Lab accreditation is longer than 300 characters.'); continue; }
+      const ap = accreditationProblem(type, accred || null); if (ap) { rp.errors.push(ap); continue; }
       if (!ref) continue;
       const ck = `${st.id}`;
       if (!claimed.has(ck) && !(pid && claimSet.has(`${pid}|${st.id}`))) {
@@ -256,14 +264,15 @@ export function planImport(input: { suppliersCsv?: string; productsCsv?: string 
         rp.changes.push(`Claims ${st.designation}${st.checked ? '' : ' (standard not checked)'}`);
       }
       claimed.add(ck);
-      if (!file) { if (issuer || expiry) rp.warnings.push('No certificate file named: no certificate is created; the claim shows "Certificate needed".'); continue; }
+      if (!file) { if (issuer || expiry || docType || accred) rp.warnings.push('No certificate file named: no certificate is created; the claim shows "Certificate needed".'); continue; }
       const attached = fileByName.get(file.trim().toLowerCase());
       if (!attached) { rp.warnings.push(`Certificate file "${file}" was not attached: no certificate is created; the claim shows "Certificate needed".`); continue; }
       if (attached.error || !attached.sha256 || !attached.type) { rp.errors.push(`Certificate file "${file}": ${attached.error ?? 'could not be read'}.`); continue; }
+      if (!type) { rp.errors.push(`Certificate file "${file}": the "Certificate type" is required (Third-party certificate, Accredited lab report or Manufacturer declaration).`); continue; }
       if (pid && certSet.has(`${pid}|${st.id}|${attached.sha256}`)) continue; // the same file is already this product's certificate
-      ops.push({ kind: 'certificate.create', product: ref, standardId: st.id, productLabel, designation: st.designation, file: attached.name, sha256: attached.sha256, type: attached.type, size: attached.size, issuing_body: issuer || null, expires_on: exp });
+      ops.push({ kind: 'certificate.create', product: ref, standardId: st.id, productLabel, designation: st.designation, file: attached.name, sha256: attached.sha256, type: attached.type, size: attached.size, document_type: type, issuing_body: issuer || null, accreditation: accred || null, expires_on: exp });
       if (rp.action === 'unchanged') rp.action = 'update';
-      rp.changes.push(`Certificate ${attached.name} for ${st.designation} (uploaded, to be verified by an admin)`);
+      rp.changes.push(`Certificate ${attached.name} for ${st.designation}: ${DOCUMENT_TYPE_LABEL[type as DocumentType]} (uploaded, to be verified by an admin)`);
     }
   }
   return finish();
