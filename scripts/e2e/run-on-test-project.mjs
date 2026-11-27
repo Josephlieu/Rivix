@@ -14,7 +14,9 @@ import { env, serverEnv, assertTestProject } from './env.mjs';
 
 const PORT = 10001;
 assertTestProject(env.NEXT_PUBLIC_SUPABASE_URL);
-const runEnv = { ...process.env, ...serverEnv() };
+// RIVIX_TEST_GEO=1 (2026-11-27): lets the tests stand in for Vercel's location headers with x-rivix-test-geo. Only this
+// local test server sets it, and the app ignores it whenever it runs on Vercel (VERCEL=1), so it cannot work in production.
+const runEnv = { ...process.env, ...serverEnv(), RIVIX_TEST_GEO: '1' };
 const skipBuild = process.argv.includes('--skip-build');
 const serveOnly = process.argv.includes('--serve-only');
 // Every Supabase setting the app reads comes from .env.testproject (via env.mjs), browser and server side alike; the legacy

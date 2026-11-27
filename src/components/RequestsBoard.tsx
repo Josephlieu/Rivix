@@ -49,8 +49,8 @@ export default function RequestsBoard({ rows, newOrderPath, orderPath }: { rows:
       <ul className="text-sm text-slate-700 space-y-1">
         {r.items.map((it, i) => (
           <li key={i}>
-            <span className="font-semibold">{it.product_name}</span>: {it.sizes.map((s) => `${s.size} x${s.qty}`).join(', ')} ({it.sizes.reduce((n, s) => n + s.qty, 0)} total)
-            {it.branding ? <span className="text-slate-500">. Branding: {it.branding}</span> : null}
+            <span translate="no" className="font-semibold">{it.product_name}</span>: {it.sizes.map((s) => `${s.size} x${s.qty}`).join(', ')} ({it.sizes.reduce((n, s) => n + s.qty, 0)} total)
+            {it.branding ? <span className="text-slate-500">. Branding: <span translate="no">{it.branding}</span></span> : null}
             {/* A catalogue quote's spec (2026-11-26): what the customer typed, shown as plain text. */}
             {it.spec && specLines({ ...it.spec, branding: null }).length > 0 && (
               <span className="block text-xs text-slate-500 whitespace-pre-line pl-3 border-l-2 border-slate-100 mt-1">{specLines({ ...it.spec, branding: null }).join('\n')}</span>
@@ -58,7 +58,7 @@ export default function RequestsBoard({ rows, newOrderPath, orderPath }: { rows:
           </li>
         ))}
       </ul>
-      {r.note && <p className="text-sm text-slate-600 bg-slate-50 rounded-xl px-3 py-2 whitespace-pre-line">Customer note: {r.note}</p>}
+      {r.note && <p className="text-sm text-slate-600 bg-slate-50 rounded-xl px-3 py-2 whitespace-pre-line">Customer note: <span translate="no">{r.note}</span></p>}
       {r.status === 'open' && (declining === r.id ? (
         <div className="flex flex-wrap items-center gap-2">
           <input autoFocus maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (the customer sees this)" className="flex-1 min-w-[12rem] px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm" />

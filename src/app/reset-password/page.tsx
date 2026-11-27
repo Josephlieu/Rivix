@@ -7,6 +7,8 @@ import { homePathFor } from '@/lib/admin-auth';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useT } from '@/i18n/client';
+import { CornerLanguageSwitcher } from '@/components/LanguageSwitcher';
 
 export default function ResetPasswordPage() {
   const [checkingSession, setCheckingSession] = useState(true);
@@ -17,6 +19,7 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const router = useRouter();
+  const t = useT();
 
   useEffect(() => {
     // Clicking the emailed reset link logs the user into a temporary
@@ -45,7 +48,7 @@ export default function ResetPasswordPage() {
     setError(null);
 
     if (password.length < 8) {
-      setError('Password must be at least 8 characters.');
+      setError(t('reset.tooShort'));
       return;
     }
 
@@ -70,6 +73,7 @@ export default function ResetPasswordPage() {
         throw error;
       }
       setSuccess(true);
+      await fetch('/api/me/locale', { cache: 'no-store' }).catch(() => null); // the saved language follows the sign-in
       const { data: { user } } = await supabase.auth.getUser();
       const destination = homePathFor(user);
       setTimeout(() => router.push(destination), 1500);
@@ -82,12 +86,13 @@ export default function ResetPasswordPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 font-sans">
+      <CornerLanguageSwitcher side="customer" />
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
           <div className="mb-8 flex justify-center">
             <Image
               src="/logo.png"
-              alt="RIVIX Logo"
+              alt={t('common.logoAlt')}
               width={180}
               height={60}
               className="h-auto w-auto"
@@ -95,29 +100,27 @@ export default function ResetPasswordPage() {
             />
           </div>
           <h1 className="text-3xl font-black text-slate-900 tracking-tight italic">
-            SET NEW <span className="text-rivix">PASSWORD</span>
+            {t('reset.titleBefore')} <span className="text-rivix">{t('reset.titleHighlight')}</span>
           </h1>
         </div>
 
         <div className="bg-white p-8 rounded-[2.5rem] shadow-2xl shadow-slate-200/60 border border-slate-100 space-y-6">
           {checkingSession ? (
-            <p className="text-center text-sm text-slate-400 py-8">Checking your link...</p>
+            <p className="text-center text-sm text-slate-400 py-8">{t('reset.checking')}</p>
           ) : !validSession ? (
             <div className="text-center space-y-4 py-4">
               <div className="mx-auto w-14 h-14 rounded-full bg-red-50 flex items-center justify-center text-red-500">
                 <AlertCircle size={28} />
               </div>
               <div>
-                <p className="font-bold text-slate-900">This link isn&apos;t valid</p>
-                <p className="text-sm text-slate-500 mt-1">
-                  It may have expired, or already been used. Request a new one below.
-                </p>
+                <p className="font-bold text-slate-900">{t('reset.invalidTitle')}</p>
+                <p className="text-sm text-slate-500 mt-1">{t('reset.invalidBody')}</p>
               </div>
               <Link
                 href="/forgot-password"
                 className="inline-block bg-slate-950 text-white px-6 py-3 rounded-2xl font-bold text-sm hover:bg-rivix transition-all"
               >
-                Request New Link
+                {t('reset.requestNew')}
               </Link>
             </div>
           ) : success ? (
@@ -125,12 +128,12 @@ export default function ResetPasswordPage() {
               <div className="mx-auto w-14 h-14 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
                 <CheckCircle2 size={28} />
               </div>
-              <p className="font-bold text-slate-900">Password updated — signing you in...</p>
+              <p className="font-bold text-slate-900">{t('reset.success')}</p>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">New Password</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{t('reset.newPassword')}</label>
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                   <input
@@ -139,13 +142,13 @@ export default function ResetPasswordPage() {
                     minLength={8}
                     value={password}
                     onChange={(e) => { setPassword(e.target.value); setError(null); }}
-                    placeholder="At least 8 characters"
+                    placeholder={t('reset.placeholder')}
                     className="w-full pl-12 pr-12 py-4 bg-slate-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-rivix/20 outline-none transition-all placeholder:text-slate-300 font-medium"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword((v) => !v)}
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    aria-label={showPassword ? t('common.hidePassword') : t('common.showPassword')}
                     className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
                   >
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -164,7 +167,7 @@ export default function ResetPasswordPage() {
                 disabled={loading}
                 className="w-full bg-slate-950 text-white py-4 rounded-2xl font-bold hover:bg-rivix transition-all shadow-xl shadow-slate-900/10 flex items-center justify-center gap-2 active:scale-[0.98]"
               >
-                {loading ? <Loader2 className="animate-spin" /> : 'Update Password'}
+                {loading ? <Loader2 className="animate-spin" /> : t('reset.submit')}
               </button>
             </form>
           )}

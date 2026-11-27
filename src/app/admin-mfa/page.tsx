@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { Loader2, ShieldCheck, KeyRound, AlertCircle, LogOut } from 'lucide-react';
 import { supabaseBrowser as supabase } from '@/lib/supabase-browser';
 import { isAdminUser } from '@/lib/admin-auth';
+import { CornerLanguageSwitcher } from '@/components/LanguageSwitcher';
 
 // Admin two-step sign-in (task 8). After the password, an admin either sets up an authenticator app (first time) or
 // enters its 6-digit code. Only then is the session trusted (aal2) for admin screens and APIs. The checks that matter
@@ -62,6 +63,7 @@ function AdminMfaForm() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 font-sans">
+      <CornerLanguageSwitcher side="staff" />
       <div className="w-full max-w-md space-y-6">
         <div className="flex justify-center"><Image src="/logo.png" alt="RIVIX Logo" width={160} height={54} className="h-auto w-auto" priority /></div>
         <div className="bg-white rounded-3xl shadow-xl border border-slate-100 p-6 sm:p-8 space-y-5">

@@ -72,10 +72,10 @@ function RequestsInner() {
             </div>
             <ul className="text-sm text-slate-600 space-y-0.5">
               {r.items.map((it, i) => (
-                <li key={i}>{it.product_name}: {it.sizes.map((s) => `${s.size} x${s.qty}`).join(', ')}{it.spec ? <SpecText spec={it.spec} className="text-xs text-slate-500 pl-3" /> : null}</li>
+                <li key={i}><span translate="no">{it.product_name}</span>: {it.sizes.map((s) => `${s.size} x${s.qty}`).join(', ')}{it.spec ? <SpecText spec={it.spec} className="text-xs text-slate-500 pl-3" /> : null}</li>
               ))}
             </ul>
-            {r.note && <p className="text-xs text-slate-500 whitespace-pre-line break-words">Your note: {r.note}</p>}
+            {r.note && <p className="text-xs text-slate-500 whitespace-pre-line break-words">Your note: <span translate="no">{r.note}</span></p>}
             {r.kind === 'quote' && r.status === 'open' && <p className="text-xs text-slate-400">{PRICE_ON_QUOTE}</p>}
             {r.status === 'open' && <p className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700"><Clock size={14} />Waiting for your sales rep or RIVIX</p>}
             {r.status === 'converted' && (

@@ -1,9 +1,11 @@
 import Link from 'next/link';
 import { ArrowLeft, Shield } from 'lucide-react';
+import { CornerLanguageSwitcher } from '@/components/LanguageSwitcher';
 
 export default function PrivacyPage() {
   return (
     <div className="min-h-screen bg-slate-50 py-20 px-6">
+      <CornerLanguageSwitcher side="customer" />
       <div className="max-w-3xl mx-auto space-y-12">
         <Link href="/" className="inline-flex items-center gap-2 text-sm font-bold text-slate-400 hover:text-rivix transition-colors">
           <ArrowLeft size={16} />
@@ -23,6 +25,13 @@ export default function PrivacyPage() {
             <h2 className="text-xl font-bold text-slate-900">1. Information We Collect</h2>
             <p>
               RIVIX collects information necessary to provide our compliance and tracking services. This includes business contact information, order details, and account authentication data (email address and a securely hashed password).
+            </p>
+          </section>
+
+          <section className="space-y-4" id="language-location">
+            <h2 className="text-xl font-bold text-slate-900">Language and approximate location</h2>
+            <p>
+              The first time you open the portal, before you choose a language, we may use the approximate location (country and province only) that our hosting provider, Vercel, derives from your connection to pick the language the page opens in: French in Quebec on the customer portal, and Simplified Chinese in China on the supplier portal. This location is used only for that choice, at that moment. It is never stored, logged, or used for anything else. Your own choice in the language menu always takes precedence and is remembered.
             </p>
           </section>
 

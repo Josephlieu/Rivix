@@ -1,9 +1,11 @@
 import Link from 'next/link';
 import { ArrowLeft, FileText } from 'lucide-react';
+import { CornerLanguageSwitcher } from '@/components/LanguageSwitcher';
 
 export default function TermsPage() {
   return (
     <div className="min-h-screen bg-slate-50 py-20 px-6">
+      <CornerLanguageSwitcher side="customer" />
       <div className="max-w-3xl mx-auto space-y-12">
         <Link href="/" className="inline-flex items-center gap-2 text-sm font-bold text-slate-400 hover:text-rivix transition-colors">
           <ArrowLeft size={16} />

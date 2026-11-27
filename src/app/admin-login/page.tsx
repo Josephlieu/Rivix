@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { Mail, Lock, Loader2, ArrowRight, Eye, EyeOff, AlertCircle, ShieldCheck } from 'lucide-react';
 import { supabaseBrowser as supabase } from '@/lib/supabase-browser';
 import { isAdminUser } from '@/lib/admin-auth';
+import { CornerLanguageSwitcher } from '@/components/LanguageSwitcher';
 
 function AdminLoginForm() {
   const [email, setEmail] = useState('');
@@ -53,6 +54,7 @@ function AdminLoginForm() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 font-sans">
+      <CornerLanguageSwitcher side="staff" />
       {redirecting && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm">
           <div className="bg-white rounded-3xl shadow-2xl px-10 py-8 flex flex-col items-center gap-4 text-center max-w-xs">

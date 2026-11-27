@@ -1,0 +1,290 @@
+{
+  "_about": "Review status of every translated key. AI-drafted text starts as needs_review. Keys under certification., privacy., nda. and terms. must be 'reviewed' by a fluent speaker before launch (scripts/i18n-review-gate.mjs). To mark one reviewed: set status to 'reviewed', by to the reviewer's name, date to the day.",
+  "keys": {
+    "common.signIn": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "common.backToSignIn": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "common.privacyPolicy": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "common.termsOfService": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "common.support": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "common.copyright": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "common.logoAlt": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "common.emailLabel": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "common.emailPlaceholder": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "common.passwordLabel": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "common.showPassword": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "common.hidePassword": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "common.newToRivix": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "common.accountDisabled": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "common.items": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "switcher.label": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "switcher.saving": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "switcher.failed": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "home.titleBefore": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "home.titleHighlight": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "home.titleAfter": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "home.subtitle": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "certification.homeCertsTitle": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "certification.homeCertsBody": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "certification.homeAuditsTitle": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "certification.homeAuditsBody": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "login.titleBefore": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "login.titleHighlight": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "login.subtitle": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "login.forgot": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "login.submit": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "login.successTitle": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "login.successBody": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "login.wrongPassword": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "login.sessionEnded": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "login.adminAccess": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "forgot.titleBefore": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "forgot.titleHighlight": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "forgot.subtitle": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "forgot.sentTitle": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "forgot.sentBody": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "forgot.submit": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "reset.titleBefore": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "reset.titleHighlight": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "reset.checking": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "reset.invalidTitle": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "reset.invalidBody": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "reset.requestNew": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "reset.success": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "reset.newPassword": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "reset.placeholder": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "reset.tooShort": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "reset.submit": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "notFound.title": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "notFound.body": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "notFound.back": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "staff.switcherNote": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    }
+  }
+}

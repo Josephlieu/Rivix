@@ -1,6 +1,7 @@
 import Sidebar from '@/components/Sidebar';
 import NotificationBell from '@/components/NotificationBell';
 import AccountMenu from '@/components/AccountMenu';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 
 export default async function PortalLayout({
@@ -47,6 +48,7 @@ export default async function PortalLayout({
             <h2 className="text-sm font-black text-slate-800 uppercase tracking-widest italic">Client <span className="text-rivix">Portal</span></h2>
           </div>
           <div className="flex items-center gap-4">
+            <LanguageSwitcher side="customer" />
             <NotificationBell mode="client" />
             <AccountMenu name={companyName} initials={initials} profileHref="/portal/account" />
           </div>

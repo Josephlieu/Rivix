@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from 'react';
 import { formatDate, formatDateIn, formatDateTime } from '@/lib/format';
+import { useLocale } from '@/i18n/client';
 
 // A date in the viewer's own time zone, on a page the server draws first (2026-11-20: React error #418 on /rep/orders and the
 // requests board). React needs the server's text and the browser's first render to be identical. Neither the viewer's zone
@@ -14,6 +15,7 @@ const subscribe = () => () => {};
 /** `time`: the date and the time ("Nov 20, 2026, 7:00 p.m."), as formatDateTime prints it, once the page is live. */
 export default function LocalDate({ value, empty, time }: { value: string | number | Date | null | undefined; empty?: string; time?: boolean }) {
   const live = useSyncExternalStore(subscribe, () => true, () => false);
-  if (!live) return <>{formatDateIn(value, 'UTC', empty)}</>;
-  return <>{time ? formatDateTime(value, empty) : formatDate(value, empty)}</>;
+  const locale = useLocale(); // the page's locale (2026-11-27): the same on the server and in the browser, so no mismatch
+  if (!live) return <>{formatDateIn(value, 'UTC', empty, locale)}</>;
+  return <>{time ? formatDateTime(value, empty, locale) : formatDate(value, empty, locale)}</>;
 }

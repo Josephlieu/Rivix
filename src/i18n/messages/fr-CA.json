@@ -1,0 +1,77 @@
+{
+  "common": {
+    "signIn": "Se connecter",
+    "backToSignIn": "Retour à la connexion",
+    "privacyPolicy": "Politique de confidentialité",
+    "termsOfService": "Conditions d’utilisation",
+    "support": "Soutien",
+    "copyright": "© 2026 RIVIX Canada",
+    "logoAlt": "Logo RIVIX",
+    "emailLabel": "Adresse courriel",
+    "emailPlaceholder": "nom@entreprise.com",
+    "passwordLabel": "Mot de passe",
+    "showPassword": "Afficher le mot de passe",
+    "hidePassword": "Masquer le mot de passe",
+    "newToRivix": "Nouveau chez RIVIX? Communiquez avec votre représentant ou demandez à RIVIX de créer votre compte.",
+    "accountDisabled": "Ce compte a été désactivé. Veuillez communiquer avec votre représentant.",
+    "items": "{count, plural, one {# article} other {# articles}}"
+  },
+  "switcher": {
+    "label": "Langue et région",
+    "saving": "Enregistrement…",
+    "failed": "Impossible de changer la langue. Veuillez réessayer."
+  },
+  "home": {
+    "titleBefore": "Portail des",
+    "titleHighlight": "certificats",
+    "titleAfter": "de conformité",
+    "subtitle": "Accès sécurisé en tout temps à vos certificats de conformité industrielle, à vos rapports d’inspection de la qualité et à l’historique de vos commandes."
+  },
+  "certification": {
+    "homeCertsTitle": "Certificats de conformité",
+    "homeCertsBody": "Accès immédiat à la certification fournie par l’usine pour chaque commande.",
+    "homeAuditsTitle": "Audits de qualité",
+    "homeAuditsBody": "Rapports d’inspection complets et données sur les normes de sécurité."
+  },
+  "login": {
+    "titleBefore": "PORTAIL DE",
+    "titleHighlight": "CONFORMITÉ",
+    "subtitle": "Suivez vos commandes et vos documents",
+    "forgot": "Mot de passe oublié?",
+    "submit": "Se connecter au portail",
+    "successTitle": "Connexion réussie",
+    "successBody": "Redirection vers le portail client…",
+    "wrongPassword": "Courriel ou mot de passe incorrect. Veuillez réessayer.",
+    "sessionEnded": "Votre session a pris fin. Veuillez vous reconnecter.",
+    "adminAccess": "Accès administrateur"
+  },
+  "forgot": {
+    "titleBefore": "RÉINITIALISER LE",
+    "titleHighlight": "MOT DE PASSE",
+    "subtitle": "Nous vous enverrons par courriel un lien pour en créer un nouveau",
+    "sentTitle": "Vérifiez vos courriels",
+    "sentBody": "Si un compte existe pour {email}, un lien de réinitialisation est en route.",
+    "submit": "Envoyer le lien"
+  },
+  "reset": {
+    "titleBefore": "NOUVEAU",
+    "titleHighlight": "MOT DE PASSE",
+    "checking": "Vérification de votre lien…",
+    "invalidTitle": "Ce lien n’est pas valide",
+    "invalidBody": "Il a peut-être expiré ou déjà été utilisé. Demandez-en un nouveau ci-dessous.",
+    "requestNew": "Demander un nouveau lien",
+    "success": "Mot de passe mis à jour — connexion en cours…",
+    "newPassword": "Nouveau mot de passe",
+    "placeholder": "Au moins 8 caractères",
+    "tooShort": "Le mot de passe doit contenir au moins 8 caractères.",
+    "submit": "Mettre à jour le mot de passe"
+  },
+  "notFound": {
+    "title": "Page introuvable",
+    "body": "La page que vous cherchez n’existe pas ou a peut-être été déplacée.",
+    "back": "Retour au portail"
+  },
+  "staff": {
+    "switcherNote": "Les pages du personnel sont en anglais pour l’instant. Votre choix règle le format des dates et des nombres."
+  }
+}

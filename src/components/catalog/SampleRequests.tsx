@@ -50,7 +50,7 @@ export default function SampleRequests({ endpoint, canDecide, title = 'Sample re
             <span className="text-[11px] text-slate-400"><LocalDate value={s.createdAt} time /></span>
           </div>
           <SpecText spec={s.spec} className="text-xs text-slate-500" />
-          {s.note && <p className="text-sm text-slate-600 bg-slate-50 rounded-xl px-3 py-2 whitespace-pre-line break-words">Note: {s.note}</p>}
+          {s.note && <p className="text-sm text-slate-600 bg-slate-50 rounded-xl px-3 py-2 whitespace-pre-line break-words">Note: <span translate="no">{s.note}</span></p>}
           {s.status === 'open' && <p className="text-xs font-semibold text-amber-700">Waiting for the sales rep or RIVIX</p>}
           {s.status === 'sent' && <p className="text-xs font-semibold text-emerald-700">Sent{s.decidedAt ? <> on <LocalDate value={s.decidedAt} /></> : null}</p>}
           {s.status === 'declined' && <p className="text-xs font-semibold text-red-600 break-words">Declined{s.declineReason ? `: ${s.declineReason}` : ''}</p>}

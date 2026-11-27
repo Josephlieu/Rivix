@@ -1,0 +1,77 @@
+{
+  "common": {
+    "signIn": "Sign In",
+    "backToSignIn": "Back to Sign In",
+    "privacyPolicy": "Privacy Policy",
+    "termsOfService": "Terms of Service",
+    "support": "Support",
+    "copyright": "© 2026 RIVIX Canada",
+    "logoAlt": "RIVIX Logo",
+    "emailLabel": "Email Address",
+    "emailPlaceholder": "name@company.com",
+    "passwordLabel": "Password",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "newToRivix": "New to RIVIX? Contact your sales representative, or ask RIVIX to set up your account.",
+    "accountDisabled": "This account has been disabled. Please contact your sales rep.",
+    "items": "{count, plural, one {# item} other {# items}}"
+  },
+  "switcher": {
+    "label": "Language and region",
+    "saving": "Saving…",
+    "failed": "Could not change the language. Please try again."
+  },
+  "home": {
+    "titleBefore": "Compliance",
+    "titleHighlight": "Certificates",
+    "titleAfter": "& Portal",
+    "subtitle": "Secure, 24/7 access to your industrial compliance certificates, quality inspection reports, and order history."
+  },
+  "certification": {
+    "homeCertsTitle": "Compliance Certificates",
+    "homeCertsBody": "Instant access to factory-direct certification for every order.",
+    "homeAuditsTitle": "Quality Audits",
+    "homeAuditsBody": "Comprehensive inspection reports and safety standards data."
+  },
+  "login": {
+    "titleBefore": "COMPLIANCE",
+    "titleHighlight": "PORTAL",
+    "subtitle": "Track your orders and documents",
+    "forgot": "Forgot password?",
+    "submit": "Sign In to Portal",
+    "successTitle": "Login successful",
+    "successBody": "Redirecting you to the Client Portal...",
+    "wrongPassword": "Incorrect email or password. Please try again.",
+    "sessionEnded": "Your session has ended. Please sign in again.",
+    "adminAccess": "Admin Access"
+  },
+  "forgot": {
+    "titleBefore": "RESET",
+    "titleHighlight": "PASSWORD",
+    "subtitle": "We'll email you a link to set a new one",
+    "sentTitle": "Check your email",
+    "sentBody": "If an account exists for {email}, a password reset link is on its way.",
+    "submit": "Send Reset Link"
+  },
+  "reset": {
+    "titleBefore": "SET NEW",
+    "titleHighlight": "PASSWORD",
+    "checking": "Checking your link...",
+    "invalidTitle": "This link isn't valid",
+    "invalidBody": "It may have expired, or already been used. Request a new one below.",
+    "requestNew": "Request New Link",
+    "success": "Password updated — signing you in...",
+    "newPassword": "New Password",
+    "placeholder": "At least 8 characters",
+    "tooShort": "Password must be at least 8 characters.",
+    "submit": "Update Password"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "body": "The page you're looking for doesn't exist, or may have been moved.",
+    "back": "Back to Portal"
+  },
+  "staff": {
+    "switcherNote": "Staff pages are in English for now. Your choice sets the date and number formats."
+  }
+}

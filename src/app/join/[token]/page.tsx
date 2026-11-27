@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Loader2, AlertCircle, CheckCircle2, UserPlus } from 'lucide-react';
+import { CornerLanguageSwitcher } from '@/components/LanguageSwitcher';
 
 const MIN_PASSWORD = 8; // the server checks the same rule
 
@@ -52,6 +53,7 @@ export default function JoinPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 font-sans">
+      <CornerLanguageSwitcher side="staff" />
       <div className="w-full max-w-md space-y-6">
         <div className="flex justify-center"><Image src="/logo.png" alt="RIVIX Logo" width={160} height={54} className="h-auto w-auto" priority /></div>
         <div className="bg-white rounded-3xl shadow-xl border border-slate-100 p-6 sm:p-8 space-y-5">

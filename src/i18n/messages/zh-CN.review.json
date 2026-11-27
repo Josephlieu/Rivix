@@ -1,0 +1,20 @@
+{
+  "_about": "Review status of every translated key. AI-drafted text starts as needs_review. Keys under certification., privacy., nda. and terms. must be 'reviewed' by a fluent speaker before launch (scripts/i18n-review-gate.mjs). To mark one reviewed: set status to 'reviewed', by to the reviewer's name, date to the day.",
+  "keys": {
+    "switcher.label": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "switcher.saving": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    },
+    "switcher.failed": {
+      "status": "needs_review",
+      "by": "AI draft (Claude)",
+      "date": "2026-11-27"
+    }
+  }
+}

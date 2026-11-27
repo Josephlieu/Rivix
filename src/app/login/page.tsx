@@ -7,6 +7,12 @@ import { homePathFor } from '@/lib/admin-auth';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useT } from '@/i18n/client';
+import { CornerLanguageSwitcher } from '@/components/LanguageSwitcher';
+
+// After a sign-in, the person's saved language (if any) is put in the cookie; a choice made before signing in is saved
+// for them (2026-11-27). A failure here never blocks the sign-in.
+const syncLocale = () => fetch('/api/me/locale', { cache: 'no-store' }).catch(() => null);
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -16,6 +22,7 @@ export default function LoginPage() {
   const [redirecting, setRedirecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const t = useT();
 
   // If this browser already has a saved sign-in, ask the SERVER whether it is still
   // good before redirecting. (Trusting the saved copy caused a loop: the portal
@@ -36,12 +43,12 @@ export default function LoginPage() {
       await supabase.auth.signOut({ scope: 'local' });
       setError(
         /banned|disabled/i.test(error?.message || '')
-          ? 'This account has been disabled. Please contact your sales rep.'
-          : 'Your session has ended. Please sign in again.'
+          ? t('common.accountDisabled')
+          : t('login.sessionEnded')
       );
     })();
     return () => { active = false; };
-  }, [router]);
+  }, [router, t]);
 
   const handleAuthAction = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,15 +65,16 @@ export default function LoginPage() {
       // Show a "redirecting..." state rather than letting the button snap
       // back to idle in the gap before navigation actually happens.
       setRedirecting(true);
+      await syncLocale();
 
       // Admins, reps and customers each land in their own area
       router.push(homePathFor(data.user));
     } catch (error: any) {
       setError(
         error.message === 'Invalid login credentials'
-          ? 'Incorrect email or password. Please try again.'
+          ? t('login.wrongPassword')
           : /banned/i.test(error.message)
-          ? 'This account has been disabled. Please contact your sales rep.'
+          ? t('common.accountDisabled')
           : error.message
       );
       setLoading(false);
@@ -75,6 +83,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 font-sans">
+      <CornerLanguageSwitcher side="customer" />
       {redirecting && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl shadow-2xl px-10 py-8 flex flex-col items-center gap-4 text-center max-w-xs">
@@ -85,8 +94,8 @@ export default function LoginPage() {
               <Loader2 className="animate-spin absolute -bottom-1 -right-1 text-rivix bg-white rounded-full p-0.5" size={20} />
             </div>
             <div>
-              <p className="font-bold text-slate-900">Login successful</p>
-              <p className="text-sm text-slate-500 mt-1">Redirecting you to the Client Portal...</p>
+              <p className="font-bold text-slate-900">{t('login.successTitle')}</p>
+              <p className="text-sm text-slate-500 mt-1">{t('login.successBody')}</p>
             </div>
           </div>
         </div>
@@ -97,7 +106,7 @@ export default function LoginPage() {
           <div className="mb-8 flex justify-center">
             <Image 
               src="/logo.png" 
-              alt="RIVIX Logo" 
+              alt={t('common.logoAlt')}
               width={180} 
               height={60} 
               className="h-auto w-auto"
@@ -105,17 +114,17 @@ export default function LoginPage() {
             />
           </div>
           <h1 className="text-3xl font-black text-slate-900 tracking-tight italic">
-            COMPLIANCE <span className="text-rivix">PORTAL</span>
+            {t('login.titleBefore')} <span className="text-rivix">{t('login.titleHighlight')}</span>
           </h1>
           <p className="text-slate-500 font-medium mt-2">
-            Track your orders and documents
+            {t('login.subtitle')}
           </p>
         </div>
 
         <div className="bg-white p-8 rounded-[2.5rem] shadow-2xl shadow-slate-200/60 border border-slate-100 space-y-6">
           <form onSubmit={handleAuthAction} className="space-y-4">
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Email Address</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{t('common.emailLabel')}</label>
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                 <input 
@@ -123,7 +132,7 @@ export default function LoginPage() {
                   required
                   value={email}
                   onChange={(e) => { setEmail(e.target.value); setError(null); }}
-                  placeholder="name@company.com"
+                  placeholder={t('common.emailPlaceholder')}
                   className="w-full pl-12 pr-4 py-4 bg-slate-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-rivix/20 outline-none transition-all placeholder:text-slate-300 font-medium"
                 />
               </div>
@@ -131,9 +140,9 @@ export default function LoginPage() {
 
             <div className="space-y-2">
               <div className="flex items-center justify-between px-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Password</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('common.passwordLabel')}</label>
                 <Link href="/forgot-password" className="text-[10px] font-bold text-rivix hover:text-rivix-dark transition-colors">
-                  Forgot password?
+                  {t('login.forgot')}
                 </Link>
               </div>
               <div className="relative">
@@ -149,7 +158,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  aria-label={showPassword ? t('common.hidePassword') : t('common.showPassword')}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -170,7 +179,7 @@ export default function LoginPage() {
             >
               {loading ? <Loader2 className="animate-spin" /> : (
                 <>
-                  Sign In to Portal
+                  {t('login.submit')}
                   <ArrowRight size={18} />
                 </>
               )}
@@ -179,7 +188,7 @@ export default function LoginPage() {
 
           <div className="text-center pt-4 border-t border-slate-50">
             <p className="text-xs text-slate-400 font-medium">
-              New to RIVIX? Contact your sales representative, or ask RIVIX to set up your account.
+              {t('common.newToRivix')}
             </p>
           </div>
 
@@ -192,13 +201,13 @@ export default function LoginPage() {
             className="inline-flex items-center gap-1.5 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-rivix transition-colors"
           >
             <Lock size={10} />
-            Admin Access
+            {t('login.adminAccess')}
           </a>
           <div className="flex justify-center gap-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-            <a href="/privacy" className="hover:text-rivix transition-colors">Privacy Policy</a>
-            <a href="/terms" className="hover:text-rivix transition-colors">Terms of Service</a>
+            <a href="/privacy" className="hover:text-rivix transition-colors">{t('common.privacyPolicy')}</a>
+            <a href="/terms" className="hover:text-rivix transition-colors">{t('common.termsOfService')}</a>
           </div>
-          <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">© 2026 RIVIX Canada</p>
+          <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">{t('common.copyright')}</p>
         </div>
 
       </div>
